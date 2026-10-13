@@ -30,7 +30,7 @@ func (e HealthStatus) Valid() bool {
 
 // Error すべてのエラー応答の共通形式
 type Error struct {
-	// Code 機械で判定するためのエラーコード（snake_case。例 invalid_status_transition）
+	// Code 機械で判定するためのエラーコード（snake_case。例 invalid_status_transition）。共通コードの一覧は docs/tech/api.md の API-1
 	//
 	// Example: invalid_status_transition
 	Code string `json:"code"`

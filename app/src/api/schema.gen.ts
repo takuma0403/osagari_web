@@ -32,7 +32,7 @@ export interface components {
         /** @description すべてのエラー応答の共通形式 */
         Error: {
             /**
-             * @description 機械で判定するためのエラーコード（snake_case。例 invalid_status_transition）
+             * @description 機械で判定するためのエラーコード（snake_case。例 invalid_status_transition）。共通コードの一覧は docs/tech/api.md の API-1
              * @example invalid_status_transition
              */
             code: string;

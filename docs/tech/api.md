@@ -33,4 +33,20 @@ APIが担当する主な処理は次のとおりです。
 元文書に追加した決定事項です（[ADR 0001](../decisions/0001-docs-structure.md)）。
 
 - **API契約の正本は [docs/api/openapi.yaml](../api/openapi.yaml)**。エンドポイントを追加・変更するときは、先に OpenAPI を更新し、Go 側は oapi-codegen（Echo / strict server）、フロント側は openapi-typescript で型を生成する。
-- エラー応答は OpenAPI の `Error` スキーマ（`code` と `message`）に統一する。
+- エラー応答は OpenAPI の `Error` スキーマ（`code` と `message`）に統一する。未実装のパスやルーティングのエラーも同じ形式で返す。`message` は利用者に表示できる日本語だけにし、内部の原因（SQL のエラーなど）は応答に出さずログにだけ残す。
+- 共通のエラーコードは次のとおり。機能固有のコードは、その機能を実装するときにこの表へ追加する。
+
+  | code | HTTP | 使う場面 |
+  | --- | --- | --- |
+  | `bad_request` | 400 | 入力が不正 |
+  | `unauthorized` | 401 | ログインしていない |
+  | `forbidden` | 403 | 権限がない（取引の当事者でない、管理者でない など） |
+  | `not_found` | 404 | 対象がない、未実装のパス |
+  | `method_not_allowed` | 405 | パスはあるがメソッドが違う |
+  | `invalid_status_transition` | 409 | 条件付きUPDATE の更新件数が0（[DB](database.md)） |
+  | `too_many_requests` | 429 | レート制限（[AUTHN](auth.md)） |
+  | `internal_error` | 500 | 想定外のエラー |
+
+  表にない 4xx（413・415 など）は HTTP ステータスをそのまま使い、`code` は `bad_request` にする。5xx はすべて 500 `internal_error` にする。
+
+- ログは JSON で標準出力に出す（Cloud Logging が `severity` を読む）。学籍番号・メールアドレス・トークン・パスワード・コードは伏せ字にし、アクセスログには実際の URI ではなくルートのパターン（例 `/api/items/:id`）を記録する。各リクエストに `X-Request-Id` を付け、ログに `request_id` として残す。
