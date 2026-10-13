@@ -11,25 +11,27 @@
 | ルーティング | React Router（`/items/:shareId` などすべてSPAのルート） | FE |
 | スタイル | **CSS Modules + CSS変数**（Tailwind・CSS-in-JS・UIライブラリは使わない） | FE-1 |
 | APIの型 | openapi-typescript で `docs/api/openapi.yaml` から `src/api/schema.gen.ts` を生成（手書き禁止） | API-1 |
-| APIクライアント | `fetch` の薄いラッパー（`src/api/client.ts`）。`credentials: 'same-origin'`、`X-Device-Id` ヘッダーを付ける（ヘッダーは認証の実装時に追加） | AUTHN-3 |
+| APIクライアント | `fetch` の薄いラッパー（`src/api/client.ts`）。`credentials: 'same-origin'`、`X-Device-Id` ヘッダーを付ける（ヘッダーは認証の実装時に追加）。失敗は `ApiError`（`status`・`code`・`message`）で投げ、通信自体の失敗はフロント専用の `network_error`（status 0） | AUTHN-3 |
 | QR | 表示はQR生成ライブラリ、読み取りはカメラを使うライブラリ（選ぶときは軽さとメンテ状況を確認） | FE |
 | テスト | Vitest + Testing Library（jsdom） | — |
 | Lint / Format | oxlint / Prettier（Markdown は対象外） | — |
 | パッケージ管理 | npm（Node 24 LTS。リポジトリ直下の `.nvmrc`） | ADR 0002 |
 
-## ディレクトリ構成（予定。現在は main.tsx・App.tsx・api/ だけ）
+## ディレクトリ構成（features/ と DS-3 の部品は画面の実装とともに増える）
 
 ```
 app/
   index.html
   src/
-    main.tsx, App.tsx, routes.tsx
+    main.tsx, App.tsx
+    routes.tsx          … 全画面のルート（一覧は docs/tech/frontend.md の FE-1）
     styles/
       tokens.css        … docs/design/README.md の DS-2 と同じ名前の CSS 変数だけを置く
       global.css        … リセット、フォント、body
     api/
       schema.gen.ts     … 生成物（編集しない）
       client.ts         … fetch ラッパー、エラー（Error スキーマ）の扱い
+    layouts/            … MobileLayout（390px 基準・PC は中央寄せ）、AdminLayout（PC 幅）
     components/         … DS-3 の共通部品（Button, TextField, CodeInput, ItemCard, BottomNav …）
       Button/Button.tsx, Button.module.css, Button.test.tsx
     features/<機能>/     … auth, items, deals, sell, student-card, mypage, sales, admin
