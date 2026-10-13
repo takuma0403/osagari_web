@@ -1,0 +1,85 @@
+<!doctype html>
+<html lang="ja">
+<head>
+<meta charset="utf-8">
+<title>キャンセルの申請と同意</title>
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link href="https://fonts.googleapis.com/css2?family=Zen+Kaku+Gothic+New:wght@400;500;700&amp;family=Outfit:wght@500;700&amp;display=swap" rel="stylesheet">
+<style>
+body{margin:0}
+a{color:#1F7A80}a:hover{color:#155C61}
+</style>
+</helmet>
+<div style="position: relative; width: 390px; height: 844px; background: #F8F5EE; color: #1B2B4B; font-family: 'Zen Kaku Gothic New', sans-serif; overflow: hidden">
+  <header style="height: 56px; background: #FFFFFF; border-bottom: 1px solid #E4DFD3; display: flex; align-items: center; padding: 0 4px; gap: 4px">
+    <a href="DealList.dc.html" aria-label="戻る" style="width: 44px; height: 44px; display: flex; align-items: center; justify-content: center; color: #1B2B4B"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M15 5l-7 7 7 7"></path></svg></a>
+    <h1 style="margin: 0; font-size: 17px; font-weight: 700; flex-grow: 1">取引詳細</h1>
+    <span style="margin-right: 12px; font-size: 11px; font-weight: 700; padding: 3px 8px; border-radius: 10px; background: #DDF0F0; color: #155C61">取引中</span>
+  </header>
+  <main style="padding: 16px; display: flex; flex-direction: column; gap: 14px">
+    <sc-if value="{{pending}}" hint-placeholder-val="{{ false }}">
+      <div role="status" style="display: flex; flex-direction: column; gap: 10px; padding: 14px; border-radius: 12px; background: #FBEFC4; color: #4A3600; font-size: 14px; line-height: 1.75">
+        <div style="display: flex; gap: 10px">
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" style="flex-shrink: 0; margin-top: 3px"><circle cx="12" cy="12" r="9"></circle><path d="M12 7v5l3 2"></path></svg>
+          <span>キャンセルを申請しました。相手が同意するまで取引は続いています。</span>
+        </div>
+        <button style="align-self: flex-start; height: 44px; padding: 0 18px; border-radius: 22px; border: 1px solid #E4DFD3; background: #FFFFFF; font: inherit; font-size: 13px; font-weight: 700; color: #1B2B4B">申請を取り下げる</button>
+      </div>
+    </sc-if>
+    <section style="display: flex; gap: 12px; padding: 12px; background: #FFFFFF; border: 1px solid #E4DFD3; border-radius: 12px">
+      <div style="flex-shrink: 0; width: 72px; height: 72px; border-radius: 8px; background: #DDF0F0; display: flex; align-items: center; justify-content: center; font-size: 11px; color: #566178">写真</div>
+      <div style="display: flex; flex-direction: column; gap: 4px">
+        <div style="font-size: 14px; font-weight: 500">線形代数入門</div>
+        <div style="font-family: Outfit, sans-serif; font-size: 17px; font-weight: 700">¥1,500</div>
+        <div style="font-size: 12px; color: #566178">相手の学籍番号 <span style="font-family: Outfit, sans-serif; font-weight: 700; color: #1B2B4B">26141023</span></div>
+      </div>
+    </section>
+    <div style="height: 120px; border-radius: 12px; background: #FFFFFF; border: 1px solid #E4DFD3"></div>
+  </main>
+  <sc-if value="{{sheet}}" hint-placeholder-val="{{ true }}">
+    <div style="position: absolute; left: 0; top: 0; width: 390px; height: 844px; background: rgba(27, 43, 75, 0.55)"></div>
+    <div role="dialog" aria-labelledby="cancel-title" style="position: absolute; left: 0; bottom: 0; width: 390px; box-sizing: border-box; padding: 12px 20px 28px; border-radius: 20px 20px 0 0; background: #FFFFFF; display: flex; flex-direction: column; gap: 16px">
+      <div aria-hidden="true" style="align-self: center; width: 40px; height: 4px; border-radius: 2px; background: #E4DFD3"></div>
+      <sc-if value="{{request}}" hint-placeholder-val="{{ true }}">
+        <h2 id="cancel-title" style="margin: 0; font-size: 20px; font-weight: 700">取引のキャンセルを申請</h2>
+        <p style="margin: 0; font-size: 14px; line-height: 1.75">キャンセルには相手の同意が必要です。相手が同意すると取引はキャンセルになり、代金 <b style="font-family: Outfit, sans-serif">¥1,500</b> は購入者に返金され、商品は公開中に戻ります。</p>
+        <div style="display: flex; gap: 10px; padding: 14px; border-radius: 12px; background: #F8F5EE; color: #566178; font-size: 13px; line-height: 1.7">
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" style="flex-shrink: 0; margin-top: 2px"><circle cx="12" cy="12" r="9"></circle><path d="M12 8v5M12 16v.01"></path></svg>
+          <span>キャンセルの回数は記録されます。回数が多い場合は、警告やアカウント停止の対象になります。</span>
+        </div>
+        <button style="height: 52px; border: none; border-radius: 26px; background: #1F7A80; color: #FFFFFF; font: inherit; font-size: 16px; font-weight: 700">キャンセルを申請する</button>
+        <button style="align-self: center; min-height: 44px; padding: 0 12px; border: none; background: transparent; font: inherit; font-size: 14px; color: #566178">やめる</button>
+      </sc-if>
+      <sc-if value="{{agree}}" hint-placeholder-val="{{ false }}">
+        <h2 id="cancel-title" style="margin: 0; font-size: 20px; font-weight: 700">キャンセルの申請が届いています</h2>
+        <p style="margin: 0; font-size: 14px; line-height: 1.75">相手がこの取引のキャンセルを申請しました。同意すると取引はキャンセルになり、代金 <b style="font-family: Outfit, sans-serif">¥1,500</b> は購入者に返金され、商品は公開中に戻ります。</p>
+        <div style="display: flex; gap: 10px; padding: 14px; border-radius: 12px; background: #FBEFC4; color: #4A3600; font-size: 13px; line-height: 1.7">
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" style="flex-shrink: 0; margin-top: 2px"><path d="M12 3l9 16H3z"></path><path d="M12 10v4M12 17v.01"></path></svg>
+          <span>同意したあとは取り消せません。受け渡しを続けるなら、同意せずにTeamsで相手と相談してください。</span>
+        </div>
+        <button style="height: 52px; border: none; border-radius: 26px; background: #1F7A80; color: #FFFFFF; font: inherit; font-size: 16px; font-weight: 700">キャンセルに同意する</button>
+        <button style="height: 48px; border-radius: 24px; border: 1px solid #E4DFD3; background: #FFFFFF; font: inherit; font-size: 15px; font-weight: 700; color: #1B2B4B">同意しない</button>
+      </sc-if>
+    </div>
+  </sc-if>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"side":{"editor":"enum","options":["申請する","同意を求められた","申請中"],"default":"申請する"},"$preview":{"width":390,"height":844}}'>
+class Component extends DCLogic {
+  renderVals() {
+    const side = this.props.side ?? '申請する';
+    return {
+      request: side === '申請する',
+      agree: side === '同意を求められた',
+      pending: side === '申請中',
+      sheet: side !== '申請中'
+    };
+  }
+}
+</script>
+</body>
+</html>

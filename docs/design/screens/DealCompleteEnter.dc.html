@@ -1,0 +1,90 @@
+<!doctype html>
+<html lang="ja">
+<head>
+<meta charset="utf-8">
+<title>受け渡しの完了（購入者）</title>
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link href="https://fonts.googleapis.com/css2?family=Zen+Kaku+Gothic+New:wght@400;500;700&amp;family=Outfit:wght@500;700&amp;display=swap" rel="stylesheet">
+<style>
+body{margin:0}
+a{color:#1F7A80}a:hover{color:#155C61}
+</style>
+</helmet>
+<div style="position: relative; width: 390px; height: 844px; display: flex; flex-direction: column; background: #F8F5EE; color: #1B2B4B; font-family: 'Zen Kaku Gothic New', sans-serif; overflow: hidden">
+  <header style="height: 56px; flex-shrink: 0; background: #FFFFFF; border-bottom: 1px solid #E4DFD3; display: flex; align-items: center; padding: 0 4px; gap: 4px">
+    <a href="DealList.dc.html" aria-label="戻る" style="width: 44px; height: 44px; display: flex; align-items: center; justify-content: center; color: #1B2B4B"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M15 5l-7 7 7 7"></path></svg></a>
+    <h1 style="margin: 0; font-size: 17px; font-weight: 700; flex-grow: 1">受け渡しの完了</h1>
+  </header>
+  <main style="flex-grow: 1; padding: 16px; display: flex; flex-direction: column; gap: 14px">
+    <section style="display: flex; gap: 12px; padding: 12px; background: #FFFFFF; border: 1px solid #E4DFD3; border-radius: 12px">
+      <div style="flex-shrink: 0; width: 72px; height: 72px; border-radius: 8px; background: #DDF0F0; display: flex; align-items: center; justify-content: center; font-size: 11px; color: #566178">写真</div>
+      <div style="display: flex; flex-direction: column; gap: 4px">
+        <div style="font-size: 14px; font-weight: 500">線形代数入門</div>
+        <div style="font-family: Outfit, sans-serif; font-size: 17px; font-weight: 700">¥1,500</div>
+        <div style="font-size: 12px; color: #566178">出品者の学籍番号 <span style="font-family: Outfit, sans-serif; font-weight: 700; color: #1B2B4B">25238117</span></div>
+      </div>
+    </section>
+    <sc-if value="{{byCode}}" hint-placeholder-val="{{ true }}">
+      <section style="padding: 18px 16px; background: #FFFFFF; border: 1px solid #E4DFD3; border-radius: 12px; display: flex; flex-direction: column; gap: 12px">
+        <h2 style="margin: 0; font-size: 16px; font-weight: 700">完了コードを入力</h2>
+        <p style="margin: 0; font-size: 13px; line-height: 1.7; color: #566178">出品者からTeamsで届いた6桁のコード、または受け渡しQRの下に表示された確認コードを入力してください。</p>
+        <div style="display: grid; grid-template-columns: repeat(6, minmax(0, 1fr)); gap: 8px">
+          <sc-for list="{{boxes}}" as="b" hint-placeholder-count="6">
+            <input aria-label="{{b.label}}" value="{{b.v}}" inputmode="numeric" style="{{b.style}}">
+          </sc-for>
+        </div>
+        <sc-if value="{{error}}" hint-placeholder-val="{{ false }}">
+          <div role="alert" style="font-size: 13px; color: #A8322D; font-weight: 700">コードが違うか、有効期限が切れています。出品者に新しいコードを発行してもらってください。</div>
+        </sc-if>
+        <button style="height: 52px; border: none; border-radius: 26px; background: #1F7A80; color: #FFFFFF; font: inherit; font-size: 16px; font-weight: 700">次へ</button>
+      </section>
+    </sc-if>
+    <sc-if value="{{byLinkError}}" hint-placeholder-val="{{ false }}">
+      <div role="alert" style="display: flex; gap: 10px; padding: 14px; border-radius: 12px; background: #FBE7E4; color: #8A2621; font-size: 14px; line-height: 1.7">
+        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" style="flex-shrink: 0; margin-top: 3px"><circle cx="12" cy="12" r="9"></circle><path d="M12 8v5M12 16v.01"></path></svg>
+        <span>この完了リンクは使えません。有効期限（24時間）が切れたか、すでに使われています。出品者に新しいリンクかコードを発行してもらってください。</span>
+      </div>
+    </sc-if>
+  </main>
+  <sc-if value="{{confirm}}" hint-placeholder-val="{{ false }}">
+    <div style="position: absolute; left: 0; top: 0; width: 390px; height: 844px; background: rgba(27, 43, 75, 0.55)"></div>
+    <div role="dialog" aria-labelledby="recv-title" style="position: absolute; left: 20px; right: 20px; top: 50%; transform: translateY(-50%); box-sizing: border-box; padding: 26px 20px 18px; border-radius: 18px; background: #FFFFFF; display: flex; flex-direction: column; gap: 14px">
+      <h2 id="recv-title" style="margin: 0; font-size: 20px; font-weight: 700; text-align: center">商品を受け取りましたか？</h2>
+      <p style="margin: 0; font-size: 14px; line-height: 1.75">「受け取った」を押すと <b style="font-family: Outfit, sans-serif">¥1,500</b> が出品者に支払われ、取引が完了します。完了後はアプリでキャンセル・返金できません。</p>
+      <button style="height: 52px; border: none; border-radius: 26px; background: #1F7A80; color: #FFFFFF; font: inherit; font-size: 16px; font-weight: 700">受け取った</button>
+      <button style="min-height: 44px; border: none; background: transparent; font: inherit; font-size: 14px; color: #566178">まだ受け取っていない</button>
+    </div>
+  </sc-if>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"via":{"editor":"enum","options":["コード入力","完了リンク"],"default":"コード入力"},"state":{"editor":"enum","options":["入力","受け取り確認","エラー"],"default":"入力"},"$preview":{"width":390,"height":844}}'>
+class Component extends DCLogic {
+  renderVals() {
+    const via = this.props.via ?? 'コード入力';
+    const state = this.props.state ?? '入力';
+    const byCode = via === 'コード入力';
+    const error = state === 'エラー';
+    const digits = byCode && state !== '入力' ? ['5', '8', '2', '0', '1', '7'] : ['5', '8', '2', '', '', ''];
+    const border = error ? '1.5px solid #A8322D' : '1px solid #E4DFD3';
+    const boxes = digits.map((v, i) => ({
+      v,
+      label: (i + 1) + '桁目',
+      style: 'height: 52px; min-width: 0; box-sizing: border-box; text-align: center; border-radius: 8px; font-family: Outfit, sans-serif; font-size: 22px; color: #1B2B4B; background: #FFFFFF; border: ' +
+        (!error && state === '入力' && i === 3 ? '1.5px solid #1F7A80' : border)
+    }));
+    return {
+      byCode,
+      error: byCode && error,
+      byLinkError: !byCode && error,
+      confirm: state === '受け取り確認',
+      boxes
+    };
+  }
+}
+</script>
+</body>
+</html>

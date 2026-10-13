@@ -33,13 +33,13 @@
 | 出品・編集・取り下げ | [ITEM](product/03-listing.md) | [STORAGE](tech/storage.md) | Sell, MyPage | Item, ItemImage | 禁止出品物、取引中の取り下げ |
 | 一覧・検索 | [BROWSE](product/04-browse-search-share.md) | [FE](tech/frontend.md), [DB](tech/database.md) | Main, Search | Item | — |
 | 商品詳細・共有 | [BROWSE](product/04-browse-search-share.md) | [FE](tech/frontend.md)（共有文・Web Share API） | Detail, DetailShare | Item | 未ログイン時の共有リンク |
-| 購入希望・承認・期限切れ | [DEAL-1](product/05-deal-flow.md) | [DB](tech/database.md)（条件付き更新）, [JOBS-1](tech/jobs-payment-mock.md) | Request, DealRequests | Transaction, Payment | 承認期限48hとオーソリ期限 |
+| 購入希望・承認・期限切れ | [DEAL-1](product/05-deal-flow.md) | [DB](tech/database.md)（条件付き更新）, [JOBS-1](tech/jobs-payment-mock.md) | Request, DealRequests, DealList | Transaction, Payment | 承認期限48hとオーソリ期限 |
 | 取引成立の確認モーダル | [DEAL-2](product/05-deal-flow.md) | — | DealConfirm | Transaction | — |
-| 受け渡し完了（QR・リンク・コード） | [DEAL-3](product/05-deal-flow.md) | [FE](tech/frontend.md)（QR）, [API](tech/api.md) | DealQR, DealScan | Transaction | — |
-| キャンセル | [DEAL-4](product/05-deal-flow.md) | [JOBS-2](tech/jobs-payment-mock.md)（返金） | DealQR（申請ボタン） | Transaction, Payment | — |
+| 受け渡し完了（QR・リンク・コード） | [DEAL-3](product/05-deal-flow.md) | [FE](tech/frontend.md)（QR）, [API](tech/api.md) | DealQR, DealScan, DealCompleteIssue, DealCompleteEnter | Transaction | — |
+| キャンセル | [DEAL-4](product/05-deal-flow.md) | [JOBS-2](tech/jobs-payment-mock.md)（返金） | DealQR（申請ボタン）, DealCancel | Transaction, Payment | — |
 | 自動完了（暫定） | [DEAL-5](product/05-deal-flow.md) | [JOBS-1](tech/jobs-payment-mock.md) | — | Transaction | **導入するか未定** |
 | 決済（モック）・手数料・売上 | [PAY](product/06-payment.md) | [JOBS-2](tech/jobs-payment-mock.md) | Request, Sales, Sell | Payment, Transaction | 手数料率、決済サービス選定 |
-| 管理者機能 | [ADMIN](product/07-admin.md) | [API](tech/api.md) | AdminCard（他3画面は未作成） | 全般 | — |
+| 管理者機能 | [ADMIN](product/07-admin.md) | [API](tech/api.md) | AdminCard, AdminUsers, AdminDeals, AdminSettings | 全般 | — |
 | 定期処理・バックアップ | — | [JOBS-1](tech/jobs-payment-mock.md), [DB](tech/database.md) | — | — | — |
 | インフラ・費用 | [OVERVIEW](product/00-overview.md) | [ARCH・COST](tech/00-overview.md) | — | — | リージョン、独自ドメイン |
 

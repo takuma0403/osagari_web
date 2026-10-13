@@ -1,0 +1,74 @@
+<!doctype html>
+<html lang="ja">
+<head>
+<meta charset="utf-8">
+<title>管理：設定</title>
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link href="https://fonts.googleapis.com/css2?family=Zen+Kaku+Gothic+New:wght@400;500;700&amp;family=Outfit:wght@500;700&amp;display=swap" rel="stylesheet">
+<style>
+body{margin:0}
+a{color:#1F7A80}a:hover{color:#155C61}
+</style>
+</helmet>
+<div style="min-height: 820px; display: flex; flex-wrap: wrap; background: #F8F5EE; color: #1B2B4B; font-family: 'Zen Kaku Gothic New', sans-serif">
+  <nav aria-label="管理メニュー" style="flex: 1 1 220px; max-width: 100%; box-sizing: border-box; padding: 20px 14px; background: #1B2B4B; color: #FFFFFF; display: flex; flex-direction: column; gap: 4px">
+    <div style="display: flex; align-items: center; gap: 10px; padding: 4px 8px 20px">
+      <div style="width: 30px; height: 30px; border-radius: 8px; overflow: hidden; flex-shrink: 0"><img src="/_blob/1acda67ee7f900cbc97927dddc1267cf" alt="" style="width: 100%; height: 100%; object-fit: cover; transform: scale(1.32)"></div>
+      <span style="font-size: 15px; font-weight: 700">管理画面</span>
+    </div>
+    <a href="AdminCard.dc.html" style="display: flex; align-items: center; justify-content: space-between; min-height: 44px; padding: 0 12px; border-radius: 8px; color: #C3CCDD; font-size: 14px; text-decoration: none">学生証審査<span style="font-family: Outfit, sans-serif; font-size: 12px; padding: 2px 8px; border-radius: 10px; background: #F2C94C; color: #1B2B4B">12</span></a>
+    <a href="AdminUsers.dc.html" style="display: flex; align-items: center; min-height: 44px; padding: 0 12px; border-radius: 8px; color: #C3CCDD; font-size: 14px; text-decoration: none">ユーザー</a>
+    <a href="AdminDeals.dc.html" style="display: flex; align-items: center; min-height: 44px; padding: 0 12px; border-radius: 8px; color: #C3CCDD; font-size: 14px; text-decoration: none">出品・取引</a>
+    <a href="AdminSettings.dc.html" aria-current="page" style="display: flex; align-items: center; min-height: 44px; padding: 0 12px; border-radius: 8px; background: #2A3D63; color: #FFFFFF; font-size: 14px; font-weight: 700; text-decoration: none">設定（手数料率）</a>
+  </nav>
+  <main style="flex: 999 1 560px; min-width: 0; box-sizing: border-box; padding: 28px 32px; display: flex; flex-direction: column; gap: 20px">
+    <h1 style="margin: 0; font-size: 22px; font-weight: 700">設定</h1>
+    <section aria-labelledby="fee-title" style="max-width: 640px; background: #FFFFFF; border: 1px solid #E4DFD3; border-radius: 12px; padding: 22px; display: flex; flex-direction: column; gap: 18px">
+      <div style="display: flex; flex-direction: column; gap: 6px">
+        <h2 id="fee-title" style="margin: 0; font-size: 16px; font-weight: 700">手数料率</h2>
+        <p style="margin: 0; font-size: 13px; line-height: 1.7; color: #566178">出品者の売上 = 商品価格 − 手数料。取引ごとに、適用した料率が記録されます。</p>
+      </div>
+      <dl style="margin: 0; display: grid; grid-template-columns: max-content minmax(0, 1fr); column-gap: 16px; row-gap: 10px; font-size: 14px">
+        <dt style="color: #566178">現在の料率</dt><dd style="margin: 0; font-family: Outfit, sans-serif; font-weight: 700">[料率] %</dd>
+        <dt style="color: #566178">最終更新</dt><dd style="margin: 0">[日時] · [管理者]</dd>
+      </dl>
+      <div style="display: flex; flex-direction: column; gap: 8px; padding-top: 16px; border-top: 1px solid #E4DFD3">
+        <label for="fee" style="font-size: 13px; font-weight: 700">新しい料率</label>
+        <div style="display: flex; flex-wrap: wrap; gap: 10px; align-items: center">
+          <div style="display: flex; align-items: center; gap: 8px; height: 52px; box-sizing: border-box; padding: 0 14px; border: 1.5px solid {{border}}; border-radius: 10px; background: #FFFFFF">
+            <input id="fee" inputmode="decimal" value="{{value}}" aria-describedby="fee-help" style="width: 96px; border: none; outline: none; background: transparent; font-family: Outfit, sans-serif; font-size: 17px; color: #1B2B4B; text-align: right">
+            <span style="font-size: 15px; color: #566178">%</span>
+          </div>
+          <button style="height: 48px; padding: 0 24px; border: none; border-radius: 24px; background: #1F7A80; color: #FFFFFF; font: inherit; font-size: 15px; font-weight: 700">保存する</button>
+        </div>
+        <sc-if value="{{error}}" hint-placeholder-val="{{ false }}">
+          <div role="alert" style="font-size: 13px; color: #A8322D; font-weight: 700">0〜100 の範囲で、小数点以下2桁までで入力してください。</div>
+        </sc-if>
+        <span id="fee-help" style="font-size: 12px; color: #566178; line-height: 1.7">小数点以下2桁まで（0.01% 単位）。保存後に成立する取引から新しい料率が使われます。</span>
+      </div>
+      <div style="display: flex; gap: 10px; padding: 14px; border-radius: 12px; background: #FBEFC4; color: #4A3600; font-size: 13px; line-height: 1.7">
+        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" style="flex-shrink: 0; margin-top: 2px"><circle cx="12" cy="12" r="9"></circle><path d="M12 8v5M12 16v.01"></path></svg>
+        <span>フェーズ1の決済はモックです。実際のお金は動きません。</span>
+      </div>
+    </section>
+  </main>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"error":{"editor":"boolean","default":false},"$preview":{"width":1280,"height":820}}'>
+class Component extends DCLogic {
+  renderVals() {
+    const error = this.props.error ?? false;
+    return {
+      error,
+      value: error ? '120' : '',
+      border: error ? '#A8322D' : '#1F7A80'
+    };
+  }
+}
+</script>
+</body>
+</html>
