@@ -1,9 +1,9 @@
-//go:build integration
-
 // libSQL（Turso）で GORM と golang-migrate が動くかの検証（TECH-OPEN）。
-// compose の db に対して実行する：
+// TEST_DATABASE_URL を設定したときだけ、compose の db に対して実行する（未設定ならスキップ）：
 //
-//	docker compose run --rm api go test -tags integration -v ./internal/db/...
+//	docker compose run --rm -e TEST_DATABASE_URL=http://db:8080 api go test -v ./internal/db/...
+//
+// ビルドタグで分けると gopls がこのファイルを解析しないため、環境変数で切り替える。
 package db_test
 
 import (
@@ -31,9 +31,9 @@ type verifyItem struct {
 func (verifyItem) TableName() string { return "verify_items" }
 
 func TestLibSQL(t *testing.T) {
-	url := os.Getenv("DATABASE_URL")
+	url := os.Getenv("TEST_DATABASE_URL")
 	if url == "" {
-		t.Skip("DATABASE_URL が未設定")
+		t.Skip("TEST_DATABASE_URL が未設定")
 	}
 	sqlDB, err := db.Open(url)
 	if err != nil {
