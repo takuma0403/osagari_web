@@ -10,6 +10,7 @@
     "typecheck": "tsc -b",
     "lint": "oxlint",
     "format": "prettier --write .",
+    "format:check": "prettier --check .",
     "test": "vitest run",
     "test:watch": "vitest",
     "gen:api": "openapi-typescript ../docs/api/openapi.yaml -o src/api/schema.gen.ts"

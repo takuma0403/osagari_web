@@ -87,6 +87,7 @@ scripts/             … check-docs.mjs（docs検査）、hooks/
 - 本文は [issue テンプレート](.github/ISSUE_TEMPLATE/task.md)（目的／章ID／作業内容／完了条件／依存／関係する未決事項）に従う。
 - **ブランチ**：`dev` から `<type>-<issue番号>` で切る（type はコミットの type。例 `feat-12`、`docs-3`）。
 - **PR**：base は `dev`、タイトルは issue と同じ、本文に `Closes #番号` と章ID（[PR テンプレート](.github/pull_request_template.md)）。`dev → main` はマイルストーン完了などのリリース時に行う。
+- **CI**：PR では [CI](.github/workflows/ci.yml)（server・app・docs の検査と生成物の差分検査）がすべて緑であること。
 - **`要確認` ラベル**：未決事項に関わる issue。着手前に該当項目をユーザーに質問し、決まったら `spec-update` スキルで docs に反映してからラベルを外す。
 - 着手前に issue の「依存」がすべて閉じていることを確認する。作業中に見つかった範囲外の作業は、勝手に広げずに新しい issue を提案する。
 
