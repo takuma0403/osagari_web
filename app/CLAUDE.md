@@ -62,7 +62,7 @@ app/
 | 依存インストール | `npm ci` |
 | 開発サーバー | `npm run dev`（http://localhost:5173。`/api` は Vite の proxy で `localhost:8080` へ。先に server の compose を起動する） |
 | 型チェック | `npm run typecheck` |
-| Lint / Format | `npm run lint` / `npm run format` |
+| Lint / Format | `npm run lint` / `npm run format`（CI では `npm run format:check`） |
 | テスト | `npm test` |
 | APIの型生成 | `npm run gen:api`（openapi-typescript は TS 5 を peer に指定しているため、package.json の overrides で TS 6 を使わせている） |
 | ビルド | `npm run build` |
