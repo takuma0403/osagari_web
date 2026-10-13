@@ -2,47 +2,75 @@
 package main
 
 import (
+	"fmt"
 	"log/slog"
 	"os"
 
-	"github.com/labstack/echo/v5"
-	"github.com/labstack/echo/v5/middleware"
+	"gorm.io/gorm"
 
 	"github.com/takuma0403/osagari_web/server/internal/api"
+	"github.com/takuma0403/osagari_web/server/internal/clock"
 	"github.com/takuma0403/osagari_web/server/internal/db"
 	"github.com/takuma0403/osagari_web/server/internal/handler"
+	"github.com/takuma0403/osagari_web/server/internal/logging"
+	"github.com/takuma0403/osagari_web/server/internal/server"
 )
 
+// config は環境変数から読む設定。一覧は .env.example。
+type config struct {
+	Port        string
+	DatabaseURL string
+}
+
 func main() {
-	if err := run(); err != nil {
-		slog.Error("起動に失敗しました", "err", err)
+	logger := logging.New(os.Stdout, slog.LevelInfo)
+	slog.SetDefault(logger)
+	if err := run(logger); err != nil {
+		logger.Error("起動に失敗しました", "err", err)
 		os.Exit(1)
 	}
 }
 
-func run() error {
-	sqlDB, err := db.Open(mustEnv("DATABASE_URL"))
+func run(logger *slog.Logger) error {
+	cfg, err := loadConfig()
+	if err != nil {
+		return err
+	}
+
+	sqlDB, err := db.Open(cfg.DatabaseURL)
 	if err != nil {
 		return err
 	}
 	defer sqlDB.Close()
+	gdb, err := db.NewGORM(sqlDB)
+	if err != nil {
+		return err
+	}
 
-	e := echo.New()
-	e.Use(middleware.Recover())
-	e.Use(middleware.RequestLogger())
-
-	api.RegisterHandlersWithBaseURL(e, api.NewStrictHandler(handler.New(), nil), "/api")
-
-	return e.Start(":" + envOr("PORT", "8080"))
+	clk := clock.System()
+	e := server.New(server.Deps{
+		Logger:  logger,
+		Clock:   clk,
+		Handler: wire(gdb, clk),
+	})
+	return e.Start(":" + cfg.Port)
 }
 
-func mustEnv(key string) string {
-	v := os.Getenv(key)
-	if v == "" {
-		slog.Error("環境変数が設定されていません", "key", key)
-		os.Exit(1)
+// wire は repository → service → handler の順に依存を組み立てる。機能を足すときはここに追加する。
+func wire(gdb *gorm.DB, clk clock.Clock) api.StrictServerInterface {
+	_, _ = gdb, clk // 最初の repository・service を追加したら使う
+	return handler.New()
+}
+
+func loadConfig() (config, error) {
+	cfg := config{
+		Port:        envOr("PORT", "8080"),
+		DatabaseURL: os.Getenv("DATABASE_URL"),
 	}
-	return v
+	if cfg.DatabaseURL == "" {
+		return config{}, fmt.Errorf("環境変数 DATABASE_URL が設定されていません")
+	}
+	return cfg, nil
 }
 
 func envOr(key, def string) string {
