@@ -70,9 +70,29 @@ scripts/             … check-docs.mjs（docs検査）、hooks/
 | app の開発サーバー | `cd app && nvm use && npm run dev` |
 | app / server の個別コマンド | `app/CLAUDE.md`・`server/CLAUDE.md` の「コマンド」 |
 
+## issue・ブランチ・PR の運用
+
+実装は GitHub issue を1件ずつ消化して進める。計画はマイルストーン（M0 基盤 〜 M7 デプロイ）ごとの issue として発行済み。
+
+- **issue 名**：`[領域] 内容 (章ID)`（例 `[server] 購入希望・承認・却下API (DEAL-1)`）。領域の接頭辞は次の4つで、同名のラベルも付ける。
+
+  | 接頭辞 | 対象 |
+  | --- | --- |
+  | `[server]` | `server/` の実装。API 契約（openapi.yaml）・マイグレーション・生成コードを含む |
+  | `[app]` | `app/` の画面・部品 |
+  | `[infra]` | CI、デプロイ、GCP / Firebase / Turso の設定、compose |
+  | `[docs]` | 仕様・ADR・運用ルールだけの変更 |
+
+- **1 issue ＝ 1ブランチ ＝ 1PR**。`[server]` と `[app]` を1つの issue・PR に混ぜない。同じ機能の `[app]` は `[server]` の issue に依存する。
+- 本文は [issue テンプレート](.github/ISSUE_TEMPLATE/task.md)（目的／章ID／作業内容／完了条件／依存／関係する未決事項）に従う。
+- **ブランチ**：`dev` から `<type>-<issue番号>` で切る（type はコミットの type。例 `feat-12`、`docs-3`）。
+- **PR**：base は `dev`、タイトルは issue と同じ、本文に `Closes #番号` と章ID（[PR テンプレート](.github/pull_request_template.md)）。`dev → main` はマイルストーン完了などのリリース時に行う。
+- **`要確認` ラベル**：未決事項に関わる issue。着手前に該当項目をユーザーに質問し、決まったら `spec-update` スキルで docs に反映してからラベルを外す。
+- 着手前に issue の「依存」がすべて閉じていることを確認する。作業中に見つかった範囲外の作業は、勝手に広げずに新しい issue を提案する。
+
 ## 書き方
 
 - 返答・ドキュメント・コードコメント・コミットメッセージは日本語。
-- コミットは Gitmoji 形式 `<emoji> <type>: <subject>`（例 `✨ feat: 購入希望の承認APIを追加 (DEAL-1)`）。コミットはユーザーの指示があるときだけ。
+- コミットは Gitmoji 形式 `<emoji> <type>: <subject> (#issue番号)`（例 `✨ feat: 購入希望の承認APIを追加 DEAL-1 (#25)`）。コミットはユーザーの指示があるときだけ。
 - `.env` などの機密ファイルは読まない（`.env.example` のみ可）。秘密情報はログやコマンド出力に出さない。
 - 依頼されていない範囲のリファクタリングはしない。大きな実装は着手前に方針を箇条書きで示して承認を得る。
