@@ -1,0 +1,57 @@
+/* DS-2 デザイントークン。docs/design/README.md の表と同じ名前・値だけを置く（追加・変更は先に DS-2 を更新する） */
+:root {
+  /* 色 */
+  --color-bg: #f8f5ee;
+  --color-surface: #ffffff;
+  --color-text: #1b2b4b;
+  --color-text-muted: #566178;
+  --color-text-disabled: #8792a8;
+  --color-border: #e4dfd3;
+  --color-border-strong: #cfc8b8;
+  --color-primary: #1f7a80;
+  --color-primary-hover: #155c61;
+  --color-primary-soft: #ddf0f0;
+  --color-primary-soft-2: #d4eeee;
+  --color-primary-border: #b9dcdd;
+  --color-primary-dashed: #9cc9cb;
+  --color-warning-bg: #fbefc4;
+  --color-warning-text: #6b4e00;
+  --color-warning-text-strong: #4a3600;
+  --color-warning-accent: #c99a12;
+  --color-warning-badge: #f2c94c;
+  --color-info-bg: #dceef6;
+  --color-info-text: #1b3a55;
+  --color-danger: #a8322d;
+  --color-danger-bg: #fbe7e4;
+  --color-danger-text: #8a2621;
+  --color-dark: #16223a;
+  --color-dark-muted: #d3dae6;
+  --color-admin-nav: #1b2b4b;
+  --color-admin-nav-active: #2a3d63;
+  --color-admin-nav-text: #c3ccdd;
+  --color-overlay: rgba(27, 43, 75, 0.55);
+  --color-overlay-dark: rgba(0, 0, 0, 0.5);
+
+  /* カテゴリの写真プレースホルダ */
+  --color-cat-textbook: #ddf0f0;
+  --color-cat-appliance: #dceef6;
+  --color-cat-furniture: #fbf0cc;
+  --color-cat-game: #e1efe3;
+
+  /* タイポグラフィ */
+  --font-body: 'Zen Kaku Gothic New', sans-serif;
+  --font-num: Outfit, sans-serif;
+
+  /* 角丸・余白・サイズ */
+  --radius-sm: 8px;
+  --radius-input: 10px;
+  --radius-card: 12px;
+  --radius-dialog: 18px;
+  --radius-sheet: 20px;
+  --radius-pill: 999px;
+  --space-page: 16px;
+  --space-page-form: 24px;
+  --space-gap: 12px;
+  --tap-min: 44px;
+  --btn-h: 52px;
+}
