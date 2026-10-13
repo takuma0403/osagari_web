@@ -1,4 +1,5 @@
 import { NavLink, Outlet } from 'react-router'
+import { AppLogo } from '../../components/AppLogo/AppLogo'
 import styles from './AdminLayout.module.css'
 
 // 管理メニュー（AdminCard のサイドバー）。件数バッジは各画面の実装（ADMIN）で足す
@@ -14,7 +15,10 @@ export function AdminLayout() {
   return (
     <div className={styles.frame}>
       <nav aria-label="管理メニュー" className={styles.sidebar}>
-        <span className={styles.brand}>管理画面</span>
+        <div className={styles.brand}>
+          <AppLogo size={30} />
+          <span>管理画面</span>
+        </div>
         {menu.map((m) => (
           <NavLink
             key={m.to}

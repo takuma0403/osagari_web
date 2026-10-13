@@ -17,6 +17,9 @@
 }
 
 .brand {
+  display: flex;
+  align-items: center;
+  gap: 10px;
   padding: 4px 8px 20px;
   font-size: 15px;
   font-weight: 700;
