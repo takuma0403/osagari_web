@@ -1,0 +1,105 @@
+# ローカル開発環境（server/ で `docker compose up -d`）。
+# 値はすべてローカル専用の非機密値。本番の値は Secret Manager に置く（ARCH）。
+
+name: osagari
+
+x-go-env: &go-env
+  DATABASE_URL: http://db:8080
+  MIGRATIONS_URL: file://migrations
+
+services:
+  # Turso 互換の libSQL サーバー（DB）
+  db:
+    image: ghcr.io/tursodatabase/libsql-server:v0.24.33
+    ports:
+      - "8081:8080"
+    volumes:
+      - db-data:/var/lib/sqld
+    healthcheck:
+      test: ["CMD", "bash", "-c", "exec 3<>/dev/tcp/127.0.0.1/8080"]
+      interval: 2s
+      timeout: 2s
+      retries: 15
+
+  # Cloud Storage のエミュレータ（STORAGE）
+  storage:
+    image: fsouza/fake-gcs-server:1.56.1
+    command:
+      - -scheme=http
+      - -port=4443
+      - -backend=filesystem
+      - -filesystem-root=/storage
+      - -public-host=localhost:4443
+      - -external-url=http://localhost:4443
+    ports:
+      - "4443:4443"
+    volumes:
+      - storage-data:/storage
+
+  # バケット（商品写真・学生証）を作る（一度だけ実行して終了）
+  storage-init:
+    image: curlimages/curl:8.17.0
+    depends_on:
+      storage:
+        condition: service_started
+    entrypoint: ["sh", "/init/storage-init.sh"]
+    environment:
+      STORAGE_URL: http://storage:4443
+      BUCKETS: item-images student-cards
+    volumes:
+      - ./dev/storage-init.sh:/init/storage-init.sh:ro
+
+  # 認証コードなどのメールを受け取るモック SMTP（Web UI: http://localhost:8025）
+  mail:
+    image: axllent/mailpit:v1.27
+    ports:
+      - "1025:1025"
+      - "8025:8025"
+
+  # マイグレーションを適用する（一度だけ実行して終了）
+  migrate:
+    build:
+      context: .
+      target: dev
+    command: ["go", "run", "./cmd/migrate", "up"]
+    environment:
+      <<: *go-env
+    volumes: &go-volumes
+      - ..:/workspace
+      - go-mod:/go/pkg/mod
+      - go-build:/root/.cache/go-build
+    depends_on:
+      db:
+        condition: service_healthy
+
+  # API（Go + Echo、air でホットリロード）
+  api:
+    build:
+      context: .
+      target: dev
+    ports:
+      - "8080:8080"
+    environment:
+      <<: *go-env
+      PORT: "8080"
+      STORAGE_EMULATOR_HOST: storage:4443
+      STORAGE_BUCKET_ITEM_IMAGES: item-images
+      STORAGE_BUCKET_STUDENT_CARDS: student-cards
+      SMTP_HOST: mail
+      SMTP_PORT: "1025"
+    volumes: *go-volumes
+    depends_on:
+      db:
+        condition: service_healthy
+      migrate:
+        condition: service_completed_successfully
+      storage-init:
+        condition: service_completed_successfully
+      mail:
+        condition: service_started
+
+volumes:
+  db-data:
+  storage-data:
+  go-mod:
+  go-build:

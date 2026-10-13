@@ -1,0 +1,8 @@
+# docs/api/openapi.yaml から Echo v5 の strict server を生成する（API-1）
+package: api
+output: api.gen.go
+generate:
+  echo5-server: true
+  strict-server: true
+  models: true
+  embedded-spec: false
