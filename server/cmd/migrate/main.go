@@ -41,7 +41,7 @@ func run() error {
 	}
 	defer sqlDB.Close()
 
-	m, err := migration.New(sqlDB, source)
+	m, err := migration.New(sqlDB, source, migration.DefaultTable)
 	if err != nil {
 		return err
 	}
