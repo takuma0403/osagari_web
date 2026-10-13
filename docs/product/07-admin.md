@@ -1,6 +1,6 @@
 # 管理者機能（要件）
 
-> 関連: [学生証登録](02-student-card.md) / [技術：API（管理者向け）](../tech/api.md) / 画面: AdminCard（ほか3画面はデザイン未作成）（[デザイン](../design/README.md)）
+> 関連: [学生証登録](02-student-card.md) / [技術：API（管理者向け）](../tech/api.md) / 画面: AdminCard, AdminUsers, AdminDeals, AdminSettings（[デザイン](../design/README.md)）
 
 ## ADMIN 管理者機能
 
