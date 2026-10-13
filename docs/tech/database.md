@@ -15,7 +15,8 @@ DBは Turso（SQLite互換）を使います。無料プランでもスリープ
 
 出典：[Turso Pricing](https://turso.tech/pricing.md)、[freetier.co](https://freetier.co/directory/products/turso)
 
-- **DBアクセス**：Go から GORM を使って Turso に接続します。GORM の SQLite 用ドライバに Turso（libSQL）のドライバを組み合わせて使う想定です。
+- **DBアクセス**：Go から GORM を使って Turso に接続します。ドライバは go-libsql、GORM の方言は gormlite です。ローカルでは Turso 互換の libsql-server を使います（[ADR 0002](../decisions/0002-dev-environment.md)）。
+- **複数文の SQL**：go-libsql は1回の実行に複数の文を渡すと2文目以降を黙って捨てます。マイグレーションは文ごとに分けて実行し、アプリのコードでも1回の実行には1文だけを渡します（[ADR 0002](../decisions/0002-dev-environment.md)）。
 - **マイグレーション**：golang-migrate で、SQLファイルとしてバージョン管理します。GORM の自動マイグレーション（AutoMigrate）は本番では使わず、スキーマの変更は必ずマイグレーションファイルで行います。
 - **二重処理の防止**：購入希望の承認や受け渡しの完了は、「現在のステータスが想定どおりのときだけ更新する」条件付きの更新で行います。同じ商品を2人に承認したり、同じ取引を2回完了させたりすることを防ぎます。
 - **バックアップ**：無料プランの復元は1日分しかないため、定期処理で毎日DBを書き出して Cloud Storage に保存します。

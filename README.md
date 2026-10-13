@@ -4,7 +4,6 @@
 
 - フロントエンド：`app/`（Vite + React + TypeScript → Firebase Hosting）
 - バックエンド：`server/`（Go + Echo → Cloud Run、DB は Turso）
-- どちらも雛形は未作成です。最初の実装依頼で作ります。
 
 ## ドキュメント
 
@@ -38,4 +37,30 @@
 
 ## 開発環境
 
-- Node.js 20、Go 1.23、Firebase CLI、gcloud CLI（雛形を作るときに必要なものを追記します）
+- 必要なもの：Docker（Compose v2）、nvm（Node 24 LTS）。Go 1.27 はコンテナ内で使うので、ホストには必須ではありません（エディタ補完のために入れるなら 1.27）。
+- デプロイ時に必要なもの：Firebase CLI、gcloud CLI
+
+### 起動
+
+```bash
+# server（DB・ストレージ・メール・API）
+cd server
+docker compose up -d          # 初回はイメージのビルドで数分かかる
+curl localhost:8080/api/health
+
+# app（別のターミナルで）
+cd app
+nvm install && nvm use        # .nvmrc の Node 24
+npm ci
+npm run dev                   # http://localhost:5173 （/api は :8080 に転送）
+```
+
+| サービス | URL |
+| --- | --- |
+| app（Vite） | http://localhost:5173 |
+| API | http://localhost:8080/api |
+| DB（libsql-server） | http://localhost:8081 |
+| ストレージ（fake-gcs-server） | http://localhost:4443 |
+| メール（Mailpit の受信箱） | http://localhost:8025 |
+
+構成の判断は [ADR 0002](docs/decisions/0002-dev-environment.md) を参照。

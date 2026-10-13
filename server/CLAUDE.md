@@ -1,31 +1,42 @@
 # server（バックエンド）
 
 > このディレクトリで作業するときの規約。全体の決まりはルートの [CLAUDE.md](../CLAUDE.md)、技術方針は [docs/tech/](../docs/tech/00-overview.md)（特に [api.md](../docs/tech/api.md)・[auth.md](../docs/tech/auth.md)・[database.md](../docs/tech/database.md)・[jobs-payment-mock.md](../docs/tech/jobs-payment-mock.md)）。
-> **雛形は未作成。** 最初の作業で下の構成どおりに作り、「コマンド」の表を実際の内容に更新すること。
+> ローカル環境と libSQL まわりの選定理由は [ADR 0002](../docs/decisions/0002-dev-environment.md)。
 
 ## 技術スタック
 
 | 項目 | 採用 | 出典 |
 | --- | --- | --- |
-| 言語 | Go 1.23 | API |
-| Web | Echo | API |
-| API層 | oapi-codegen（Echo / strict server）で `docs/api/openapi.yaml` から `internal/api/api.gen.go` を生成 | API-1 |
-| DB | Turso（libSQL）。GORM の SQLite ドライバ + libSQL ドライバ | DB |
-| マイグレーション | golang-migrate（`migrations/` の SQL）。**AutoMigrate 禁止** | DB |
+| 言語 | Go 1.27（cgo 有効。go-libsql が必要とする） | API, ADR 0002 |
+| Web | Echo v5 | API |
+| API層 | oapi-codegen（`echo5-server` + strict server、`go tool` で実行）で `docs/api/openapi.yaml` から `internal/api/api.gen.go` を生成 | API-1 |
+| DB | Turso（libSQL）。ドライバは go-libsql、GORM の方言は gormlite（`OpenDB` に接続を渡す）。`gorm.io/driver/sqlite`・glebarez/sqlite はシンボル／ドライバ名が衝突するので使わない | DB, ADR 0002 |
+| マイグレーション | golang-migrate（`migrations/` の SQL）。`internal/migration` が文ごとに分けて実行する。**AutoMigrate 禁止** | DB |
 | パスワード | argon2id | AUTHN-5 |
-| メール | Gmail SMTP（587 / STARTTLS） | AUTHN-7 |
-| ストレージ | Cloud Storage の署名付きURL | STORAGE |
-| ローカルDB | SQLite ファイル（`file:local.db`）で代用し、本番は Turso | — |
+| メール | Gmail SMTP（587 / STARTTLS）。ローカルは Mailpit（`mail:1025`、受信箱 http://localhost:8025） | AUTHN-7 |
+| ストレージ | Cloud Storage の署名付きURL。ローカルは fake-gcs-server（`STORAGE_EMULATOR_HOST`） | STORAGE |
+| ローカルDB | compose の libsql-server（Turso 互換。ホストからは `http://localhost:8081`） | ADR 0002 |
 
-GORM と golang-migrate が libSQL で動くかは未検証（[tech/open-questions.md](../docs/tech/open-questions.md)）。最初に検証し、問題があればユーザーに報告する。
+GORM と golang-migrate の libSQL での動作は検証済み（`internal/db/libsql_integration_test.go`）。注意点：
 
-## ディレクトリ構成（予定）
+- go-libsql は **1回の Exec に複数の文を渡すと2文目以降を黙って捨てる**。アプリのコードでは1回に1文だけを実行する（マイグレーションは `internal/migration` が分割する）。
+- 一意制約違反は `gorm.ErrDuplicatedKey` に変換されない。判定が必要なら repository 層でエラー文字列（`UNIQUE constraint failed`）を見る。
+
+## ディレクトリ構成
 
 ```
 server/
+  compose.yaml              … ローカル環境（db / storage / storage-init / mail / migrate / api）
+  Dockerfile                … dev（air）/ build / prod（distroless/cc）
+  .air.toml                 … ホットリロードの設定
+  .env.example              … 環境変数の一覧
+  dev/                      … ローカル専用のスクリプト（バケット作成など）
   cmd/api/main.go           … 起動、依存の組み立て（DI）
+  cmd/migrate/main.go       … マイグレーションの実行（up / down / version）
   internal/
-    api/api.gen.go          … 生成物（編集しない）
+    api/api.gen.go          … 生成物（編集しない）。設定は api/oapi-codegen.yaml
+    db/                     … libSQL の接続と GORM の初期化
+    migration/              … golang-migrate を libSQL で動かす（文の分割）
     handler/                … 生成インターフェースの実装。入力の変換と応答だけ（ロジックを書かない）
     service/                … 業務ロジック。状態遷移・権限・手数料計算はここ
     repository/             … GORM によるDBアクセス。条件付きUPDATEもここ
@@ -59,13 +70,18 @@ server/
 - repository 層は一時ファイルの SQLite にマイグレーションを当てて実行する。
 - 二重処理の防止（同時に2回承認・完了）は goroutine で並行実行するテストを書く。
 
-## コマンド（雛形作成後に確定させる）
+## コマンド
+
+`server/` で実行する。Go のコマンドはコンテナ内で動かす（ホストに Go 1.27 があれば直接でもよい）。
 
 | 目的 | コマンド |
 | --- | --- |
-| 開発サーバー | `go run ./cmd/api`（:8080） |
-| テスト | `go test ./...` |
-| Lint | `go vet ./...`（必要なら staticcheck） |
+| 起動（全サービス） | `docker compose up -d`（api は air でホットリロード、:8080） |
+| ログ | `docker compose logs -f api` |
+| 停止 / データも消す | `docker compose down` / `docker compose down -v` |
+| テスト | `docker compose run --rm api go test ./...` |
+| libSQL の統合テスト | `docker compose run --rm api go test -tags integration ./internal/db/...` |
+| Lint | `docker compose run --rm api go vet ./...` |
 | フォーマット | `gofmt -w .`（Hook で自動実行） |
-| APIコード生成 | `go generate ./internal/api` |
-| マイグレーション | `migrate -path migrations -database "$DATABASE_URL" up` |
+| APIコード生成 | `docker compose run --rm api go generate ./internal/api` |
+| マイグレーション | `docker compose run --rm migrate`（up）／ `docker compose run --rm api go run ./cmd/migrate down` |
