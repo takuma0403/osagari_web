@@ -6,7 +6,7 @@
 
 - [ ] Cloud Storage のリージョン（東京にするか、無料枠のある米国にするか）
 - [ ] 大学のメールでGmailからの送信が迷惑メール扱いされないかの確認
-- [ ] GORM と golang-migrate が Turso（libSQL）で問題なく動くかの検証
+- [x] GORM と golang-migrate が Turso（libSQL）で問題なく動くかの検証 → go-libsql + gormlite で動作。複数文のマイグレーションは文ごとに分けて実行する（[ADR 0002](../decisions/0002-dev-environment.md)）
 - [ ] Turso のリージョン選択
 - [ ] 本番の決済サービスの選定（要件定義書の「決済サービスの候補」を参照）
 - [ ] 独自ドメインを使うか（使わない場合は Firebase Hosting の標準ドメイン）

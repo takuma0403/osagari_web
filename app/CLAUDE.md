@@ -1,23 +1,23 @@
 # app（フロントエンド）
 
 > このディレクトリで作業するときの規約。全体の決まりはルートの [CLAUDE.md](../CLAUDE.md)、技術方針は [docs/tech/frontend.md](../docs/tech/frontend.md)、見た目は [docs/design/README.md](../docs/design/README.md)。
-> **雛形は未作成。** 最初の作業で下の構成どおりに作り、「コマンド」の表を実際の内容に更新すること。
 
 ## 技術スタック
 
 | 項目 | 採用 | 出典 |
 | --- | --- | --- |
-| ビルド | Vite | FE |
-| UI | React + TypeScript（strict） | FE, FE-1 |
+| ビルド | Vite 8 | FE |
+| UI | React 19 + TypeScript 6（strict） | FE, FE-1 |
 | ルーティング | React Router（`/items/:shareId` などすべてSPAのルート） | FE |
 | スタイル | **CSS Modules + CSS変数**（Tailwind・CSS-in-JS・UIライブラリは使わない） | FE-1 |
 | APIの型 | openapi-typescript で `docs/api/openapi.yaml` から `src/api/schema.gen.ts` を生成（手書き禁止） | API-1 |
-| APIクライアント | `fetch` の薄いラッパー（`src/api/client.ts`）。`credentials: 'same-origin'`、`X-Device-Id` ヘッダーを付ける | AUTHN-3 |
+| APIクライアント | `fetch` の薄いラッパー（`src/api/client.ts`）。`credentials: 'same-origin'`、`X-Device-Id` ヘッダーを付ける（ヘッダーは認証の実装時に追加） | AUTHN-3 |
 | QR | 表示はQR生成ライブラリ、読み取りはカメラを使うライブラリ（選ぶときは軽さとメンテ状況を確認） | FE |
-| テスト | Vitest + Testing Library | — |
-| パッケージ管理 | npm（Node 20） | — |
+| テスト | Vitest + Testing Library（jsdom） | — |
+| Lint / Format | oxlint / Prettier（Markdown は対象外） | — |
+| パッケージ管理 | npm（Node 24 LTS。リポジトリ直下の `.nvmrc`） | ADR 0002 |
 
-## ディレクトリ構成（予定）
+## ディレクトリ構成（予定。現在は main.tsx・App.tsx・api/ だけ）
 
 ```
 app/
@@ -53,14 +53,16 @@ app/
 - 共有ボタンは「【お下がり】商品名 ¥価格（状態） URL」の文をコピーし、スマホでは Web Share API も使う（[FE](../docs/tech/frontend.md)）。
 - 画面の実装手順は `design-to-code` スキル、API を増やすときは `api-contract` スキル。
 
-## コマンド（雛形作成後に確定させる）
+## コマンド
+
+`app/` で実行する。最初に `nvm use`（未インストールなら `nvm install`）。
 
 | 目的 | コマンド |
 | --- | --- |
 | 依存インストール | `npm ci` |
-| 開発サーバー | `npm run dev`（`/api` は Vite の proxy で `localhost:8080` へ） |
+| 開発サーバー | `npm run dev`（http://localhost:5173。`/api` は Vite の proxy で `localhost:8080` へ。先に server の compose を起動する） |
 | 型チェック | `npm run typecheck` |
 | Lint / Format | `npm run lint` / `npm run format` |
 | テスト | `npm test` |
-| APIの型生成 | `npm run gen:api` |
+| APIの型生成 | `npm run gen:api`（openapi-typescript は TS 5 を peer に指定しているため、package.json の overrides で TS 6 を使わせている） |
 | ビルド | `npm run build` |

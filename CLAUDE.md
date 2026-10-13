@@ -40,8 +40,8 @@
 ```
 CLAUDE.md            … このファイル（索引）
 docs/                … 仕様（README.md が入口）
-app/                 … フロントエンド（規約: app/CLAUDE.md）※雛形は未作成
-server/              … バックエンド（規約: server/CLAUDE.md）※雛形は未作成
+app/                 … フロントエンド（規約: app/CLAUDE.md）
+server/              … バックエンド（規約: server/CLAUDE.md）。compose.yaml でローカル環境一式
 scripts/             … check-docs.mjs（docs検査）、hooks/
 .claude/skills/      … 作業手順（下表）
 .claude/agents/      … spec-reviewer（仕様との照合）
@@ -66,7 +66,9 @@ scripts/             … check-docs.mjs（docs検査）、hooks/
 | 目的 | コマンド |
 | --- | --- |
 | docs の検査（リンク切れ・章ID重複） | `node scripts/check-docs.mjs` |
-| app / server | 雛形を作った時点で `app/CLAUDE.md`・`server/CLAUDE.md` に追記する |
+| ローカル環境（DB・ストレージ・メール・API）の起動 | `cd server && docker compose up -d` |
+| app の開発サーバー | `cd app && nvm use && npm run dev` |
+| app / server の個別コマンド | `app/CLAUDE.md`・`server/CLAUDE.md` の「コマンド」 |
 
 ## 書き方
 
