@@ -1,0 +1,81 @@
+<!doctype html>
+<html lang="ja">
+<head>
+<meta charset="utf-8">
+<title>認証コード入力</title>
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link href="https://fonts.googleapis.com/css2?family=Zen+Kaku+Gothic+New:wght@400;500;700&amp;family=Outfit:wght@500;700&amp;display=swap" rel="stylesheet">
+<style>
+body{margin:0}
+a{color:#1F7A80}a:hover{color:#155C61}
+</style>
+</helmet>
+<div style="width: 390px; height: 844px; display: flex; flex-direction: column; background: #FFFFFF; color: #1B2B4B; font-family: 'Zen Kaku Gothic New', sans-serif">
+  <header style="height: 56px; flex-shrink: 0; display: flex; align-items: center; padding: 0 4px">
+    <a href="SignUp.dc.html" aria-label="戻る" style="width: 44px; height: 44px; display: flex; align-items: center; justify-content: center; color: #1B2B4B"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M15 5l-7 7 7 7"></path></svg></a>
+  </header>
+  <main style="flex-grow: 1; padding: 8px 24px 32px; display: flex; flex-direction: column; gap: 22px">
+    <div style="display: flex; flex-direction: column; gap: 10px">
+      <sc-if value="{{showStep}}" hint-placeholder-val="{{ true }}">
+        <span style="font-family: Outfit, sans-serif; font-size: 13px; font-weight: 700; color: #1F7A80">STEP 2 / 3</span>
+      </sc-if>
+      <h1 style="margin: 0; font-size: 24px; font-weight: 700">{{title}}</h1>
+      <p style="margin: 0; font-size: 14px; line-height: 1.7; color: #566178"><span style="font-family: Outfit, sans-serif; color: #1B2B4B; font-weight: 700">26238001@edu.cc.saga-u.ac.jp</span> に送った6桁のコードを入力してください。</p>
+    </div>
+    <sc-if value="{{recheck}}" hint-placeholder-val="{{ false }}">
+      <div style="display: flex; gap: 10px; padding: 14px; border-radius: 12px; background: #DCEEF6; color: #1B3A55; font-size: 13px; line-height: 1.7">
+        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" style="flex-shrink: 0; margin-top: 2px"><path d="M12 3l8 3v6c0 4.5-3.4 8.3-8 9-4.6-.7-8-4.5-8-9V6z"></path><path d="M9 12l2 2 4-4"></path></svg>
+        <span>前回の確認から30日たったか、はじめての端末からのログインのため、本人確認をお願いしています。</span>
+      </div>
+    </sc-if>
+    <div style="display: flex; flex-direction: column; gap: 10px">
+      <div style="display: grid; grid-template-columns: repeat(6, minmax(0, 1fr)); gap: 8px">
+        <sc-for list="{{boxes}}" as="b" hint-placeholder-count="6">
+          <input aria-label="{{b.label}}" value="{{b.v}}" inputmode="numeric" style="{{b.style}}">
+        </sc-for>
+      </div>
+      <sc-if value="{{error}}" hint-placeholder-val="{{ false }}">
+        <div role="alert" style="font-size: 13px; color: #A8322D; font-weight: 700">コードが違います。あと3回間違えるとこのコードは使えなくなります。</div>
+      </sc-if>
+      <div style="display: flex; justify-content: space-between; font-size: 12px; color: #566178">
+        <span>有効期限 あと <b style="font-family: Outfit, sans-serif; color: #1B2B4B">9:41</b></span>
+        <button disabled style="border: none; background: transparent; font: inherit; font-size: 12px; color: #8792A8; padding: 0; min-height: 32px">コードを再送（0:42 後）</button>
+      </div>
+    </div>
+    <a href="{{next}}" style="height: 52px; border-radius: 26px; background: #1F7A80; color: #FFFFFF; font-size: 16px; font-weight: 700; display: flex; align-items: center; justify-content: center; text-decoration: none">確認する</a>
+    <div style="padding: 14px; border-radius: 12px; background: #F8F5EE; font-size: 12px; line-height: 1.8; color: #566178">
+      メールが届かないときは、迷惑メールフォルダも確認してください。<sc-if value="{{signup}}" hint-placeholder-val="{{ true }}">すでに登録済みのアドレスには、コードの代わりに「登録済みです」という案内が届きます。その場合は<a href="Login.dc.html">ログイン</a>してください。</sc-if>
+    </div>
+  </main>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"mode":{"editor":"enum","options":["新規登録","パスワード再設定","再確認"],"default":"新規登録"},"error":{"editor":"boolean","default":false},"$preview":{"width":390,"height":844}}'>
+class Component extends DCLogic {
+  renderVals() {
+    const mode = this.props.mode ?? '新規登録';
+    const error = this.props.error ?? false;
+    const signup = mode === '新規登録';
+    const recheck = mode === '再確認';
+    const digits = ['4', '8', '1', '', '', ''];
+    const border = error ? '1.5px solid #A8322D' : '1px solid #E4DFD3';
+    const boxes = digits.map((v, i) => ({
+      v,
+      label: (i + 1) + '桁目',
+      style: 'height: 52px; min-width: 0; text-align: center; border-radius: 8px; font-family: Outfit, sans-serif; font-size: 22px; color: #1B2B4B; background: #FFFFFF; border: ' +
+        (!error && i === 3 ? '1.5px solid #1F7A80' : border)
+    }));
+    return {
+      signup, recheck, error, boxes,
+      showStep: !recheck,
+      title: recheck ? 'ログインの確認' : '認証コードを入力',
+      next: recheck ? 'Main.dc.html' : 'Password.dc.html'
+    };
+  }
+}
+</script>
+</body>
+</html>

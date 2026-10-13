@@ -1,0 +1,36 @@
+# API（技術）
+
+> 関連: [API契約（OpenAPI）](../api/openapi.yaml) / [認証](auth.md) / [取引フロー（要件）](../product/05-deal-flow.md) / 実装規約: [server/CLAUDE.md](../../server/CLAUDE.md)
+
+## API API
+
+APIは Cloud Run で動かし、Firebase Hosting の rewrites で `/api/**` を転送します。フロントとAPIが同じドメインになるので、CORSやサードパーティCookieの問題を避けられます。
+
+- **言語**：Go を使い、Webフレームワークは Echo にします。
+- **リージョン**：東京（asia-northeast1）にします。
+- **最小インスタンス数**：0にします。待機中の費用はかかりませんが、しばらくアクセスがないと初回の応答が遅れます。Go は単一のバイナリで起動が速いため、この遅れは小さく抑えられます。
+- **無料枠**：Cloud Run には毎月、200万リクエストと18万vCPU秒の無料枠があります（[Cloud Run pricing](https://cloud.google.com/run/pricing)、us-central1基準）。学内アプリの規模なら収まる見込みです。
+- **秘密情報**：Gmailのアプリパスワード、Tursoの接続トークン、セッション署名鍵は Secret Manager に保存します。
+
+**Cookieの注意点**：Firebase Hosting から Cloud Run に転送するとき、Cookieは `__session` という名前のもの以外すべて削除されます（[Firebase: Manage cache behavior](https://firebase.google.com/docs/hosting/manage-cache)）。そのため、ログインセッションのCookie名は `__session` にします。
+
+APIが担当する主な処理は次のとおりです。
+
+- 新規登録、パスワードによるログイン、認証コードの発行と照合、パスワードの再設定、セッション管理
+- 商品の登録、一覧、検索
+- 購入希望、承認、キャンセルなどの取引の状態遷移
+- 受け渡しトークン（QR・リンク・コード）の発行と照合
+- 画像アップロード用の署名付きURLの発行
+- 決済処理（当面はモック）
+- 管理者向けの処理（学生証の審査、ユーザーの停止、手数料率の設定など）
+
+**教職員用のAPI（検討保留）**：教職員にも対応する予定で、教職員用の画面とAPIは学生用と分ける前提です（例：`/api/staff/**`）。詳細は要件定義書の「教職員の利用」で検討中です。
+
+> 要件定義書の「教職員の利用」→ [product/01-account-auth.md](../product/01-account-auth.md) の AUTH-5
+
+### API-1 実装方針（ハーネス整備時の決定）
+
+元文書に追加した決定事項です（[ADR 0001](../decisions/0001-docs-structure.md)）。
+
+- **API契約の正本は [docs/api/openapi.yaml](../api/openapi.yaml)**。エンドポイントを追加・変更するときは、先に OpenAPI を更新し、Go 側は oapi-codegen（Echo / strict server）、フロント側は openapi-typescript で型を生成する。
+- エラー応答は OpenAPI の `Error` スキーマ（`code` と `message`）に統一する。

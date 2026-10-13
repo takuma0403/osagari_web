@@ -1,0 +1,78 @@
+# 佐賀大お下がりフリマ API 契約（正本）
+#
+# - エンドポイントを追加・変更するときは、実装より先にこのファイルを更新する（.claude/skills/api-contract/SKILL.md）。
+# - Go: oapi-codegen（Echo / strict server）で server/internal/api に生成する。
+# - TS: openapi-typescript で app/src/api/schema.gen.ts に生成する。
+# - スキーマ名・列挙値は docs/glossary.md に揃える。各 operation の description に章ID（例: DEAL-3）を書く。
+openapi: 3.0.3
+info:
+  title: 佐賀大お下がりフリマ API
+  version: 0.1.0
+  description: |
+    Firebase Hosting の rewrites で `/api/**` を Cloud Run に転送する（tech/api.md の API 章）。
+    認証は `__session` Cookie（HttpOnly, Secure, SameSite=Lax）。端末識別子は `X-Device-Id` ヘッダーで送る（tech/auth.md の AUTHN-3）。
+servers:
+  - url: /api
+tags:
+  - name: system
+    description: 稼働確認など
+paths:
+  /health:
+    get:
+      tags: [system]
+      operationId: getHealth
+      summary: 稼働確認
+      security: []
+      responses:
+        '200':
+          description: 稼働中
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Health'
+        default:
+          $ref: '#/components/responses/Error'
+components:
+  securitySchemes:
+    sessionCookie:
+      type: apiKey
+      in: cookie
+      name: __session
+  parameters:
+    DeviceId:
+      name: X-Device-Id
+      in: header
+      required: false
+      description: ブラウザの localStorage に保存した端末識別子（AUTHN-3）
+      schema:
+        type: string
+  responses:
+    Error:
+      description: エラー
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
+  schemas:
+    Health:
+      type: object
+      required: [status]
+      properties:
+        status:
+          type: string
+          enum: [ok]
+    Error:
+      type: object
+      description: すべてのエラー応答の共通形式
+      required: [code, message]
+      properties:
+        code:
+          type: string
+          description: 機械で判定するためのエラーコード（snake_case。例 invalid_status_transition）
+          example: invalid_status_transition
+        message:
+          type: string
+          description: 利用者に表示できる日本語のメッセージ
+          example: この取引はすでに完了しています
+security:
+  - sessionCookie: []

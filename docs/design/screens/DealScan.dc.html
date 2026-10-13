@@ -1,0 +1,53 @@
+<!doctype html>
+<html lang="ja">
+<head>
+<meta charset="utf-8">
+<title>QR読み取り・受け取り確認</title>
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link href="https://fonts.googleapis.com/css2?family=Zen+Kaku+Gothic+New:wght@400;500;700&amp;family=Outfit:wght@500;700&amp;display=swap" rel="stylesheet">
+<style>
+body{margin:0}
+a{color:#1F7A80}a:hover{color:#155C61}
+</style>
+</helmet>
+<div style="position: relative; width: 390px; height: 844px; background: #16223A; color: #FFFFFF; font-family: 'Zen Kaku Gothic New', sans-serif; overflow: hidden">
+  <header style="height: 56px; display: flex; align-items: center; padding: 0 4px; gap: 4px">
+    <a href="DealRequests.dc.html" aria-label="閉じる" style="width: 44px; height: 44px; display: flex; align-items: center; justify-content: center; color: #FFFFFF"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><path d="M6 6l12 12M18 6L6 18"></path></svg></a>
+    <h1 style="margin: 0; font-size: 17px; font-weight: 700">QRを読み取る</h1>
+  </header>
+  <div style="display: flex; flex-direction: column; align-items: center; gap: 18px; padding-top: 40px">
+    <div style="width: 240px; height: 240px; border-radius: 20px; border: 3px solid #FFFFFF; box-sizing: border-box"></div>
+    <p style="margin: 0; font-size: 14px; color: #D3DAE6">出品者が表示したQRコードを枠に合わせてください</p>
+    <button style="height: 44px; padding: 0 20px; border-radius: 22px; border: 1px solid #8792A8; background: transparent; color: #FFFFFF; font: inherit; font-size: 14px">6桁のコードを入力する</button>
+  </div>
+  <div style="position: absolute; left: 0; top: 0; width: 390px; height: 844px; background: rgba(0, 0, 0, 0.5)"></div>
+  <div role="dialog" aria-labelledby="scan-title" style="position: absolute; left: 20px; top: 250px; width: 350px; box-sizing: border-box; padding: 26px 20px 20px; border-radius: 18px; background: #FFFFFF; color: #1B2B4B; display: flex; flex-direction: column; gap: 16px">
+    <div style="display: flex; flex-direction: column; gap: 8px; text-align: center">
+      <h2 id="scan-title" style="margin: 0; font-size: 19px; font-weight: 700">商品を受け取りましたか？</h2>
+      <p style="margin: 0; font-size: 13px; color: #566178; line-height: 1.7">「受け取った」を押すと ¥1,500 が出品者に支払われ、取引が完了します。完了後はアプリでキャンセル・返金できません。</p>
+    </div>
+    <div style="display: flex; gap: 12px; align-items: center; padding: 12px; border-radius: 12px; background: #F8F5EE">
+      <div style="width: 48px; height: 48px; border-radius: 8px; background: #DDF0F0; flex-shrink: 0"></div>
+      <div style="display: flex; flex-direction: column; gap: 2px">
+        <span style="font-size: 14px; font-weight: 700">線形代数入門</span>
+        <span style="font-family: Outfit, sans-serif; font-size: 15px; font-weight: 700">¥1,500</span>
+      </div>
+    </div>
+    <div style="display: flex; flex-direction: column; gap: 8px">
+      <button style="height: 52px; border: none; border-radius: 26px; background: #1F7A80; color: #FFFFFF; font: inherit; font-size: 16px; font-weight: 700">受け取った</button>
+      <button style="height: 48px; border: none; border-radius: 24px; background: transparent; color: #566178; font: inherit; font-size: 14px">まだ受け取っていない</button>
+    </div>
+  </div>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"$preview":{"width":390,"height":844}}'>
+class Component extends DCLogic {
+  renderVals() { return {}; }
+}
+</script>
+</body>
+</html>

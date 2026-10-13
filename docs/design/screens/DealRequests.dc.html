@@ -1,0 +1,84 @@
+<!doctype html>
+<html lang="ja">
+<head>
+<meta charset="utf-8">
+<title>購入希望の承認</title>
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link href="https://fonts.googleapis.com/css2?family=Zen+Kaku+Gothic+New:wght@400;500;700&amp;family=Outfit:wght@500;700&amp;display=swap" rel="stylesheet">
+<style>
+body{margin:0}
+a{color:#1F7A80}a:hover{color:#155C61}
+</style>
+</helmet>
+<div style="width: 390px; height: 844px; display: flex; flex-direction: column; background: #F8F5EE; color: #1B2B4B; font-family: 'Zen Kaku Gothic New', sans-serif; overflow: hidden">
+  <header style="height: 56px; flex-shrink: 0; background: #FFFFFF; border-bottom: 1px solid #E4DFD3; display: flex; align-items: center; padding: 0 4px; gap: 4px">
+    <a href="MyPage.dc.html" aria-label="戻る" style="width: 44px; height: 44px; display: flex; align-items: center; justify-content: center; color: #1B2B4B"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M15 5l-7 7 7 7"></path></svg></a>
+    <h1 style="margin: 0; font-size: 17px; font-weight: 700">取引詳細</h1>
+  </header>
+  <main style="flex-grow: 1; padding: 16px; display: flex; flex-direction: column; gap: 14px; overflow: hidden">
+    <section style="padding: 14px; background: #FFFFFF; border: 1px solid #E4DFD3; border-radius: 12px; display: flex; flex-direction: column; gap: 14px">
+      <div style="display: flex; gap: 12px; align-items: center">
+        <div style="width: 52px; height: 52px; border-radius: 8px; background: #DDF0F0; flex-shrink: 0"></div>
+        <div style="display: flex; flex-direction: column; gap: 2px; flex-grow: 1">
+          <div style="font-size: 14px; font-weight: 700">線形代数入門</div>
+          <div style="font-family: Outfit, sans-serif; font-size: 16px; font-weight: 700">¥1,500</div>
+        </div>
+        <span style="font-size: 11px; font-weight: 700; padding: 3px 8px; border-radius: 10px; background: #FBEFC4; color: #6B4E00">あなたが出品</span>
+      </div>
+      <div style="display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 4px">
+        <sc-for list="{{steps}}" as="s" hint-placeholder-count="4">
+          <div style="display: flex; flex-direction: column; gap: 6px">
+            <div style="{{s.bar}}"></div>
+            <span style="{{s.label}}">{{s.name}}</span>
+          </div>
+        </sc-for>
+      </div>
+    </section>
+    <div style="display: flex; justify-content: space-between; align-items: baseline">
+      <h2 style="margin: 0; font-size: 15px; font-weight: 700">購入希望 3件</h2>
+      <span style="font-size: 12px; color: #566178">承認できるのは1人だけです</span>
+    </div>
+    <sc-for list="{{reqs}}" as="r" hint-placeholder-count="3">
+      <section style="padding: 14px; background: #FFFFFF; border: 1px solid #E4DFD3; border-radius: 12px; display: flex; flex-direction: column; gap: 12px">
+        <div style="display: flex; align-items: center; gap: 12px">
+          <div style="width: 40px; height: 40px; border-radius: 20px; background: #DDF0F0; color: #155C61; display: flex; align-items: center; justify-content: center; font-weight: 700; flex-shrink: 0">{{r.ini}}</div>
+          <div style="display: flex; flex-direction: column; gap: 2px; flex-grow: 1">
+            <span style="font-size: 14px; font-weight: 700">{{r.who}}</span>
+            <span style="font-size: 12px; color: #566178">{{r.when}}に希望 · 取引完了 {{r.done}}回</span>
+          </div>
+        </div>
+        <div style="display: flex; align-items: center; gap: 10px">
+          <span style="font-size: 12px; color: #6B4E00; flex-grow: 1">期限まで残り {{r.left}}</span>
+          <a href="DealConfirm.dc.html" style="height: 44px; padding: 0 22px; border-radius: 22px; background: #1F7A80; color: #FFFFFF; font-size: 14px; font-weight: 700; display: flex; align-items: center; text-decoration: none">この人に決める</a>
+        </div>
+      </section>
+    </sc-for>
+  </main>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"$preview":{"width":390,"height":844}}'>
+class Component extends DCLogic {
+  renderVals() {
+    const names = ['公開中', '購入希望あり', '取引中', '取引完了'];
+    const steps = names.map((name, i) => ({
+      name,
+      bar: 'height: 4px; border-radius: 2px; background: ' + (i <= 1 ? '#1F7A80' : '#E4DFD3'),
+      label: 'font-size: 11px; ' + (i === 1 ? 'font-weight: 700; color: #155C61' : 'color: #566178')
+    }));
+    return {
+      steps,
+      reqs: [
+        { ini: '経', who: '経済学部 · 2026年度入学', when: '10/7 12:40', done: 0, left: '24時間' },
+        { ini: '理', who: '理工学部 · 2026年度入学', when: '10/7 18:05', done: 2, left: '30時間' },
+        { ini: '農', who: '農学部 · 2025年度入学', when: '10/8 9:12', done: 1, left: '45時間' }
+      ]
+    };
+  }
+}
+</script>
+</body>
+</html>

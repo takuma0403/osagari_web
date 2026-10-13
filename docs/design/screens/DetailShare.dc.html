@@ -1,0 +1,49 @@
+<!doctype html>
+<html lang="ja">
+<head>
+<meta charset="utf-8">
+<title>商品の共有</title>
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link href="https://fonts.googleapis.com/css2?family=Zen+Kaku+Gothic+New:wght@400;500;700&amp;family=Outfit:wght@500;700&amp;display=swap" rel="stylesheet">
+<style>
+body{margin:0}
+a{color:#1F7A80}a:hover{color:#155C61}
+</style>
+</helmet>
+<div style="position: relative; width: 390px; height: 844px; background: #FFFFFF; color: #1B2B4B; font-family: 'Zen Kaku Gothic New', sans-serif; overflow: hidden">
+  <div style="height: 300px; background: #DDF0F0"></div>
+  <div style="padding: 20px 16px; display: flex; flex-direction: column; gap: 10px">
+    <div style="font-size: 20px; font-weight: 700">線形代数入門</div>
+    <div style="font-family: Outfit, sans-serif; font-size: 28px; font-weight: 700">¥1,500</div>
+    <div style="height: 140px; border-radius: 12px; background: #F8F5EE"></div>
+  </div>
+  <div style="position: absolute; left: 0; top: 0; width: 390px; height: 844px; background: rgba(27, 43, 75, 0.55)"></div>
+  <sc-if value="{{copied}}" hint-placeholder-val="{{ false }}">
+    <div role="status" style="position: absolute; left: 50%; top: 64px; transform: translateX(-50%); display: flex; align-items: center; gap: 8px; padding: 12px 18px; border-radius: 24px; background: #1B2B4B; color: #FFFFFF; font-size: 14px; font-weight: 700; white-space: nowrap">
+      <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6L9 17l-5-5"></path></svg>紹介文をコピーしました
+    </div>
+  </sc-if>
+  <div role="dialog" aria-labelledby="share-title" style="position: absolute; left: 0; bottom: 0; width: 390px; box-sizing: border-box; padding: 12px 20px 28px; border-radius: 20px 20px 0 0; background: #FFFFFF; display: flex; flex-direction: column; gap: 16px">
+    <div style="align-self: center; width: 40px; height: 4px; border-radius: 2px; background: #E4DFD3"></div>
+    <div style="display: flex; flex-direction: column; gap: 4px">
+      <h2 id="share-title" style="margin: 0; font-size: 18px; font-weight: 700">この商品を紹介する</h2>
+      <p style="margin: 0; font-size: 13px; color: #566178; line-height: 1.6">TeamsやLINEに貼ると、リンクのプレビューが出なくても内容が伝わります。</p>
+    </div>
+    <div style="padding: 14px; border-radius: 12px; background: #F8F5EE; border: 1px solid #E4DFD3; font-size: 14px; line-height: 1.8; word-break: break-all">【お下がり】線形代数入門 ¥1,500（目立った傷や汚れなし・書き込みなし）<br><span style="font-family: Outfit, sans-serif; color: #1F7A80">https://[ドメイン]/items/123</span></div>
+    <button style="height: 52px; border: none; border-radius: 26px; background: #1F7A80; color: #FFFFFF; font: inherit; font-size: 16px; font-weight: 700; display: flex; align-items: center; justify-content: center; gap: 8px"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="12" height="12" rx="2"></rect><path d="M5 15V5a2 2 0 0 1 2-2h8"></path></svg>紹介文をコピー</button>
+    <button style="height: 48px; border-radius: 24px; border: 1px solid #E4DFD3; background: #FFFFFF; font: inherit; font-size: 15px; font-weight: 700; color: #1B2B4B; display: flex; align-items: center; justify-content: center; gap: 8px"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3v13M7 8l5-5 5 5M5 14v5a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2v-5"></path></svg>ほかのアプリで共有</button>
+    <a href="Detail.dc.html" style="align-self: center; font-size: 14px; color: #566178; padding: 6px 12px">閉じる</a>
+  </div>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"copied":{"editor":"boolean","default":true},"$preview":{"width":390,"height":844}}'>
+class Component extends DCLogic {
+  renderVals() { return { copied: this.props.copied ?? true }; }
+}
+</script>
+</body>
+</html>

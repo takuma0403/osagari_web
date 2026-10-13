@@ -1,0 +1,81 @@
+<!doctype html>
+<html lang="ja">
+<head>
+<meta charset="utf-8">
+<title>出品・編集</title>
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link href="https://fonts.googleapis.com/css2?family=Zen+Kaku+Gothic+New:wght@400;500;700&amp;family=Outfit:wght@500;700&amp;display=swap" rel="stylesheet">
+<style>
+body{margin:0}
+a{color:#1F7A80}a:hover{color:#155C61}
+</style>
+</helmet>
+<div style="width: 390px; height: 1040px; display: flex; flex-direction: column; background: #F8F5EE; color: #1B2B4B; font-family: 'Zen Kaku Gothic New', sans-serif; overflow: hidden">
+  <header style="height: 56px; flex-shrink: 0; background: #FFFFFF; border-bottom: 1px solid #E4DFD3; display: flex; align-items: center; padding: 0 4px; gap: 4px">
+    <a href="Main.dc.html" aria-label="閉じる" style="width: 44px; height: 44px; display: flex; align-items: center; justify-content: center; color: #1B2B4B"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><path d="M6 6l12 12M18 6L6 18"></path></svg></a>
+    <h1 style="margin: 0; font-size: 17px; font-weight: 700">出品する</h1>
+  </header>
+  <main style="flex-grow: 1; padding: 16px; display: flex; flex-direction: column; gap: 16px; overflow: hidden">
+    <div style="display: flex; gap: 8px">
+      <div style="width: 80px; height: 80px; border-radius: 10px; background: #DDF0F0"></div>
+      <div style="width: 80px; height: 80px; border-radius: 10px; background: #DDF0F0"></div>
+      <button style="width: 80px; height: 80px; border-radius: 10px; border: 1.5px dashed #9CC9CB; background: #FFFFFF; font: inherit; font-size: 11px; color: #1F7A80; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 4px"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M4 8h3l2-3h6l2 3h3v11H4z"></path><circle cx="12" cy="13" r="3.5"></circle></svg>写真を追加</button>
+    </div>
+    <div style="display: flex; flex-direction: column; gap: 6px">
+      <label for="t" style="font-size: 13px; font-weight: 700">タイトル</label>
+      <input id="t" value="線形代数入門" style="height: 48px; border: 1px solid #E4DFD3; border-radius: 10px; padding: 0 12px; font: inherit; font-size: 15px; background: #FFFFFF">
+    </div>
+    <div style="display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px">
+      <div style="display: flex; flex-direction: column; gap: 6px">
+        <label for="cat" style="font-size: 13px; font-weight: 700">カテゴリ</label>
+        <select id="cat" style="height: 48px; border: 1px solid #E4DFD3; border-radius: 10px; padding: 0 10px; font: inherit; font-size: 14px; background: #FFFFFF; color: #1B2B4B"><option>教科書・参考書</option><option>家具・家電</option><option>ゲーム・その他</option></select>
+      </div>
+      <div style="display: flex; flex-direction: column; gap: 6px">
+        <label for="cond" style="font-size: 13px; font-weight: 700">状態</label>
+        <select id="cond" style="height: 48px; border: 1px solid #E4DFD3; border-radius: 10px; padding: 0 10px; font: inherit; font-size: 14px; background: #FFFFFF; color: #1B2B4B"><option>目立った傷なし</option><option>新品同様</option><option>やや傷あり</option></select>
+      </div>
+    </div>
+    <fieldset style="margin: 0; padding: 14px; border: none; border-radius: 12px; background: #DDF0F0; display: flex; flex-direction: column; gap: 10px">
+      <legend style="float: left; padding: 0; font-size: 13px; font-weight: 700; color: #155C61">教科書の情報</legend>
+      <input aria-label="授業名" placeholder="授業名" value="線形代数学I" style="height: 44px; border: 1px solid #B9DCDD; border-radius: 10px; padding: 0 12px; font: inherit; font-size: 14px; background: #FFFFFF">
+      <input aria-label="担当教員" placeholder="担当教員" style="height: 44px; border: 1px solid #B9DCDD; border-radius: 10px; padding: 0 12px; font: inherit; font-size: 14px; background: #FFFFFF">
+      <div style="display: flex; gap: 8px">
+        <input aria-label="ISBN" placeholder="ISBN" style="flex-grow: 1; min-width: 0; height: 44px; border: 1px solid #B9DCDD; border-radius: 10px; padding: 0 12px; font: inherit; font-size: 14px; background: #FFFFFF">
+        <button aria-label="バーコードを読み取る" style="width: 44px; height: 44px; border-radius: 10px; border: 1px solid #B9DCDD; background: #FFFFFF; color: #155C61; display: flex; align-items: center; justify-content: center"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><path d="M4 6v12M8 6v12M11 6v12M15 6v12M18 6v12M21 6v12"></path></svg></button>
+      </div>
+      <label style="display: flex; align-items: center; justify-content: space-between; font-size: 14px; min-height: 44px">書き込みあり<input type="checkbox" style="width: 22px; height: 22px; accent-color: #1F7A80"></label>
+    </fieldset>
+    <div style="display: flex; flex-direction: column; gap: 6px">
+      <label for="price" style="font-size: 13px; font-weight: 700">価格</label>
+      <div style="display: flex; align-items: center; height: 48px; border: 1px solid #E4DFD3; border-radius: 10px; padding: 0 12px; background: #FFFFFF; gap: 6px"><span style="font-family: Outfit, sans-serif; font-size: 17px">¥</span><input id="price" value="1,500" style="border: none; outline: none; font-family: Outfit, sans-serif; font-size: 17px; flex-grow: 1; min-width: 0"></div>
+      <div style="display: flex; justify-content: space-between; font-size: 12px; color: #566178"><span>手数料 [料率]</span><span>受け取り見込み ¥[金額]</span></div>
+    </div>
+    <div style="display: flex; flex-direction: column; gap: 6px">
+      <span style="font-size: 13px; font-weight: 700">受け渡し希望キャンパス</span>
+      <div role="radiogroup" style="display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); padding: 4px; border-radius: 12px; background: #FFFFFF; border: 1px solid #E4DFD3">
+        <button role="radio" aria-checked="true" style="height: 40px; border: none; border-radius: 9px; background: #1F7A80; color: #FFFFFF; font: inherit; font-size: 14px; font-weight: 700">本庄</button>
+        <button role="radio" aria-checked="false" style="height: 40px; border: none; border-radius: 9px; background: transparent; color: #1B2B4B; font: inherit; font-size: 14px">鍋島</button>
+      </div>
+    </div>
+    <div style="display: flex; flex-direction: column; gap: 6px">
+      <label for="desc" style="font-size: 13px; font-weight: 700">説明</label>
+      <textarea id="desc" rows="3" style="border: 1px solid #E4DFD3; border-radius: 10px; padding: 10px 12px; font: inherit; font-size: 14px; line-height: 1.6; background: #FFFFFF; resize: none">1年前期で使いました。書き込みはありません。</textarea>
+    </div>
+  </main>
+  <div style="padding: 12px 16px 24px; background: #FFFFFF; border-top: 1px solid #E4DFD3; display: flex; gap: 10px">
+    <button style="height: 52px; padding: 0 20px; border-radius: 26px; border: 1px solid #E4DFD3; background: #FFFFFF; font: inherit; font-size: 14px; font-weight: 700; color: #1B2B4B">下書き保存</button>
+    <button style="flex-grow: 1; height: 52px; border: none; border-radius: 26px; background: #1F7A80; color: #FFFFFF; font: inherit; font-size: 16px; font-weight: 700">公開する</button>
+  </div>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"$preview":{"width":390,"height":1040}}'>
+class Component extends DCLogic {
+  renderVals() { return {}; }
+}
+</script>
+</body>
+</html>

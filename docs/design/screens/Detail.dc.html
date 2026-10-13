@@ -1,0 +1,67 @@
+<!doctype html>
+<html lang="ja">
+<head>
+<meta charset="utf-8">
+<title>商品詳細</title>
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link href="https://fonts.googleapis.com/css2?family=Zen+Kaku+Gothic+New:wght@400;500;700&amp;family=Outfit:wght@500;700&amp;display=swap" rel="stylesheet">
+<style>
+body{margin:0}
+a{color:#1F7A80}a:hover{color:#155C61}
+</style>
+</helmet>
+<div style="width: 390px; height: 980px; display: flex; flex-direction: column; background: #FFFFFF; color: #1B2B4B; font-family: 'Zen Kaku Gothic New', sans-serif; overflow: hidden">
+  <div style="position: relative; height: 340px; flex-shrink: 0; background: #DDF0F0; display: flex; align-items: center; justify-content: center">
+    <span style="font-size: 13px; color: #566178">商品写真 1 / 4</span>
+    <a href="Main.dc.html" aria-label="戻る" style="position: absolute; left: 12px; top: 12px; width: 44px; height: 44px; border-radius: 22px; background: #FFFFFF; display: flex; align-items: center; justify-content: center; color: #1B2B4B"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M15 5l-7 7 7 7"></path></svg></a>
+    <button aria-label="ほかのアプリで共有" style="position: absolute; right: 12px; top: 12px; width: 44px; height: 44px; border-radius: 22px; border: none; background: #FFFFFF; display: flex; align-items: center; justify-content: center; color: #1B2B4B"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3v13M7 8l5-5 5 5M5 14v5a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2v-5"></path></svg></button>
+    <div style="position: absolute; bottom: 12px; display: flex; gap: 6px">
+      <span style="width: 18px; height: 6px; border-radius: 3px; background: #1F7A80"></span>
+      <span style="width: 6px; height: 6px; border-radius: 3px; background: #9CC9CB"></span>
+      <span style="width: 6px; height: 6px; border-radius: 3px; background: #9CC9CB"></span>
+      <span style="width: 6px; height: 6px; border-radius: 3px; background: #9CC9CB"></span>
+    </div>
+  </div>
+  <div style="flex-grow: 1; padding: 20px 16px; display: flex; flex-direction: column; gap: 18px; overflow: hidden">
+    <div style="display: flex; flex-direction: column; gap: 8px">
+      <div style="display: flex; gap: 6px">
+        <span style="font-size: 12px; font-weight: 700; padding: 4px 10px; border-radius: 12px; background: #DDF0F0; color: #155C61">教科書・参考書</span>
+        <span style="font-size: 12px; font-weight: 700; padding: 4px 10px; border-radius: 12px; background: #FBEFC4; color: #6B4E00">購入希望 2件</span>
+      </div>
+      <h1 style="margin: 0; font-size: 20px; line-height: 1.45; font-weight: 700">線形代数入門</h1>
+      <div style="font-family: Outfit, sans-serif; font-size: 28px; font-weight: 700">¥1,500</div>
+    </div>
+    <dl style="margin: 0; display: grid; grid-template-columns: 96px minmax(0, 1fr); row-gap: 10px; font-size: 14px; padding: 14px; border-radius: 12px; background: #F8F5EE">
+      <dt style="color: #566178">授業名</dt><dd style="margin: 0">線形代数学I</dd>
+      <dt style="color: #566178">担当教員</dt><dd style="margin: 0">[担当教員名]</dd>
+      <dt style="color: #566178">ISBN</dt><dd style="margin: 0; font-family: Outfit, sans-serif">[ISBN]</dd>
+      <dt style="color: #566178">書き込み</dt><dd style="margin: 0">なし</dd>
+      <dt style="color: #566178">状態</dt><dd style="margin: 0">目立った傷や汚れなし</dd>
+      <dt style="color: #566178">受け渡し</dt><dd style="margin: 0">本庄キャンパス</dd>
+    </dl>
+    <p style="margin: 0; font-size: 14px; line-height: 1.8">1年前期で使いました。付箋の跡が少しありますが、書き込みはありません。中央図書館の前で平日昼休みに受け渡しできます。</p>
+    <div style="display: flex; align-items: center; gap: 12px; padding: 12px 0; border-top: 1px solid #E4DFD3">
+      <div style="width: 40px; height: 40px; border-radius: 20px; background: #DDF0F0; color: #155C61; display: flex; align-items: center; justify-content: center; font-weight: 700">理</div>
+      <div style="display: flex; flex-direction: column; gap: 2px">
+        <span style="font-size: 14px; font-weight: 700">理工学部 · 2025年度入学</span>
+        <span style="font-size: 12px; color: #566178">学籍番号は取引成立後に表示されます</span>
+      </div>
+    </div>
+  </div>
+  <div style="padding: 12px 16px 24px; border-top: 1px solid #E4DFD3; display: flex; gap: 10px; background: #FFFFFF">
+    <a href="DetailShare.dc.html" style="height: 52px; padding: 0 16px; border-radius: 26px; border: 1px solid #E4DFD3; background: #FFFFFF; font-size: 14px; font-weight: 700; color: #1B2B4B; display: flex; align-items: center; gap: 6px; text-decoration: none"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="12" height="12" rx="2"></rect><path d="M5 15V5a2 2 0 0 1 2-2h8"></path></svg>紹介文をコピー</a>
+    <a href="Request.dc.html" style="flex-grow: 1; height: 52px; border-radius: 26px; background: #1F7A80; color: #FFFFFF; font-size: 16px; font-weight: 700; display: flex; align-items: center; justify-content: center; text-decoration: none">購入希望を出す</a>
+  </div>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"$preview":{"width":390,"height":980}}'>
+class Component extends DCLogic {
+  renderVals() { return {}; }
+}
+</script>
+</body>
+</html>

@@ -1,0 +1,25 @@
+# 依存・ビルド成果物
+node_modules/
+dist/
+coverage/
+server/bin/
+server/tmp/
+*.log
+
+# 環境変数（機密）。.env.example のみ管理する
+.env
+.env.*
+!.env.example
+
+# ローカルDB
+*.db
+*.db-journal
+
+# エディタ・OS
+.DS_Store
+.vscode/*
+!.vscode/extensions.json
+.idea/
+
+# Claude Code の個人設定
+.claude/settings.local.json

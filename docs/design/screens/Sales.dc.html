@@ -1,0 +1,70 @@
+<!doctype html>
+<html lang="ja">
+<head>
+<meta charset="utf-8">
+<title>売上管理</title>
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link href="https://fonts.googleapis.com/css2?family=Zen+Kaku+Gothic+New:wght@400;500;700&amp;family=Outfit:wght@500;700&amp;display=swap" rel="stylesheet">
+<style>
+body{margin:0}
+a{color:#1F7A80}a:hover{color:#155C61}
+</style>
+</helmet>
+<div style="width: 390px; height: 844px; display: flex; flex-direction: column; background: #F8F5EE; color: #1B2B4B; font-family: 'Zen Kaku Gothic New', sans-serif; overflow: hidden">
+  <header style="height: 56px; flex-shrink: 0; background: #FFFFFF; border-bottom: 1px solid #E4DFD3; display: flex; align-items: center; padding: 0 4px; gap: 4px">
+    <a href="MyPage.dc.html" aria-label="戻る" style="width: 44px; height: 44px; display: flex; align-items: center; justify-content: center; color: #1B2B4B"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M15 5l-7 7 7 7"></path></svg></a>
+    <h1 style="margin: 0; font-size: 17px; font-weight: 700; flex-grow: 1">売上管理</h1>
+    <span style="margin-right: 12px; font-size: 11px; font-weight: 700; padding: 3px 8px; border-radius: 10px; background: #FBEFC4; color: #6B4E00">モック</span>
+  </header>
+  <main style="flex-grow: 1; padding: 16px; display: flex; flex-direction: column; gap: 14px; overflow: hidden">
+    <section style="padding: 18px 16px; border-radius: 14px; background: #FFFFFF; border: 1px solid #E4DFD3; display: flex; flex-direction: column; gap: 14px">
+      <div style="display: flex; flex-direction: column; gap: 2px">
+        <span style="font-size: 13px; color: #566178">出金できる売上</span>
+        <span style="font-family: Outfit, sans-serif; font-size: 34px; font-weight: 700">¥7,830</span>
+      </div>
+      <div style="display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px">
+        <div style="padding: 10px 12px; border-radius: 10px; background: #F8F5EE; display: flex; flex-direction: column; gap: 2px"><span style="font-size: 12px; color: #566178">受け渡し待ち</span><span style="font-family: Outfit, sans-serif; font-size: 17px; font-weight: 700">¥720</span></div>
+        <div style="padding: 10px 12px; border-radius: 10px; background: #F8F5EE; display: flex; flex-direction: column; gap: 2px"><span style="font-size: 12px; color: #566178">出金済み</span><span style="font-family: Outfit, sans-serif; font-size: 17px; font-weight: 700">¥3,150</span></div>
+      </div>
+      <div style="display: flex; align-items: center; justify-content: space-between; font-size: 13px; padding-top: 12px; border-top: 1px solid #E4DFD3"><span style="color: #566178">受け取り先</span><span style="font-weight: 700">[銀行口座 未登録]</span></div>
+      <button style="height: 48px; border: none; border-radius: 24px; background: #1F7A80; color: #FFFFFF; font: inherit; font-size: 15px; font-weight: 700">出金を申請する</button>
+    </section>
+    <h2 style="margin: 4px 0 0; font-size: 15px; font-weight: 700">売上の明細</h2>
+    <div style="background: #FFFFFF; border: 1px solid #E4DFD3; border-radius: 12px; display: flex; flex-direction: column">
+      <sc-for list="{{rows}}" as="r" hint-placeholder-count="4">
+        <div style="{{r.wrap}}">
+          <div style="display: flex; justify-content: space-between; align-items: baseline">
+            <span style="font-size: 14px; font-weight: 700">{{r.title}}</span>
+            <span style="font-family: Outfit, sans-serif; font-size: 16px; font-weight: 700">¥{{r.net}}</span>
+          </div>
+          <div style="display: flex; justify-content: space-between; font-size: 12px; color: #566178">
+            <span>{{r.date}} · {{r.state}}</span>
+            <span style="font-family: Outfit, sans-serif">¥{{r.price}} − 手数料 ¥{{r.fee}}</span>
+          </div>
+        </div>
+      </sc-for>
+    </div>
+    <p style="margin: 0; font-size: 12px; color: #566178">手数料率は仮の値（10%）で表示しています。</p>
+  </main>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"$preview":{"width":390,"height":844}}'>
+class Component extends DCLogic {
+  renderVals() {
+    const data = [
+      { title: '一人暮らし用 冷蔵庫', date: '10/5', state: '確定', price: '6,000', fee: '600', net: '5,400' },
+      { title: '解剖学講義 改訂3版', date: '10/2', state: '確定', price: '2,700', fee: '270', net: '2,430' },
+      { title: 'ローテーブル 折りたたみ', date: '10/8', state: '受け渡し待ち', price: '800', fee: '80', net: '720' },
+      { title: 'ミクロ経済学入門', date: '9/20', state: '出金済み', price: '3,500', fee: '350', net: '3,150' }
+    ];
+    const rows = data.map((r, i) => ({ ...r, wrap: 'padding: 12px 14px; display: flex; flex-direction: column; gap: 4px' + (i ? '; border-top: 1px solid #E4DFD3' : '') }));
+    return { rows };
+  }
+}
+</script>
+</body>
+</html>

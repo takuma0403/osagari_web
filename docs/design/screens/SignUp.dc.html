@@ -1,0 +1,63 @@
+<!doctype html>
+<html lang="ja">
+<head>
+<meta charset="utf-8">
+<title>新規登録・パスワード再設定</title>
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link href="https://fonts.googleapis.com/css2?family=Zen+Kaku+Gothic+New:wght@400;500;700&amp;family=Outfit:wght@500;700&amp;display=swap" rel="stylesheet">
+<style>
+body{margin:0}
+a{color:#1F7A80}a:hover{color:#155C61}
+</style>
+</helmet>
+<div style="width: 390px; height: 844px; display: flex; flex-direction: column; background: #FFFFFF; color: #1B2B4B; font-family: 'Zen Kaku Gothic New', sans-serif">
+  <header style="height: 56px; flex-shrink: 0; display: flex; align-items: center; padding: 0 4px">
+    <a href="Login.dc.html" aria-label="戻る" style="width: 44px; height: 44px; display: flex; align-items: center; justify-content: center; color: #1B2B4B"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M15 5l-7 7 7 7"></path></svg></a>
+  </header>
+  <main style="flex-grow: 1; padding: 8px 24px 32px; display: flex; flex-direction: column; gap: 24px">
+    <div style="display: flex; flex-direction: column; gap: 10px">
+      <span style="font-family: Outfit, sans-serif; font-size: 13px; font-weight: 700; color: #1F7A80">STEP 1 / 3</span>
+      <h1 style="margin: 0; font-size: 24px; font-weight: 700">{{title}}</h1>
+      <p style="margin: 0; font-size: 14px; line-height: 1.7; color: #566178">{{lead}}</p>
+    </div>
+    <div style="display: flex; flex-direction: column; gap: 8px">
+      <label for="mail" style="font-size: 13px; font-weight: 700">大学のメールアドレス</label>
+      <div style="display: flex; align-items: center; height: 52px; border: 1.5px solid #1F7A80; border-radius: 10px; padding: 0 14px; gap: 4px">
+        <input id="mail" value="26238001" inputmode="numeric" style="border: none; outline: none; font-family: Outfit, sans-serif; font-size: 17px; width: 110px; color: #1B2B4B; background: transparent">
+        <span style="font-family: Outfit, sans-serif; font-size: 15px; color: #566178">@edu.cc.saga-u.ac.jp</span>
+      </div>
+      <sc-if value="{{signup}}" hint-placeholder-val="{{ true }}">
+        <div style="display: flex; gap: 6px; align-items: flex-start; font-size: 12px; color: #155C61; line-height: 1.5">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="flex-shrink: 0; margin-top: 1px"><path d="M20 6L9 17l-5-5"></path></svg>
+          <span>理工学部 理工学科・2026年度入学として登録されます（有効期限 2030年3月31日）</span>
+        </div>
+      </sc-if>
+      <span style="font-size: 12px; color: #566178">学籍番号（数字8桁）を入力してください</span>
+    </div>
+    <a href="Code.dc.html" style="height: 52px; border-radius: 26px; background: #1F7A80; color: #FFFFFF; font-size: 16px; font-weight: 700; display: flex; align-items: center; justify-content: center; text-decoration: none">認証コードを送る</a>
+    <sc-if value="{{signup}}" hint-placeholder-val="{{ true }}">
+      <div style="font-size: 13px; color: #566178; text-align: center">登録済みの方は <a href="Login.dc.html">ログイン</a></div>
+    </sc-if>
+  </main>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"mode":{"editor":"enum","options":["新規登録","パスワード再設定"],"default":"新規登録"},"$preview":{"width":390,"height":844}}'>
+class Component extends DCLogic {
+  renderVals() {
+    const signup = (this.props.mode ?? '新規登録') === '新規登録';
+    return {
+      signup,
+      title: signup ? '新規登録' : 'パスワードの再設定',
+      lead: signup
+        ? '大学のメールアドレスに6桁の認証コードを送ります。コードを確認したあと、パスワードを決めます。'
+        : '登録したメールアドレスに6桁の認証コードを送ります。本人確認のあと、新しいパスワードを決めます。'
+    };
+  }
+}
+</script>
+</body>
+</html>

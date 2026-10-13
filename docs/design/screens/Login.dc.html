@@ -1,0 +1,65 @@
+<!doctype html>
+<html lang="ja">
+<head>
+<meta charset="utf-8">
+<title>ログイン</title>
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link href="https://fonts.googleapis.com/css2?family=Zen+Kaku+Gothic+New:wght@400;500;700&amp;family=Outfit:wght@500;700&amp;display=swap" rel="stylesheet">
+<style>
+body{margin:0}
+a{color:#1F7A80}a:hover{color:#155C61}
+</style>
+</helmet>
+<div style="width: 390px; height: 844px; box-sizing: border-box; padding: 56px 24px 32px; display: flex; flex-direction: column; gap: 24px; background: #FFFFFF; color: #1B2B4B; font-family: 'Zen Kaku Gothic New', sans-serif">
+  <div style="display: flex; flex-direction: column; gap: 14px">
+    <div style="width: 72px; height: 72px; border-radius: 18px; overflow: hidden; flex-shrink: 0"><img src="/_blob/1acda67ee7f900cbc97927dddc1267cf" alt="" style="width: 100%; height: 100%; object-fit: cover; transform: scale(1.32)"></div>
+    <h1 style="margin: 0; font-size: 26px; line-height: 1.35; font-weight: 700">佐賀大生どうしで、<br>お下がりを回そう。</h1>
+    <p style="margin: 0; font-size: 14px; line-height: 1.7; color: #566178">佐賀大学の学生だけが使えるフリマです。</p>
+  </div>
+  <sc-if value="{{locked}}" hint-placeholder-val="{{ false }}">
+    <div role="alert" style="display: flex; gap: 10px; padding: 14px; border-radius: 12px; background: #FBE7E4; color: #8A2621; font-size: 13px; line-height: 1.7">
+      <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" style="flex-shrink: 0; margin-top: 2px"><rect x="5" y="11" width="14" height="10" rx="2"></rect><path d="M8 11V7a4 4 0 0 1 8 0v4"></path></svg>
+      <span>パスワードを10回間違えたため、15分間ログインできません。<b style="font-family: Outfit, sans-serif">あと 14:32</b><br>思い出せない場合は、パスワードを再設定してください。</span>
+    </div>
+  </sc-if>
+  <div style="display: flex; flex-direction: column; gap: 16px">
+    <div style="display: flex; flex-direction: column; gap: 8px">
+      <label for="mail" style="font-size: 13px; font-weight: 700">大学のメールアドレス</label>
+      <div style="display: flex; align-items: center; height: 52px; border: 1px solid #E4DFD3; border-radius: 10px; padding: 0 14px; gap: 4px">
+        <input id="mail" value="26238001" autocomplete="username" style="border: none; outline: none; font-family: Outfit, sans-serif; font-size: 17px; width: 110px; color: #1B2B4B; background: transparent">
+        <span style="font-family: Outfit, sans-serif; font-size: 15px; color: #566178">@edu.cc.saga-u.ac.jp</span>
+      </div>
+    </div>
+    <div style="display: flex; flex-direction: column; gap: 8px">
+      <label for="pw" style="font-size: 13px; font-weight: 700">パスワード</label>
+      <div style="display: flex; align-items: center; height: 52px; border: 1.5px solid #1F7A80; border-radius: 10px; padding: 0 4px 0 14px">
+        <input id="pw" type="password" value="password12" autocomplete="current-password" style="flex-grow: 1; min-width: 0; border: none; outline: none; font: inherit; font-size: 17px; color: #1B2B4B; background: transparent">
+        <button aria-label="パスワードを表示" style="width: 44px; height: 44px; border: none; background: transparent; color: #566178; display: flex; align-items: center; justify-content: center"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M2 12s3.5-7 10-7 10 7 10 7-3.5 7-10 7S2 12 2 12z"></path><circle cx="12" cy="12" r="3"></circle></svg></button>
+      </div>
+      <a href="SignUp.dc.html" style="align-self: flex-end; font-size: 13px; padding: 8px 0">パスワードを忘れた場合</a>
+    </div>
+  </div>
+  <button style="{{btn}}">ログイン</button>
+  <div style="display: flex; align-items: center; gap: 12px; color: #566178; font-size: 12px">
+    <span style="flex-grow: 1; height: 1px; background: #E4DFD3"></span>はじめての方<span style="flex-grow: 1; height: 1px; background: #E4DFD3"></span>
+  </div>
+  <a href="SignUp.dc.html" style="height: 52px; border-radius: 26px; border: 1.5px solid #1F7A80; color: #1F7A80; font-size: 16px; font-weight: 700; display: flex; align-items: center; justify-content: center; text-decoration: none">新規登録</a>
+  <div style="margin-top: auto; font-size: 12px; color: #566178; text-align: center; line-height: 1.7"><a href="#">利用規約</a> · <a href="#">プライバシーポリシー</a></div>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"locked":{"editor":"boolean","default":false},"$preview":{"width":390,"height":844}}'>
+class Component extends DCLogic {
+  renderVals() {
+    const locked = this.props.locked ?? false;
+    const btn = 'height: 52px; border: none; border-radius: 26px; font: inherit; font-size: 16px; font-weight: 700; ' +
+      (locked ? 'background: #E4DFD3; color: #566178' : 'background: #1F7A80; color: #FFFFFF');
+    return { locked, btn };
+  }
+}
+</script>
+</body>
+</html>
