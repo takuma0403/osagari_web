@@ -24,7 +24,7 @@ Vite + React のSPAを Firebase Hosting に置きます。ログイン必須の�
 
 - 言語は TypeScript。スタイリングは **CSS Modules + CSS変数**（デザイントークンは [design/README.md](../design/README.md) を正とし、`app/src/styles/tokens.css` に1対1で写す）。
 - APIの型は [docs/api/openapi.yaml](../api/openapi.yaml) から openapi-typescript で生成し、手書きしない。
-- 画面のルートは次のとおり（実装は `app/src/routes.tsx`。変えるときは両方を直す）。利用者向けは 390px 基準・PC では中央寄せの列（`MobileLayout`）、管理画面は PC 幅（`AdminLayout`）で表示する（[DS-1](../design/README.md)）。
+- 画面のルートは次のとおり（実装は `app/src/routes.tsx`。変えるときは両方を直す）。利用者向けは 390px 基準・PC では中央寄せの列（`MobileLayout`）、管理画面は PC 幅（`AdminLayout`）で表示する（[DS-1](../design/README.md)）。「下部ナビ」は DS-3 の `BottomNav` ができてから表示する。
 
   | パス | 画面 | レイアウト |
   | --- | --- | --- |

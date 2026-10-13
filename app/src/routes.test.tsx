@@ -34,7 +34,7 @@ describe('routes', () => {
     ['/admin/student-cards', '学生証審査'],
     ['/admin/users', 'ユーザー'],
     ['/admin/items', '出品・取引'],
-    ['/admin/settings', '設定'],
+    ['/admin/settings', '設定（手数料率）'],
   ])('%s で「%s」を表示する', (path, title) => {
     renderAt(path)
     expect(screen.getByRole('heading', { level: 1, name: title })).toBeInTheDocument()

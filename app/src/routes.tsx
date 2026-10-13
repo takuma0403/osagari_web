@@ -56,7 +56,7 @@ export const routes: RouteObject[] = [
       placeholder('student-cards', '学生証審査'),
       placeholder('users', 'ユーザー'),
       placeholder('items', '出品・取引'),
-      placeholder('settings', '設定'),
+      placeholder('settings', '設定（手数料率）'),
     ],
   },
   {
