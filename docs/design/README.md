@@ -2,7 +2,7 @@
 
 - **キャンバス（正本）**: https://claude.ai/artifact/QdafhFt85mz3WvYPPtDGEH （Claude Design「佐賀大お下がりフリマ デザイン」）
 - **リポジトリ内の写し**: [screens/](screens/) … キャンバスの各アートボードの `.dc.html` ソースと [canvas.json](screens/canvas.json)（2026-10-14 取得、version `1791920931-c1a1`）
-- **ロゴ**: [assets/logo.png](assets/logo.png)（1254×1254。画面ではアイコン枠に `object-fit: cover; transform: scale(1.32)` で表示している）
+- **ロゴ**: [assets/logo.png](assets/logo.png)（1254×1254。画面ではアイコン枠に `object-fit: cover; transform: scale(1.32)` で表示している。アプリでは 128×128 に縮小した `app/src/assets/logo.png` を `AppLogo` 部品で使う）
 - 更新手順は [design-sync スキル](../../.claude/skills/design-sync/SKILL.md)、実装への移し方は [design-to-code スキル](../../.claude/skills/design-to-code/SKILL.md) を参照。
 
 > `.dc.html` は Claude Design 独自のコンポーネント形式です（`<x-dc>` 内がマークアップ、`{{…}}` は末尾の `<script type="text/x-dc">` の `renderVals()` の値、`<sc-for>` は繰り返し、`<sc-if>` は条件表示、`data-props` は表示を切り替えるパラメータ）。**見た目と文言の参照元**として読み、コードとしてはそのまま流用しないこと。

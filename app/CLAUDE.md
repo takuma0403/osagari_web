@@ -31,6 +31,7 @@ app/
     api/
       schema.gen.ts     … 生成物（編集しない）
       client.ts         … fetch ラッパー、エラー（Error スキーマ）の扱い
+    assets/             … 画面で使う画像（logo.png は docs/design/assets/logo.png を 128px に縮小したもの）
     layouts/            … MobileLayout（390px 基準・PC は中央寄せ）、AdminLayout（PC 幅）
     components/         … DS-3 の共通部品（Button, TextField, CodeInput, ItemCard, BottomNav …）
       Button/Button.tsx, Button.module.css, Button.test.tsx
