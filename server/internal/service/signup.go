@@ -5,7 +5,6 @@ import (
 	"errors"
 	"fmt"
 	"net/http"
-	"regexp"
 
 	"github.com/takuma0403/osagari_web/server/internal/apperr"
 	"github.com/takuma0403/osagari_web/server/internal/auth"
@@ -27,25 +26,11 @@ const (
 var (
 	errInvalidEmail = apperr.New(http.StatusBadRequest, CodeInvalidEmail,
 		"大学のメールアドレス（学籍番号8桁@edu.cc.saga-u.ac.jp）を入力してください")
-	errMalformedCode       = apperr.BadRequest("6桁の数字を入力してください")
-	errVerificationExpired = apperr.New(http.StatusBadRequest, CodeVerificationCodeExpired,
-		"コードの有効期限が切れたか、使えなくなりました。もう一度コードを送ってください")
 	errInvalidSetupToken = apperr.New(http.StatusBadRequest, CodeInvalidSetupToken,
 		"手続きの有効期限が切れました。もう一度最初からやり直してください")
 	errPasswordLength = apperr.New(http.StatusBadRequest, CodeInvalidPasswordLength,
 		fmt.Sprintf("パスワードは%d文字以上%d文字以下にしてください", auth.MinPasswordLength, auth.MaxPasswordLength))
 )
-
-// errWrongCode はコードが違うときのエラー。残りの回数をメッセージに入れる（AUTHN-6）。
-func errWrongCode(remaining int) *apperr.Error {
-	msg := fmt.Sprintf("コードが違います。あと%d回間違えるとこのコードは使えなくなります", remaining)
-	if remaining <= 0 {
-		msg = "コードが違います。このコードは使えなくなりました。もう一度コードを送ってください"
-	}
-	return apperr.New(http.StatusBadRequest, CodeInvalidVerificationCode, msg)
-}
-
-var sixDigits = regexp.MustCompile(`^[0-9]{6}$`)
 
 // SignupDeps は SignupService の依存。
 type SignupDeps struct {
@@ -91,28 +76,8 @@ func (s *SignupService) SendCode(ctx context.Context, rawEmail string) error {
 	if err != nil {
 		return apperr.Internal(err)
 	}
-	code, err := auth.GenerateCode()
-	if err != nil {
-		return apperr.Internal(err)
-	}
-	codeHash, err := auth.HashCode(code)
-	if err != nil {
-		return apperr.Internal(err)
-	}
-
-	now := s.d.Clock.Now()
-	// 再送したら古いコードは使えなくする（使えるコードは常に1つ）
-	if err := s.d.Codes.InvalidateActive(ctx, email, domain.VerificationPurposeSignup, now); err != nil {
-		return apperr.Internal(err)
-	}
-	err = s.d.Codes.Create(ctx, &domain.VerificationCode{
-		Email:     email,
-		Purpose:   domain.VerificationPurposeSignup,
-		CodeHash:  codeHash,
-		ExpiresAt: now.Add(auth.CodeTTL),
-		CreatedAt: now,
-		UpdatedAt: now,
-	})
+	// 登録済みでも同じようにコードを作って保存する（所要時間とその後の確認の応答を揃える。ADR 0007）
+	code, err := issueCode(ctx, s.d.Codes, email, domain.VerificationPurposeSignup, s.d.Clock.Now())
 	if err != nil {
 		return apperr.Internal(err)
 	}
@@ -134,43 +99,15 @@ type VerifiedSignup struct {
 }
 
 // VerifyCode は新規登録のコードを確認し、パスワード設定用の一時トークンを発行する（AUTHN-2, AUTHN-6）。
-// 入力は1つのコードにつき auth.MaxCodeFailures 回まで。照合の前に回数を数えるので、同時に送られても上限を超えない。
+// 入力の回数の数え方は verifyCode を参照。
 func (s *SignupService) VerifyCode(ctx context.Context, rawEmail, code string) (VerifiedSignup, error) {
 	email, number, err := domain.NormalizeStudentEmail(rawEmail)
 	if err != nil {
 		return VerifiedSignup{}, errInvalidEmail
 	}
-	if !sixDigits.MatchString(code) {
-		return VerifiedSignup{}, errMalformedCode
-	}
-
 	now := s.d.Clock.Now()
-	vc, err := s.d.Codes.FindLatestActive(ctx, email, domain.VerificationPurposeSignup, auth.MaxCodeFailures, now)
-	if errors.Is(err, repository.ErrNotFound) {
-		return VerifiedSignup{}, errVerificationExpired
-	}
-	if err != nil {
-		return VerifiedSignup{}, apperr.Internal(err)
-	}
-	attempts, err := s.d.Codes.ReserveAttempt(ctx, vc.ID, auth.MaxCodeFailures, now)
-	if errors.Is(err, repository.ErrConflict) {
-		return VerifiedSignup{}, errVerificationExpired
-	}
-	if err != nil {
-		return VerifiedSignup{}, apperr.Internal(err)
-	}
-	ok, err := auth.VerifyCode(vc.CodeHash, code)
-	if err != nil {
-		return VerifiedSignup{}, apperr.Internal(err)
-	}
-	if !ok {
-		return VerifiedSignup{}, errWrongCode(auth.MaxCodeFailures - attempts)
-	}
-	// 同じコードで同時に確認しても、一時トークンを発行するのは1回だけ
-	if err := s.d.Codes.Consume(ctx, vc.ID, now); errors.Is(err, repository.ErrConflict) {
-		return VerifiedSignup{}, errVerificationExpired
-	} else if err != nil {
-		return VerifiedSignup{}, apperr.Internal(err)
+	if err := verifyCode(ctx, s.d.Codes, email, domain.VerificationPurposeSignup, code, now); err != nil {
+		return VerifiedSignup{}, err
 	}
 
 	token, err := auth.GenerateToken()
@@ -251,7 +188,7 @@ func (s *SignupService) Complete(ctx context.Context, setupToken, password, devi
 		if err != nil {
 			return err
 		}
-		if err := trustDevice(ctx, s.d.Devices, u.ID, deviceID, now); err != nil {
+		if err := trustDevice(ctx, s.d.Devices, u.ID, deviceHashOf(deviceID), now); err != nil {
 			return err
 		}
 		out = CompletedSignup{User: u, Session: sess}

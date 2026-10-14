@@ -35,14 +35,22 @@ func issueSession(ctx context.Context, sessions SessionStore, userID string, now
 	return IssuedSession{Token: token, IssuedAt: now, ExpiresAt: expiresAt}, nil
 }
 
-// trustDevice は、メールのコードで確認した端末を登録済みの端末にする（AUTHN-3）。deviceID が空なら何もしない。
-func trustDevice(ctx context.Context, devices TrustedDeviceStore, userID, deviceID string, now time.Time) error {
+// deviceHashOf は端末識別子（X-Device-Id）の SHA-256 を返す。識別子が空なら空（ADR 0006）。
+func deviceHashOf(deviceID string) string {
 	if deviceID == "" {
+		return ""
+	}
+	return auth.HashToken(deviceID)
+}
+
+// trustDevice は端末を登録済みの端末にする（AUTHN-3）。登録済みなら最終利用日時だけを更新する。deviceHash が空なら何もしない。
+func trustDevice(ctx context.Context, devices TrustedDeviceStore, userID, deviceHash string, now time.Time) error {
+	if deviceHash == "" {
 		return nil
 	}
 	return devices.Upsert(ctx, &domain.TrustedDevice{
 		UserID:     userID,
-		DeviceHash: auth.HashToken(deviceID),
+		DeviceHash: deviceHash,
 		LastUsedAt: now,
 		CreatedAt:  now,
 		UpdatedAt:  now,
