@@ -40,6 +40,19 @@ describe('routes', () => {
     expect(screen.getByRole('heading', { level: 1, name: title })).toBeInTheDocument()
   })
 
+  it.each(['/', '/search', '/deals', '/mypage'])('%s では下部ナビを表示する', (path) => {
+    renderAt(path)
+    expect(screen.getByRole('navigation', { name: 'メインメニュー' })).toBeInTheDocument()
+  })
+
+  it.each(['/login', '/items/abc123', '/sell', '/deals/42', '/mypage/sales'])(
+    '%s では下部ナビを表示しない',
+    (path) => {
+      renderAt(path)
+      expect(screen.queryByRole('navigation', { name: 'メインメニュー' })).not.toBeInTheDocument()
+    },
+  )
+
   it('管理画面のルートでは管理メニューを表示する', () => {
     renderAt('/admin/users')
     expect(screen.getByRole('navigation', { name: '管理メニュー' })).toBeInTheDocument()
