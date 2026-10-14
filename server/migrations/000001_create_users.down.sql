@@ -1,0 +1,2 @@
+DROP INDEX IF EXISTS users_status_idx;
+DROP TABLE IF EXISTS users;
