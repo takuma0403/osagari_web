@@ -9,7 +9,9 @@ import (
 
 // Deps は handler が使う service。
 type Deps struct {
-	Signup SignupService
+	Signup  SignupService
+	Login   LoginService
+	Session SessionService
 }
 
 // Handler は api.StrictServerInterface の実装。

@@ -135,6 +135,129 @@ paths:
                 $ref: '#/components/schemas/CurrentUser'
         default:
           $ref: '#/components/responses/Error'
+  /auth/login:
+    post:
+      tags: [auth]
+      operationId: login
+      summary: メールアドレスとパスワードでログインする
+      description: |
+        AUTH-1, AUTHN-3, AUTHN-5: パスワードが一致し、最後のコード確認から30日未満かつ登録済みの端末（`X-Device-Id`）なら、そのままログインして `__session` Cookie を返す（200）。
+        30日以上たっているか初めての端末なら、メールに6桁のコード（10分有効）を送り、再確認用のログインチャレンジ（15分有効・一度だけ使える）を返す（202）。
+        メールアドレスの形式違い・未登録・削除済み・パスワード違いは、区別せず 401 invalid_credentials（登録の有無を判別させない）。
+        パスワードが一致しても、停止中なら 403 account_suspended、失効（有効期限切れを含む）なら 403 account_expired。
+      security: []
+      parameters:
+        - $ref: '#/components/parameters/DeviceId'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/LoginInput'
+      responses:
+        '200':
+          description: ログインした
+          headers:
+            Set-Cookie:
+              description: セッションの `__session` Cookie（HttpOnly, Secure, SameSite=Lax）
+              schema:
+                type: string
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CurrentUser'
+        '202':
+          description: 再確認が必要。メールにコードを送った
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/LoginChallenge'
+        default:
+          $ref: '#/components/responses/Error'
+  /auth/login/recheck/codes:
+    post:
+      tags: [auth]
+      operationId: resendLoginRecheckCode
+      summary: 再確認のコードを送り直す
+      description: |
+        AUTHN-3: ログインチャレンジが有効なら、新しいコード（10分有効）を送る。古いコードは使えなくなる。
+        チャレンジが無効・期限切れ・使用済みなら 400 invalid_login_challenge。
+      security: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/LoginChallengeInput'
+      responses:
+        '202':
+          description: コードを送った
+        default:
+          $ref: '#/components/responses/Error'
+  /auth/login/recheck/verify:
+    post:
+      tags: [auth]
+      operationId: verifyLoginRecheck
+      summary: 再確認のコードを確認してログインする
+      description: |
+        AUTHN-3, AUTHN-6: コードが一致したら最後の確認日時を更新し、ログイン時の端末を登録済みの端末にして、`__session` Cookie を返す。
+        不一致は 400 invalid_verification_code（メッセージに残り回数）。期限切れ・使用済み・入力ミスが5回に達したコードは 400 verification_code_expired。
+        チャレンジが無効・期限切れ・使用済みなら 400 invalid_login_challenge。
+      security: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/LoginRecheckVerification'
+      responses:
+        '200':
+          description: ログインした
+          headers:
+            Set-Cookie:
+              description: セッションの `__session` Cookie（HttpOnly, Secure, SameSite=Lax）
+              schema:
+                type: string
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CurrentUser'
+        default:
+          $ref: '#/components/responses/Error'
+  /auth/logout:
+    post:
+      tags: [auth]
+      operationId: logout
+      summary: ログアウトする
+      description: |
+        AUTHN-5: いまのセッションをすぐに無効にし、`__session` Cookie を消す。ログインしていなくても 204 を返す。
+      security: []
+      responses:
+        '204':
+          description: ログアウトした
+          headers:
+            Set-Cookie:
+              description: "`__session` Cookie を消す"
+              schema:
+                type: string
+        default:
+          $ref: '#/components/responses/Error'
+  /me:
+    get:
+      tags: [auth]
+      operationId: getMe
+      summary: ログイン中の本人の情報を取得する
+      description: |
+        AUTH-1, AUTHN-5: `__session` のセッションが有効（期限内・未失効）で、ユーザーが有効（停止・失効・削除でない）なら本人の情報を返す。そうでなければ 401 unauthorized。
+      responses:
+        '200':
+          description: 本人の情報
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CurrentUser'
+        default:
+          $ref: '#/components/responses/Error'
 components:
   securitySchemes:
     sessionCookie:
@@ -227,6 +350,52 @@ components:
           description: 10文字以上128文字以下（AUTHN-5）
           minLength: 10
           maxLength: 128
+    LoginInput:
+      type: object
+      required: [email, password]
+      properties:
+        email:
+          type: string
+          description: 大学のメールアドレス。前後の空白と大文字・小文字の違いは無視する
+          example: 26238001@edu.cc.saga-u.ac.jp
+        password:
+          type: string
+    LoginRecheckReason:
+      type: string
+      description: |
+        再確認が必要な理由（AUTHN-3）。code_expired = 最後にコードで確認してから30日以上たった、new_device = 初めて使う端末。
+        両方に当てはまるときは code_expired。
+      enum: [code_expired, new_device]
+    LoginChallenge:
+      type: object
+      description: AUTHN-3 再確認用のログインチャレンジ。パスワードが一致したことを表し、コードの確認・再送に使う
+      required: [challengeToken, reason, email]
+      properties:
+        challengeToken:
+          type: string
+          description: ログインチャレンジのトークン（15分有効・一度だけ使える）
+        reason:
+          $ref: '#/components/schemas/LoginRecheckReason'
+        email:
+          type: string
+          description: コードの送信先（ログインに使ったメールアドレス）
+          example: 26238001@edu.cc.saga-u.ac.jp
+    LoginChallengeInput:
+      type: object
+      required: [challengeToken]
+      properties:
+        challengeToken:
+          type: string
+    LoginRecheckVerification:
+      type: object
+      required: [challengeToken, code]
+      properties:
+        challengeToken:
+          type: string
+        code:
+          type: string
+          description: メールで届いた6桁のコード
+          example: '012345'
     CurrentUser:
       type: object
       description: ログイン中の本人の情報。本人にだけ返す

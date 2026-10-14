@@ -107,6 +107,112 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/auth/login": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * メールアドレスとパスワードでログインする
+         * @description AUTH-1, AUTHN-3, AUTHN-5: パスワードが一致し、最後のコード確認から30日未満かつ登録済みの端末（`X-Device-Id`）なら、そのままログインして `__session` Cookie を返す（200）。
+         *     30日以上たっているか初めての端末なら、メールに6桁のコード（10分有効）を送り、再確認用のログインチャレンジ（15分有効・一度だけ使える）を返す（202）。
+         *     メールアドレスの形式違い・未登録・削除済み・パスワード違いは、区別せず 401 invalid_credentials（登録の有無を判別させない）。
+         *     パスワードが一致しても、停止中なら 403 account_suspended、失効（有効期限切れを含む）なら 403 account_expired。
+         */
+        post: operations["login"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/auth/login/recheck/codes": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * 再確認のコードを送り直す
+         * @description AUTHN-3: ログインチャレンジが有効なら、新しいコード（10分有効）を送る。古いコードは使えなくなる。
+         *     チャレンジが無効・期限切れ・使用済みなら 400 invalid_login_challenge。
+         */
+        post: operations["resendLoginRecheckCode"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/auth/login/recheck/verify": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * 再確認のコードを確認してログインする
+         * @description AUTHN-3, AUTHN-6: コードが一致したら最後の確認日時を更新し、ログイン時の端末を登録済みの端末にして、`__session` Cookie を返す。
+         *     不一致は 400 invalid_verification_code（メッセージに残り回数）。期限切れ・使用済み・入力ミスが5回に達したコードは 400 verification_code_expired。
+         *     チャレンジが無効・期限切れ・使用済みなら 400 invalid_login_challenge。
+         */
+        post: operations["verifyLoginRecheck"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/auth/logout": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * ログアウトする
+         * @description AUTHN-5: いまのセッションをすぐに無効にし、`__session` Cookie を消す。ログインしていなくても 204 を返す。
+         */
+        post: operations["logout"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/me": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * ログイン中の本人の情報を取得する
+         * @description AUTH-1, AUTHN-5: `__session` のセッションが有効（期限内・未失効）で、ユーザーが有効（停止・失効・削除でない）なら本人の情報を返す。そうでなければ 401 unauthorized。
+         */
+        get: operations["getMe"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
 }
 export type webhooks = Record<string, never>;
 export interface components {
@@ -167,6 +273,42 @@ export interface components {
             setupToken: string;
             /** @description 10文字以上128文字以下（AUTHN-5） */
             password: string;
+        };
+        LoginInput: {
+            /**
+             * @description 大学のメールアドレス。前後の空白と大文字・小文字の違いは無視する
+             * @example 26238001@edu.cc.saga-u.ac.jp
+             */
+            email: string;
+            password: string;
+        };
+        /**
+         * @description 再確認が必要な理由（AUTHN-3）。code_expired = 最後にコードで確認してから30日以上たった、new_device = 初めて使う端末。
+         *     両方に当てはまるときは code_expired。
+         * @enum {string}
+         */
+        LoginRecheckReason: "code_expired" | "new_device";
+        /** @description AUTHN-3 再確認用のログインチャレンジ。パスワードが一致したことを表し、コードの確認・再送に使う */
+        LoginChallenge: {
+            /** @description ログインチャレンジのトークン（15分有効・一度だけ使える） */
+            challengeToken: string;
+            reason: components["schemas"]["LoginRecheckReason"];
+            /**
+             * @description コードの送信先（ログインに使ったメールアドレス）
+             * @example 26238001@edu.cc.saga-u.ac.jp
+             */
+            email: string;
+        };
+        LoginChallengeInput: {
+            challengeToken: string;
+        };
+        LoginRecheckVerification: {
+            challengeToken: string;
+            /**
+             * @description メールで届いた6桁のコード
+             * @example 012345
+             */
+            code: string;
         };
         /** @description ログイン中の本人の情報。本人にだけ返す */
         CurrentUser: {
@@ -346,6 +488,137 @@ export interface operations {
                 headers: {
                     /** @description セッションの `__session` Cookie（HttpOnly, Secure, SameSite=Lax） */
                     "Set-Cookie"?: string;
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["CurrentUser"];
+                };
+            };
+            default: components["responses"]["Error"];
+        };
+    };
+    login: {
+        parameters: {
+            query?: never;
+            header?: {
+                /** @description ブラウザの localStorage に保存した端末識別子（AUTHN-3） */
+                "X-Device-Id"?: components["parameters"]["DeviceId"];
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["LoginInput"];
+            };
+        };
+        responses: {
+            /** @description ログインした */
+            200: {
+                headers: {
+                    /** @description セッションの `__session` Cookie（HttpOnly, Secure, SameSite=Lax） */
+                    "Set-Cookie"?: string;
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["CurrentUser"];
+                };
+            };
+            /** @description 再確認が必要。メールにコードを送った */
+            202: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["LoginChallenge"];
+                };
+            };
+            default: components["responses"]["Error"];
+        };
+    };
+    resendLoginRecheckCode: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["LoginChallengeInput"];
+            };
+        };
+        responses: {
+            /** @description コードを送った */
+            202: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            default: components["responses"]["Error"];
+        };
+    };
+    verifyLoginRecheck: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["LoginRecheckVerification"];
+            };
+        };
+        responses: {
+            /** @description ログインした */
+            200: {
+                headers: {
+                    /** @description セッションの `__session` Cookie（HttpOnly, Secure, SameSite=Lax） */
+                    "Set-Cookie"?: string;
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["CurrentUser"];
+                };
+            };
+            default: components["responses"]["Error"];
+        };
+    };
+    logout: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description ログアウトした */
+            204: {
+                headers: {
+                    /** @description `__session` Cookie を消す */
+                    "Set-Cookie"?: string;
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            default: components["responses"]["Error"];
+        };
+    };
+    getMe: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description 本人の情報 */
+            200: {
+                headers: {
                     [name: string]: unknown;
                 };
                 content: {
