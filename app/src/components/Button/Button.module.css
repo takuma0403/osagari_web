@@ -1,0 +1,90 @@
+.button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  flex-shrink: 0;
+  padding: 0 22px;
+  border: none;
+  border-radius: var(--radius-pill);
+  font-weight: 700;
+  text-decoration: none;
+  white-space: nowrap;
+}
+
+.fullWidth {
+  display: flex;
+  width: 100%;
+}
+
+/* 高さ（DS-1：主要 52 / 副 48 / 最小 44） */
+.lg {
+  min-height: var(--btn-h);
+  font-size: 16px;
+}
+
+.md {
+  min-height: 48px;
+  font-size: 15px;
+}
+
+.sm {
+  min-height: var(--tap-min);
+  font-size: 14px;
+}
+
+.primary {
+  background: var(--color-primary);
+  color: var(--color-surface);
+}
+
+.secondary {
+  border: 1.5px solid var(--color-primary);
+  background: var(--color-surface);
+  color: var(--color-primary);
+}
+
+.ghost {
+  border: 1px solid var(--color-border);
+  background: var(--color-surface);
+  color: var(--color-text);
+  font-size: 14px;
+}
+
+.danger {
+  border: 1.5px solid var(--color-danger);
+  background: var(--color-surface);
+  color: var(--color-danger);
+}
+
+.text {
+  background: transparent;
+  color: var(--color-text-muted);
+  font-size: 14px;
+  font-weight: 400;
+}
+
+a.button:hover {
+  color: inherit;
+}
+
+a.primary:hover {
+  color: var(--color-surface);
+}
+
+a.secondary:hover {
+  color: var(--color-primary);
+}
+
+/* 押せない状態（Login のロック中など）。種類によらず同じ見た目にする */
+.button:disabled {
+  border-color: transparent;
+  background: var(--color-border);
+  color: var(--color-text-muted);
+  cursor: not-allowed;
+}
+
+.text:disabled {
+  background: transparent;
+  color: var(--color-text-disabled);
+}
