@@ -1,0 +1,23 @@
+.list {
+  display: grid;
+  grid-template-columns: max-content minmax(0, 1fr);
+  column-gap: 16px;
+  row-gap: 10px;
+  font-size: var(--text-body);
+}
+
+.sm {
+  row-gap: 8px;
+  font-size: var(--text-label);
+}
+
+/* 地の色の枠に入れる（登録内容の確認など） */
+.boxed {
+  padding: 14px;
+  border-radius: var(--radius-card);
+  background: var(--color-bg);
+}
+
+.term {
+  color: var(--color-text-muted);
+}

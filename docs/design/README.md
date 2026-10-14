@@ -67,6 +67,26 @@
 
 Google Fonts から `Zen+Kaku+Gothic+New:wght@400;500;700` と `Outfit:wght@500;700` を読み込む。
 
+文字サイズは次の CSS 変数を使う（役割ごとの名前。同じ役割なら画面が違っても同じ変数を使う）。
+
+| CSS変数 | 値 | 用途 |
+| --- | --- | --- |
+| `--text-badge` | `11px` | バッジ・ナビ・カードの補足 |
+| `--text-note` | `12px` | 小さい注記・入力欄の補足 |
+| `--text-label` | `13px` | 補足・ラベル・エラー文・チップ |
+| `--text-body` | `14px` | 本文・テキストボタン・小さいボタン |
+| `--text-button-md` | `15px` | 副ボタン（48px）・固定表示のドメイン |
+| `--text-button` | `16px` | 主要ボタン（52px）・セクション見出し |
+| `--text-subheading` | `17px` | ヘッダーのタイトル・入力欄の文字・一覧の価格 |
+| `--text-header` | `18px` | 一覧系画面のヘッダー・シートの見出し |
+| `--text-heading` | `20px` | 商品詳細のタイトル・ダイアログの見出し（DealScan の 19px もこれに寄せる） |
+| `--text-code` | `22px` | コード入力の1桁・学籍番号の大きい表示・管理画面の見出し |
+| `--text-title` | `24px` | フォーム系の画面タイトル |
+| `--text-catch` | `26px` | ログインのキャッチ |
+| `--text-price-lg` | `28px` | 商品詳細の価格 |
+| `--text-display` | `30px` | 受け渡しコード（DealQR） |
+| `--text-display-lg` | `34px` | 完了コード・売上の合計 |
+
 | 用途 | サイズ / 太さ |
 | --- | --- |
 | 画面タイトル（フォーム系） | 24px / 700（ログインのキャッチは26px） |
@@ -99,27 +119,29 @@ Google Fonts から `Zen+Kaku+Gothic+New:wght@400;500;700` と `Outfit:wght@500;
 
 ## DS-3 共通部品
 
-デザインで繰り返し出てくる部品。実装時は `app/src/components/` に1つずつ作り、画面ごとに作り直さない。
+デザインで繰り返し出てくる部品。実装時は `app/src/components/` に1つずつ作り、画面ごとに作り直さない。実装済みの部品と状態ごとの見た目は Storybook（`cd app && npm run storybook`）で確認できる（[ADR 0004](../decisions/0004-storybook-and-bottom-nav.md)）。
 
 | 部品 | 見た目 | 出てくる画面 |
 | --- | --- | --- |
-| `BottomNav` | 下部5タブ（ホーム／検索／出品／取引／マイページ）。選択中は primary + 700 | Main, Search ほか |
+| `BottomNav` | 下部5タブ（ホーム／検索／出品／取引／マイページ）。選択中は primary + 700 | Main, Search, DealList, MyPage |
 | `AppHeader` | 戻るボタン（44px）＋タイトル＋右側の補足（バッジ等）。高さ56px | 多数 |
-| `Button` | primary（塗り）/ secondary（primary枠 1.5px）/ ghost（border枠）/ text、高さ 52・48・44 | 全体 |
+| `Button` | primary（塗り）/ secondary（primary枠 1.5px）/ ghost（border枠）/ danger（danger枠 1.5px、キャンセル申請など）/ text、高さ 52・48・44。リンク版は `ButtonLink` | 全体 |
 | `TextField` | ラベル＋高さ52pxの入力枠。フォーカス中は primary 1.5px、エラーは danger 1.5px | Login, SignUp, Password, Sell |
 | `EmailField` | 学籍番号8桁の入力＋固定の `@edu.cc.saga-u.ac.jp` 表示 | Login, SignUp |
 | `CodeInput` | 6桁×1マス（grid 6列、高さ52px、Outfit 22px）＋有効期限・再送 | Code, Recheck |
 | `Chip` | 高さ36px。選択中 primary 塗り／絞り込み条件は primary-soft＋×アイコン | Main, Search |
-| `Badge` | 11〜12px / 700 / pill。primary-soft・warning の2系統 | Detail, Request ほか |
+| `Badge` | 11〜12px / 700 / pill。primary-soft・warning を基本に、danger（停止など）・neutral（終了）・surface（写真の上のカテゴリ） | Detail, Request ほか |
 | `ItemCard` | 正方形写真＋カテゴリバッジ＋タイトル2行＋価格＋キャンパス・状態（2列グリッド） | Main, MyPage |
 | `ItemRow` | 84pxサムネイル＋タイトル＋授業名＋価格＋状態バッジ（横長） | Search |
 | `InfoBox` | 角丸12px、アイコン＋文。info / warning / danger / neutral(bg) | Code, Recheck, Login, Password |
 | `DefinitionList` | 2列グリッドの `<dl>`（項目名は muted） | Detail, Password |
-| `BottomSheet` | 上端角丸20px＋つまみ＋背面の幕 | DetailShare, DealCancel |
-| `ConfirmDialog` | 中央モーダル、角丸18px、主要ボタン＋テキストボタン | DealScan, DealConfirm, DealCompleteEnter |
+| `BottomSheet` | 上端角丸20px＋つまみ＋背面の幕 | DetailShare, DealCancel, DealConfirm（つまみなし） |
+| `ConfirmDialog` | 中央モーダル、角丸18px、主要ボタン＋テキストボタン | DealScan, DealCompleteEnter |
 | `SegmentedTabs` | 2択の切り替え（pill の枠内に高さ36pxのタブ2つ。選択中は primary 塗り）、`role="tablist"` | DealList, AdminDeals |
 | `Toast` | 紺地・白文字・pill、`role="status"` | DetailShare |
 | `StepIndicator` | `STEP n / 3`（Outfit 13px / primary） | SignUp, Code, Password |
+
+DS-3 の部品を作るために足した補助の部品（画面からも使える）：`Icon`（デザインの線画アイコンを名前で呼ぶ）、`ItemPhoto`（ItemCard・ItemRow の写真枠。写真がないときは `--color-cat-*` の地）、`Modal`（BottomSheet・ConfirmDialog の土台。幕・Esc・フォーカスの閉じ込めと復帰）。
 
 ## DS-4 画面 ↔ アートボード ↔ 要件 の対応
 

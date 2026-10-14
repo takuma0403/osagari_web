@@ -24,7 +24,7 @@ Vite + React のSPAを Firebase Hosting に置きます。ログイン必須の�
 
 - 言語は TypeScript。スタイリングは **CSS Modules + CSS変数**（デザイントークンは [design/README.md](../design/README.md) を正とし、`app/src/styles/tokens.css` に1対1で写す）。
 - APIの型は [docs/api/openapi.yaml](../api/openapi.yaml) から openapi-typescript で生成し、手書きしない。
-- 画面のルートは次のとおり（実装は `app/src/routes.tsx`。変えるときは両方を直す）。利用者向けは 390px 基準・PC では中央寄せの列（`MobileLayout`）、管理画面は PC 幅（`AdminLayout`）で表示する（[DS-1](../design/README.md)）。「下部ナビ」は DS-3 の `BottomNav` ができてから表示する。
+- 画面のルートは次のとおり（実装は `app/src/routes.tsx`。変えるときは両方を直す）。利用者向けは 390px 基準・PC では中央寄せの列（`MobileLayout`）、管理画面は PC 幅（`AdminLayout`）で表示する（[DS-1](../design/README.md)）。下部ナビ（DS-3 の `BottomNav`）は、デザインでナビのある商品一覧・検索結果・取引一覧・マイページ（Main・Search・DealList・MyPage）だけに出す（[ADR 0004](../decisions/0004-storybook-and-bottom-nav.md)）。
 
   | パス | 画面 | レイアウト |
   | --- | --- | --- |
@@ -34,12 +34,13 @@ Vite + React のSPAを Firebase Hosting に置きます。ログイン必須の�
   | `/recheck` | ログイン時の本人確認（AUTHN-3） | スマホ |
   | `/` | 商品一覧 | スマホ＋下部ナビ |
   | `/search` | 検索結果 | スマホ＋下部ナビ |
-  | `/items/:shareId` | 商品詳細（共有リンク） | スマホ＋下部ナビ |
-  | `/items/:shareId/request` | 購入希望・決済（モック） | スマホ＋下部ナビ |
-  | `/items/:shareId/edit`、`/sell` | 出品の編集、出品 | スマホ＋下部ナビ |
+  | `/items/:shareId` | 商品詳細（共有リンク） | スマホ |
+  | `/items/:shareId/request` | 購入希望・決済（モック） | スマホ |
+  | `/items/:shareId/edit`、`/sell` | 出品の編集、出品 | スマホ |
   | `/deals` | 取引一覧（下部ナビの「取引」） | スマホ＋下部ナビ |
-  | `/deals/:dealId` | 取引詳細（購入希望の承認、受け渡しQR、キャンセル） | スマホ＋下部ナビ |
-  | `/deals/:dealId/scan` | QR読み取り（購入者） | スマホ＋下部ナビ |
-  | `/deals/:dealId/complete` | 完了リンク・完了コードの入力（購入者、DEAL-3）。トークンの載せ方は DEAL-3 の実装で決める | スマホ＋下部ナビ |
-  | `/mypage`、`/mypage/student-card`、`/mypage/sales` | マイページ、学生証登録、売上管理 | スマホ＋下部ナビ |
+  | `/deals/:dealId` | 取引詳細（購入希望の承認、受け渡しQR、キャンセル） | スマホ |
+  | `/deals/:dealId/scan` | QR読み取り（購入者） | スマホ |
+  | `/deals/:dealId/complete` | 完了リンク・完了コードの入力（購入者、DEAL-3）。トークンの載せ方は DEAL-3 の実装で決める | スマホ |
+  | `/mypage` | マイページ | スマホ＋下部ナビ |
+  | `/mypage/student-card`、`/mypage/sales` | 学生証登録、売上管理 | スマホ |
   | `/admin`（→ `/admin/student-cards`）、`/admin/users`、`/admin/items`、`/admin/settings` | 管理：学生証審査、ユーザー、出品・取引、設定 | PC |

@@ -15,7 +15,7 @@ body {
   background: var(--color-bg);
   color: var(--color-text);
   font-family: var(--font-body);
-  font-size: 14px;
+  font-size: var(--text-body);
   line-height: 1.7;
   -webkit-text-size-adjust: 100%;
 }
@@ -63,6 +63,16 @@ a {
 
 a:hover {
   color: var(--color-primary-hover);
+}
+
+/* 見た目の上では隠し、読み上げには残す（見出しのないフォームの legend、ラベルを出さない入力など） */
+.visually-hidden {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip-path: inset(50%);
+  white-space: nowrap;
 }
 
 :focus-visible {

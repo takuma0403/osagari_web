@@ -42,6 +42,23 @@
   --font-body: 'Zen Kaku Gothic New', sans-serif;
   --font-num: Outfit, sans-serif;
 
+  /* 文字サイズ（役割ごと） */
+  --text-badge: 11px;
+  --text-note: 12px;
+  --text-label: 13px;
+  --text-body: 14px;
+  --text-button-md: 15px;
+  --text-button: 16px;
+  --text-subheading: 17px;
+  --text-header: 18px;
+  --text-heading: 20px;
+  --text-code: 22px;
+  --text-title: 24px;
+  --text-catch: 26px;
+  --text-price-lg: 28px;
+  --text-display: 30px;
+  --text-display-lg: 34px;
+
   /* 角丸・余白・サイズ */
   --radius-sm: 8px;
   --radius-input: 10px;

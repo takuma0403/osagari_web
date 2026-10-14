@@ -1,4 +1,5 @@
 import { Link, Navigate, type RouteObject } from 'react-router'
+import { BottomNav } from './components/BottomNav/BottomNav'
 import { PlaceholderPage } from './components/PlaceholderPage/PlaceholderPage'
 import { AdminLayout } from './layouts/AdminLayout/AdminLayout'
 import { MobileLayout } from './layouts/MobileLayout/MobileLayout'
@@ -29,20 +30,26 @@ export const routes: RouteObject[] = [
     ],
   },
   {
-    // 利用者向けの画面。下部ナビ（BottomNav）は DS-3 の部品ができたら bottomNav に渡す
-    element: <MobileLayout />,
+    // 利用者向けの画面のうち、下部ナビ（BottomNav）を出すもの。デザインでナビがあるのは Main・Search・DealList・MyPage
+    element: <MobileLayout bottomNav={<BottomNav />} />,
     children: [
       placeholder('/', '商品一覧'),
       placeholder('/search', '検索結果'),
+      placeholder('/deals', '取引一覧'),
+      placeholder('/mypage', 'マイページ'),
+    ],
+  },
+  {
+    // 利用者向けの画面のうち、下部ナビを出さないもの（詳細・入力・取引の操作など）
+    element: <MobileLayout />,
+    children: [
       placeholder('/items/:shareId', '商品詳細'),
       placeholder('/items/:shareId/request', '購入希望・決済'),
       placeholder('/items/:shareId/edit', '出品の編集'),
       placeholder('/sell', '出品'),
-      placeholder('/deals', '取引一覧'),
       placeholder('/deals/:dealId', '取引詳細'),
       placeholder('/deals/:dealId/scan', 'QR読み取り'),
       placeholder('/deals/:dealId/complete', '受け渡しの完了'),
-      placeholder('/mypage', 'マイページ'),
       placeholder('/mypage/student-card', '学生証登録'),
       placeholder('/mypage/sales', '売上管理'),
     ],

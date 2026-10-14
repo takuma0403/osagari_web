@@ -1,0 +1,39 @@
+.chip {
+  position: relative;
+  display: inline-flex;
+  flex-shrink: 0;
+  align-items: center;
+  gap: 6px;
+  height: 36px;
+  padding: 0 14px;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-pill);
+  background: var(--color-surface);
+  color: var(--color-text);
+  font-size: var(--text-label);
+  white-space: nowrap;
+}
+
+/* 見た目は 36px のまま、押せる範囲を上下に広げて 44px にする（DS-1） */
+.chip::before {
+  position: absolute;
+  inset: calc((36px - var(--tap-min)) / 2) 0;
+  content: '';
+}
+
+.selected {
+  border-color: var(--color-primary);
+  background: var(--color-primary);
+  color: var(--color-surface);
+  font-weight: 700;
+}
+
+/* 絞り込み条件（×で外す） */
+.removable {
+  gap: 4px;
+  padding: 0 10px 0 12px;
+  border-color: var(--color-primary-soft);
+  background: var(--color-primary-soft);
+  color: var(--color-primary-hover);
+  font-weight: 700;
+}
