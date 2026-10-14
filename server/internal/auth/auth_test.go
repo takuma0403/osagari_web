@@ -190,3 +190,15 @@ func Test期限切れのセッションCookieは削除になる(t *testing.T) {
 		}
 	}
 }
+
+// ダミーの照合は、本物と同じ形式のハッシュに対して照合する（所要時間を揃えるため。ADR 0009）。
+func TestVerifyDummyPassword(t *testing.T) {
+	h, err := dummyPasswordHash()
+	if err != nil {
+		t.Fatal(err)
+	}
+	if ok, err := VerifyPassword(h, "dummy password for constant time"); err != nil || !ok {
+		t.Fatalf("ダミーのハッシュが照合できない: ok=%v err=%v", ok, err)
+	}
+	VerifyDummyPassword("anything at all")
+}
