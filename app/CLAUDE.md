@@ -13,8 +13,8 @@
 | APIの型 | openapi-typescript で `docs/api/openapi.yaml` から `src/api/schema.gen.ts` を生成（手書き禁止） | API-1 |
 | APIクライアント | `fetch` の薄いラッパー（`src/api/client.ts`）。`credentials: 'same-origin'`、`X-Device-Id` ヘッダーを付ける（ヘッダーは認証の実装時に追加）。失敗は `ApiError`（`status`・`code`・`message`）で投げ、通信自体の失敗はフロント専用の `network_error`（status 0） | AUTHN-3 |
 | QR | 表示はQR生成ライブラリ、読み取りはカメラを使うライブラリ（選ぶときは軽さとメンテ状況を確認） | FE |
-| テスト | Vitest + Testing Library（jsdom）+ user-event | — |
-| 部品カタログ | Storybook（`@storybook/react-vite` + addon-a11y）。ローカル確認用で公開しない | DS-3, ADR 0004 |
+| テスト | Vitest + Testing Library（jsdom）+ user-event。story は addon-vitest で Chromium（Playwright）に描画し a11y も検査 | DS-1, ADR 0005 |
+| 部品カタログ | Storybook（`@storybook/react-vite` + addon-a11y + addon-vitest）。公開しない。全 story を CI で検査する | DS-3, ADR 0004, ADR 0005 |
 | Lint / Format | oxlint / Prettier（Markdown は対象外） | — |
 | パッケージ管理 | npm（Node 24 LTS。リポジトリ直下の `.nvmrc`） | ADR 0002 |
 
@@ -68,7 +68,7 @@ app/
 | 開発サーバー | `npm run dev`（http://localhost:5173。`/api` は Vite の proxy で `localhost:8080` へ。先に server の compose を起動する） |
 | 型チェック | `npm run typecheck` |
 | Lint / Format | `npm run lint` / `npm run format`（CI では `npm run format:check`） |
-| テスト | `npm test` |
+| テスト | `npm test`（jsdom の単体テスト）/ `npm run test:storybook`（全 story の描画と a11y。初回は `npx playwright install chromium`） |
 | APIの型生成 | `npm run gen:api`（openapi-typescript は TS 5 を peer に指定しているため、package.json の overrides で TS 6 を使わせている） |
 | ビルド | `npm run build` |
 | 部品カタログ | `npm run storybook`（http://localhost:6006）/ `npm run build-storybook` |

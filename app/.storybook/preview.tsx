@@ -25,7 +25,7 @@ const preview: Preview = {
       },
     },
     a11y: {
-      // アクセシビリティ違反は Storybook の画面上でエラーとして示す（DS-1）
+      // アクセシビリティ違反は Storybook の画面上でエラーとして示し、story のテスト（CI）では失敗にする（DS-1）
       test: 'error',
     },
   },
