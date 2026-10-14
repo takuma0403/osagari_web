@@ -33,6 +33,22 @@ func (u User) DepartmentName() *string {
 	return &d.Name
 }
 
+// jst は有効期限の日付の境目に使う日本時間。distroless にタイムゾーンのデータがないので固定の時差で持つ。
+var jst = time.FixedZone("JST", 9*60*60)
+
+// IsExpired は now の時点でアカウントが失効しているかを返す（AUTH-3）。
+// 状態が失効か、日本時間の日付が有効期限（その日の終わりまで使える）を過ぎていれば失効とみなす。
+// 日次ジョブが状態を expired にする前でも、期限を過ぎたアカウントは使えないようにする。
+func (u User) IsExpired(now time.Time) bool {
+	if u.Status == UserStatusExpired {
+		return true
+	}
+	y, m, d := now.In(jst).Date()
+	today := time.Date(y, m, d, 0, 0, 0, 0, time.UTC)
+	ey, em, ed := u.ExpiresOn.Date()
+	return today.After(time.Date(ey, em, ed, 0, 0, 0, 0, time.UTC))
+}
+
 // Session はログインセッション（sessions）。Cookie の値は持たず、SHA-256 のハッシュだけを持つ（AUTHN-5）。
 type Session struct {
 	ID        string
@@ -75,6 +91,21 @@ type TrustedDevice struct {
 	UserID     string
 	DeviceHash string
 	LastUsedAt time.Time
+	CreatedAt  time.Time
+	UpdatedAt  time.Time
+}
+
+// LoginChallenge はログインチャレンジ（login_challenges）。パスワードが一致したが再確認が必要なときに発行し、
+// コードの確認・再送に使う。トークンの SHA-256 だけを持つ（AUTHN-3, ADR 0009）。
+type LoginChallenge struct {
+	ID        string
+	UserID    string
+	TokenHash string
+	Reason    LoginRecheckReason
+	// DeviceHash はログイン時に送られた端末識別子の SHA-256。ヘッダーがなければ空
+	DeviceHash string
+	ExpiresAt  time.Time
+	ConsumedAt *time.Time
 	CreatedAt  time.Time
 	UpdatedAt  time.Time
 }

@@ -188,3 +188,16 @@ const (
 var PasswordSetupPurposes = []PasswordSetupPurpose{PasswordSetupPurposeSignup, PasswordSetupPurposePasswordReset}
 
 func (v PasswordSetupPurpose) Valid() bool { return enumValid(v, PasswordSetupPurposes) }
+
+// LoginRecheckReason はログイン時に再確認が必要な理由（AUTHN-3, ADR 0009）。両方に当てはまるときは code_expired にする。
+type LoginRecheckReason string
+
+const (
+	LoginRecheckReasonCodeExpired LoginRecheckReason = "code_expired" // 最後にコードで確認してから30日以上たった
+	LoginRecheckReasonNewDevice   LoginRecheckReason = "new_device"   // 初めて使う端末
+)
+
+// LoginRecheckReasons は LoginRecheckReason のすべての値。
+var LoginRecheckReasons = []LoginRecheckReason{LoginRecheckReasonCodeExpired, LoginRecheckReasonNewDevice}
+
+func (v LoginRecheckReason) Valid() bool { return enumValid(v, LoginRecheckReasons) }
