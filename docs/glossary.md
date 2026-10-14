@@ -49,6 +49,7 @@
 | 学籍番号 | `studentNumber` / `student_number` | メールアドレスの@より前（8桁） |
 | 入学年度 | `admissionYear` | 学籍番号の上2桁 + 2000 |
 | 学部・学科コード | `departmentCode` | 学籍番号の3〜5桁目 |
+| 学部・学科 | `department` | [AUTH-4](product/01-account-auth.md) の表で確定した学部・学科のコード。表にないコードは空（不明）で登録し、管理者が後から直す。`departmentCode`（学籍番号から取った値）とは別に持つ |
 | 有効期限 | `expiresOn` | アカウントの失効日（3月31日） |
 | 手数料率 | `feeRate` | 取引ごとに記録する。整数のベーシスポイント（1% = 100）で保持し、浮動小数点を使わない |
 | 手数料 | `fee` | 円（整数） |
