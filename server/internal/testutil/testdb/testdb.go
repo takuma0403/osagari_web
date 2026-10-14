@@ -32,6 +32,9 @@ func Open(t testing.TB) *sql.DB {
 		t.Fatalf("testdb: open: %v", err)
 	}
 	t.Cleanup(func() { sqlDB.Close() })
+	// ファイルの SQLite は同時に書き込むと "database is locked" になる。本番の sqld（Turso）は書き込みを直列化するので、
+	// テストでも接続を1本にして直列化する。goroutine で並行に呼ぶテスト（条件付きUPDATE の二重処理）はこの上で文単位に交互に実行される。
+	sqlDB.SetMaxOpenConns(1)
 
 	m, err := migration.New(sqlDB, "file://"+MigrationsDir(), migration.DefaultTable)
 	if err != nil {
