@@ -1,0 +1,22 @@
+/* 画面上部の中央に重ねる。読み上げ用の領域は常に置き、表示中だけ中身を入れる */
+.region {
+  position: fixed;
+  top: 64px;
+  left: 50%;
+  z-index: 30;
+  transform: translateX(-50%);
+  pointer-events: none;
+}
+
+.toast {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 12px 18px;
+  border-radius: var(--radius-pill);
+  background: var(--color-text);
+  color: var(--color-surface);
+  font-size: 14px;
+  font-weight: 700;
+  white-space: nowrap;
+}
