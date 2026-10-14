@@ -13,19 +13,21 @@ const meta = {
     campus: '本庄',
     condition: '目立った傷なし',
   },
-  decorators: [
-    (Story) => (
-      <div style={{ width: 175 }}>
-        <Story />
-      </div>
-    ),
-  ],
 } satisfies Meta<typeof ItemCard>
 
 export default meta
 type Story = StoryObj<typeof meta>
 
-export const Default: Story = {}
+// 1枚だけのときは、390px 幅の2列グリッドで並べたときの幅（約173px）にそろえる
+export const Default: Story = {
+  decorators: [
+    (Story) => (
+      <div style={{ width: 173 }}>
+        <Story />
+      </div>
+    ),
+  ],
+}
 
 const samples = [
   {
@@ -79,7 +81,7 @@ const samples = [
 ] as const
 
 export const Grid: Story = {
-  decorators: [(Story) => <Story />],
+  parameters: { layout: 'fullscreen' },
   render: () => (
     <div
       style={{
