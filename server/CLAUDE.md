@@ -47,7 +47,7 @@ server/
     storage/                … 署名付きURL発行のインターフェースと実装
     clock/                  … Clock インターフェース（テストで時刻を固定する。clock.NewFake）
     logging/                … JSON ロガー（個人情報・秘密情報を伏せ字にする）
-    server/                 … Echo の組み立て（リクエストID・アクセスログ・panic 回復・エラー応答・ルート登録）
+    server/                 … Echo の組み立て（リクエストID・アクセスログ・panic 回復・エラー応答・ルート登録・`__session` の検証）
     testutil/testdb/        … repository テスト用の一時 SQLite（migrations/ を適用済み）
     auth/                   … セッション、argon2id、認証コード、レート制限
     jobs/                   … 短周期ジョブ・日次ジョブ（内部用エンドポイントから呼ぶ）
