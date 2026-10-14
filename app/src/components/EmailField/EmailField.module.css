@@ -1,0 +1,5 @@
+/* 8桁が収まる幅にして、固定のドメインを続けて表示する（Login・SignUp） */
+.studentId {
+  flex-grow: 0;
+  width: 110px;
+}
