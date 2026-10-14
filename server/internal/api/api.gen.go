@@ -11,6 +11,8 @@ import (
 	"net/http"
 
 	"github.com/labstack/echo/v5"
+	"github.com/oapi-codegen/runtime"
+	openapi_types "github.com/oapi-codegen/runtime/types"
 )
 
 // Defines values for HealthStatus.
@@ -26,6 +28,80 @@ func (e HealthStatus) Valid() bool {
 	default:
 		return false
 	}
+}
+
+// Defines values for SellerStatus.
+const (
+	Approved SellerStatus = "approved"
+	None     SellerStatus = "none"
+	Pending  SellerStatus = "pending"
+	Rejected SellerStatus = "rejected"
+)
+
+// Valid indicates whether the value is a known member of the SellerStatus enum.
+func (e SellerStatus) Valid() bool {
+	switch e {
+	case Approved:
+		return true
+	case None:
+		return true
+	case Pending:
+		return true
+	case Rejected:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for UserStatus.
+const (
+	Active    UserStatus = "active"
+	Deleted   UserStatus = "deleted"
+	Expired   UserStatus = "expired"
+	Suspended UserStatus = "suspended"
+)
+
+// Valid indicates whether the value is a known member of the UserStatus enum.
+func (e UserStatus) Valid() bool {
+	switch e {
+	case Active:
+		return true
+	case Deleted:
+		return true
+	case Expired:
+		return true
+	case Suspended:
+		return true
+	default:
+		return false
+	}
+}
+
+// CurrentUser ログイン中の本人の情報。本人にだけ返す
+type CurrentUser struct {
+	AdmissionYear  int                `json:"admissionYear"`
+	Department     *string            `json:"department"`
+	DepartmentCode string             `json:"departmentCode"`
+	DepartmentName *string            `json:"departmentName"`
+	Email          string             `json:"email"`
+	ExpiresOn      openapi_types.Date `json:"expiresOn"`
+	Id             string             `json:"id"`
+
+	// SellerStatus 出品者の承認状態
+	SellerStatus SellerStatus `json:"sellerStatus"`
+
+	// Status ユーザーの状態
+	Status        UserStatus `json:"status"`
+	StudentNumber string     `json:"studentNumber"`
+}
+
+// EmailInput defines model for EmailInput.
+type EmailInput struct {
+	// Email 大学のメールアドレス（学籍番号@edu.cc.saga-u.ac.jp）。前後の空白と大文字・小文字の違いは無視する
+	//
+	// Example: 26238001@edu.cc.saga-u.ac.jp
+	Email string `json:"email"`
 }
 
 // Error すべてのエラー応答の共通形式
@@ -49,8 +125,105 @@ type Health struct {
 // HealthStatus defines model for Health.Status.
 type HealthStatus string
 
+// SellerStatus 出品者の承認状態
+type SellerStatus string
+
+// SignupCodeVerification defines model for SignupCodeVerification.
+type SignupCodeVerification struct {
+	// Code メールで届いた6桁のコード
+	//
+	// Example: 012345
+	Code string `json:"code"`
+
+	// Email Example: 26238001@edu.cc.saga-u.ac.jp
+	Email string `json:"email"`
+}
+
+// SignupCodeVerified defines model for SignupCodeVerified.
+type SignupCodeVerified struct {
+	// Estimate AUTH-2, AUTH-4 学籍番号から推定した情報
+	Estimate StudentEstimate `json:"estimate"`
+
+	// SetupToken パスワード設定用の一時トークン（15分有効・一度だけ使える）
+	SetupToken string `json:"setupToken"`
+}
+
+// SignupCompletion defines model for SignupCompletion.
+type SignupCompletion struct {
+	// Password 10文字以上128文字以下（AUTHN-5）
+	Password   string `json:"password"`
+	SetupToken string `json:"setupToken"`
+}
+
+// StudentEstimate AUTH-2, AUTH-4 学籍番号から推定した情報
+type StudentEstimate struct {
+	// AdmissionYear 入学年度（学籍番号の上2桁 + 2000）
+	//
+	// Example: 2026
+	AdmissionYear int `json:"admissionYear"`
+
+	// Department AUTH-4 の表で確定した学部・学科のコード。表にないコードは null（不明）
+	//
+	// Example: 238
+	Department *string `json:"department"`
+
+	// DepartmentCode 学部・学科コード（学籍番号の3〜5桁目）
+	//
+	// Example: 238
+	DepartmentCode string `json:"departmentCode"`
+
+	// DepartmentName 学部・学科の名前。不明なら null
+	//
+	// Example: 理工学部 理工学科
+	DepartmentName *string `json:"departmentName"`
+
+	// ExpiresOn 有効期限の初期値（入学年度 + 修業年限 の3月31日。不明なら4年）
+	//
+	// Example: 2030-03-31
+	ExpiresOn openapi_types.Date `json:"expiresOn"`
+
+	// StudentNumber Example: 26238001
+	StudentNumber string `json:"studentNumber"`
+}
+
+// UserStatus ユーザーの状態
+type UserStatus string
+
+// DeviceId defines model for DeviceId.
+type DeviceId = string
+
+// CompleteSignupParams defines parameters for CompleteSignup.
+type CompleteSignupParams struct {
+	// XDeviceId ブラウザの localStorage に保存した端末識別子（AUTHN-3）
+	XDeviceId *DeviceId `json:"X-Device-Id,omitempty"`
+}
+
+// SendSignupCodeJSONRequestBody defines body for SendSignupCode for application/json ContentType.
+type SendSignupCodeJSONRequestBody = EmailInput
+
+// VerifySignupCodeJSONRequestBody defines body for VerifySignupCode for application/json ContentType.
+type VerifySignupCodeJSONRequestBody = SignupCodeVerification
+
+// CompleteSignupJSONRequestBody defines body for CompleteSignup for application/json ContentType.
+type CompleteSignupJSONRequestBody = SignupCompletion
+
+// EstimateStudentJSONRequestBody defines body for EstimateStudent for application/json ContentType.
+type EstimateStudentJSONRequestBody = EmailInput
+
 // ServerInterface represents all server handlers.
 type ServerInterface interface {
+	// SendSignupCode 新規登録の認証コードを送る
+	// (POST /auth/signup/codes)
+	SendSignupCode(ctx *echo.Context) error
+	// VerifySignupCode 新規登録の認証コードを確認する
+	// (POST /auth/signup/codes/verify)
+	VerifySignupCode(ctx *echo.Context) error
+	// CompleteSignup パスワードを設定してアカウントを作成する
+	// (POST /auth/signup/complete)
+	CompleteSignup(ctx *echo.Context, params CompleteSignupParams) error
+	// EstimateStudent 学籍番号から学部・入学年度・有効期限を推定する
+	// (POST /auth/signup/estimate)
+	EstimateStudent(ctx *echo.Context) error
 	// GetHealth 稼働確認
 	// (GET /health)
 	GetHealth(ctx *echo.Context) error
@@ -59,6 +232,62 @@ type ServerInterface interface {
 // ServerInterfaceWrapper converts echo contexts to parameters.
 type ServerInterfaceWrapper struct {
 	Handler ServerInterface
+}
+
+// SendSignupCode converts echo context to params.
+func (w *ServerInterfaceWrapper) SendSignupCode(ctx *echo.Context) error {
+	var err error
+
+	// Invoke the callback with all the unmarshaled arguments
+	err = w.Handler.SendSignupCode(ctx)
+	return err
+}
+
+// VerifySignupCode converts echo context to params.
+func (w *ServerInterfaceWrapper) VerifySignupCode(ctx *echo.Context) error {
+	var err error
+
+	// Invoke the callback with all the unmarshaled arguments
+	err = w.Handler.VerifySignupCode(ctx)
+	return err
+}
+
+// CompleteSignup converts echo context to params.
+func (w *ServerInterfaceWrapper) CompleteSignup(ctx *echo.Context) error {
+	var err error
+
+	// Parameter object where we will unmarshal all parameters from the context
+	var params CompleteSignupParams
+
+	headers := ctx.Request().Header
+	// ------------- Optional header parameter "X-Device-Id" -------------
+	if valueList, found := headers[http.CanonicalHeaderKey("X-Device-Id")]; found {
+		var XDeviceId DeviceId
+		n := len(valueList)
+		if n != 1 {
+			return echo.NewHTTPError(http.StatusBadRequest, fmt.Sprintf("Expected one value for X-Device-Id, got %d", n))
+		}
+
+		err = runtime.BindStyledParameterWithOptions("simple", "X-Device-Id", valueList[0], &XDeviceId, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationHeader, Explode: false, Required: false, Type: "string", Format: ""})
+		if err != nil {
+			return echo.NewHTTPError(http.StatusBadRequest, fmt.Sprintf("Invalid format for parameter X-Device-Id: %s", err))
+		}
+
+		params.XDeviceId = &XDeviceId
+	}
+
+	// Invoke the callback with all the unmarshaled arguments
+	err = w.Handler.CompleteSignup(ctx, params)
+	return err
+}
+
+// EstimateStudent converts echo context to params.
+func (w *ServerInterfaceWrapper) EstimateStudent(ctx *echo.Context) error {
+	var err error
+
+	// Invoke the callback with all the unmarshaled arguments
+	err = w.Handler.EstimateStudent(ctx)
+	return err
 }
 
 // GetHealth converts echo context to params.
@@ -118,10 +347,175 @@ func RegisterHandlersWithOptions(router EchoRouter, si ServerInterface, options 
 	}
 
 	router.GET(options.BaseURL+"/health", wrapper.GetHealth, options.OperationMiddlewares["getHealth"]...)
+	router.POST(options.BaseURL+"/auth/signup/estimate", wrapper.EstimateStudent, options.OperationMiddlewares["estimateStudent"]...)
+	router.POST(options.BaseURL+"/auth/signup/codes", wrapper.SendSignupCode, options.OperationMiddlewares["sendSignupCode"]...)
+	router.POST(options.BaseURL+"/auth/signup/codes/verify", wrapper.VerifySignupCode, options.OperationMiddlewares["verifySignupCode"]...)
+	router.POST(options.BaseURL+"/auth/signup/complete", wrapper.CompleteSignup, options.OperationMiddlewares["completeSignup"]...)
 
 }
 
 type ErrorJSONResponse Error
+
+type SendSignupCodeRequestObject struct {
+	Body *SendSignupCodeJSONRequestBody
+}
+
+type SendSignupCodeResponseObject interface {
+	VisitSendSignupCodeResponse(w http.ResponseWriter) error
+}
+
+type SendSignupCode202Response struct {
+}
+
+func (response SendSignupCode202Response) VisitSendSignupCodeResponse(w http.ResponseWriter) error {
+	w.WriteHeader(202)
+	return nil
+}
+
+type SendSignupCodedefaultJSONResponse struct {
+	Body       Error
+	StatusCode int
+}
+
+func (response SendSignupCodedefaultJSONResponse) VisitSendSignupCodeResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response.Body); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(response.StatusCode)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type VerifySignupCodeRequestObject struct {
+	Body *VerifySignupCodeJSONRequestBody
+}
+
+type VerifySignupCodeResponseObject interface {
+	VisitVerifySignupCodeResponse(w http.ResponseWriter) error
+}
+
+type VerifySignupCode200JSONResponse SignupCodeVerified
+
+func (response VerifySignupCode200JSONResponse) VisitVerifySignupCodeResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(200)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type VerifySignupCodedefaultJSONResponse struct {
+	Body       Error
+	StatusCode int
+}
+
+func (response VerifySignupCodedefaultJSONResponse) VisitVerifySignupCodeResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response.Body); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(response.StatusCode)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type CompleteSignupRequestObject struct {
+	Params CompleteSignupParams
+	Body   *CompleteSignupJSONRequestBody
+}
+
+type CompleteSignupResponseObject interface {
+	VisitCompleteSignupResponse(w http.ResponseWriter) error
+}
+
+type CompleteSignup201ResponseHeaders struct {
+	SetCookie *string
+}
+
+type CompleteSignup201JSONResponse struct {
+	Body    CurrentUser
+	Headers CompleteSignup201ResponseHeaders
+}
+
+func (response CompleteSignup201JSONResponse) VisitCompleteSignupResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response.Body); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	if response.Headers.SetCookie != nil {
+		w.Header().Set("Set-Cookie", fmt.Sprint(*response.Headers.SetCookie))
+	}
+	w.WriteHeader(201)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type CompleteSignupdefaultJSONResponse struct {
+	Body       Error
+	StatusCode int
+}
+
+func (response CompleteSignupdefaultJSONResponse) VisitCompleteSignupResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response.Body); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(response.StatusCode)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type EstimateStudentRequestObject struct {
+	Body *EstimateStudentJSONRequestBody
+}
+
+type EstimateStudentResponseObject interface {
+	VisitEstimateStudentResponse(w http.ResponseWriter) error
+}
+
+type EstimateStudent200JSONResponse StudentEstimate
+
+func (response EstimateStudent200JSONResponse) VisitEstimateStudentResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(200)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type EstimateStudentdefaultJSONResponse struct {
+	Body       Error
+	StatusCode int
+}
+
+func (response EstimateStudentdefaultJSONResponse) VisitEstimateStudentResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response.Body); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(response.StatusCode)
+	_, err := buf.WriteTo(w)
+	return err
+}
 
 type GetHealthRequestObject struct {
 }
@@ -163,6 +557,18 @@ func (response GetHealthdefaultJSONResponse) VisitGetHealthResponse(w http.Respo
 
 // StrictServerInterface represents all server handlers.
 type StrictServerInterface interface {
+	// SendSignupCode 新規登録の認証コードを送る
+	// (POST /auth/signup/codes)
+	SendSignupCode(ctx context.Context, request SendSignupCodeRequestObject) (SendSignupCodeResponseObject, error)
+	// VerifySignupCode 新規登録の認証コードを確認する
+	// (POST /auth/signup/codes/verify)
+	VerifySignupCode(ctx context.Context, request VerifySignupCodeRequestObject) (VerifySignupCodeResponseObject, error)
+	// CompleteSignup パスワードを設定してアカウントを作成する
+	// (POST /auth/signup/complete)
+	CompleteSignup(ctx context.Context, request CompleteSignupRequestObject) (CompleteSignupResponseObject, error)
+	// EstimateStudent 学籍番号から学部・入学年度・有効期限を推定する
+	// (POST /auth/signup/estimate)
+	EstimateStudent(ctx context.Context, request EstimateStudentRequestObject) (EstimateStudentResponseObject, error)
 	// GetHealth 稼働確認
 	// (GET /health)
 	GetHealth(ctx context.Context, request GetHealthRequestObject) (GetHealthResponseObject, error)
@@ -178,6 +584,164 @@ func NewStrictHandler(ssi StrictServerInterface, middlewares []StrictMiddlewareF
 type strictHandler struct {
 	ssi         StrictServerInterface
 	middlewares []StrictMiddlewareFunc
+}
+
+// SendSignupCode operation middleware
+func (sh *strictHandler) SendSignupCode(ctx *echo.Context) error {
+	var request SendSignupCodeRequestObject
+
+	var body SendSignupCodeJSONRequestBody
+	var err error
+	if _, ok := ctx.Echo().Binder.(*echo.DefaultBinder); ok {
+		// Bind only the request body, so that path and query parameters
+		// are not also bound into the body struct.
+		err = echo.BindBody(ctx, &body)
+	} else {
+		// A custom binder is installed on the Echo instance; defer to it
+		// entirely, since echo.Binder does not expose body-only binding.
+		err = ctx.Bind(&body)
+	}
+	if err != nil {
+		return err
+	}
+	request.Body = &body
+
+	handler := func(ctx *echo.Context, request interface{}) (interface{}, error) {
+		return sh.ssi.SendSignupCode(ctx.Request().Context(), request.(SendSignupCodeRequestObject))
+	}
+	for _, middleware := range sh.middlewares {
+		handler = middleware(handler, "SendSignupCode")
+	}
+
+	response, err := handler(ctx, request)
+
+	if err != nil {
+		return err
+	} else if validResponse, ok := response.(SendSignupCodeResponseObject); ok {
+		return validResponse.VisitSendSignupCodeResponse(ctx.Response())
+	} else if response != nil {
+		return fmt.Errorf("unexpected response type: %T", response)
+	}
+	return nil
+}
+
+// VerifySignupCode operation middleware
+func (sh *strictHandler) VerifySignupCode(ctx *echo.Context) error {
+	var request VerifySignupCodeRequestObject
+
+	var body VerifySignupCodeJSONRequestBody
+	var err error
+	if _, ok := ctx.Echo().Binder.(*echo.DefaultBinder); ok {
+		// Bind only the request body, so that path and query parameters
+		// are not also bound into the body struct.
+		err = echo.BindBody(ctx, &body)
+	} else {
+		// A custom binder is installed on the Echo instance; defer to it
+		// entirely, since echo.Binder does not expose body-only binding.
+		err = ctx.Bind(&body)
+	}
+	if err != nil {
+		return err
+	}
+	request.Body = &body
+
+	handler := func(ctx *echo.Context, request interface{}) (interface{}, error) {
+		return sh.ssi.VerifySignupCode(ctx.Request().Context(), request.(VerifySignupCodeRequestObject))
+	}
+	for _, middleware := range sh.middlewares {
+		handler = middleware(handler, "VerifySignupCode")
+	}
+
+	response, err := handler(ctx, request)
+
+	if err != nil {
+		return err
+	} else if validResponse, ok := response.(VerifySignupCodeResponseObject); ok {
+		return validResponse.VisitVerifySignupCodeResponse(ctx.Response())
+	} else if response != nil {
+		return fmt.Errorf("unexpected response type: %T", response)
+	}
+	return nil
+}
+
+// CompleteSignup operation middleware
+func (sh *strictHandler) CompleteSignup(ctx *echo.Context, params CompleteSignupParams) error {
+	var request CompleteSignupRequestObject
+
+	request.Params = params
+
+	var body CompleteSignupJSONRequestBody
+	var err error
+	if _, ok := ctx.Echo().Binder.(*echo.DefaultBinder); ok {
+		// Bind only the request body, so that path and query parameters
+		// are not also bound into the body struct.
+		err = echo.BindBody(ctx, &body)
+	} else {
+		// A custom binder is installed on the Echo instance; defer to it
+		// entirely, since echo.Binder does not expose body-only binding.
+		err = ctx.Bind(&body)
+	}
+	if err != nil {
+		return err
+	}
+	request.Body = &body
+
+	handler := func(ctx *echo.Context, request interface{}) (interface{}, error) {
+		return sh.ssi.CompleteSignup(ctx.Request().Context(), request.(CompleteSignupRequestObject))
+	}
+	for _, middleware := range sh.middlewares {
+		handler = middleware(handler, "CompleteSignup")
+	}
+
+	response, err := handler(ctx, request)
+
+	if err != nil {
+		return err
+	} else if validResponse, ok := response.(CompleteSignupResponseObject); ok {
+		return validResponse.VisitCompleteSignupResponse(ctx.Response())
+	} else if response != nil {
+		return fmt.Errorf("unexpected response type: %T", response)
+	}
+	return nil
+}
+
+// EstimateStudent operation middleware
+func (sh *strictHandler) EstimateStudent(ctx *echo.Context) error {
+	var request EstimateStudentRequestObject
+
+	var body EstimateStudentJSONRequestBody
+	var err error
+	if _, ok := ctx.Echo().Binder.(*echo.DefaultBinder); ok {
+		// Bind only the request body, so that path and query parameters
+		// are not also bound into the body struct.
+		err = echo.BindBody(ctx, &body)
+	} else {
+		// A custom binder is installed on the Echo instance; defer to it
+		// entirely, since echo.Binder does not expose body-only binding.
+		err = ctx.Bind(&body)
+	}
+	if err != nil {
+		return err
+	}
+	request.Body = &body
+
+	handler := func(ctx *echo.Context, request interface{}) (interface{}, error) {
+		return sh.ssi.EstimateStudent(ctx.Request().Context(), request.(EstimateStudentRequestObject))
+	}
+	for _, middleware := range sh.middlewares {
+		handler = middleware(handler, "EstimateStudent")
+	}
+
+	response, err := handler(ctx, request)
+
+	if err != nil {
+		return err
+	} else if validResponse, ok := response.(EstimateStudentResponseObject); ok {
+		return validResponse.VisitEstimateStudentResponse(ctx.Response())
+	} else if response != nil {
+		return fmt.Errorf("unexpected response type: %T", response)
+	}
+	return nil
 }
 
 // GetHealth operation middleware

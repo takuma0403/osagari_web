@@ -21,7 +21,9 @@ import (
 )
 
 // stubHandler は GetHealth の振る舞いを差し替えて、エラー・panic の扱いを確かめる。
+// ほかの操作は埋め込んだ nil のインターフェースのまま（呼ばない）。
 type stubHandler struct {
+	api.StrictServerInterface
 	getHealth func() (api.GetHealthResponseObject, error)
 }
 
@@ -60,7 +62,7 @@ func decodeError(t *testing.T, rec *httptest.ResponseRecorder) api.Error {
 }
 
 func TestHealth(t *testing.T) {
-	srv, _ := newServer(t, handler.New())
+	srv, _ := newServer(t, handler.New(handler.Deps{}))
 	rec := do(t, srv, http.MethodGet, "/api/health")
 	if rec.Code != http.StatusOK {
 		t.Fatalf("status=%d body=%s", rec.Code, rec.Body.String())
@@ -75,7 +77,7 @@ func TestHealth(t *testing.T) {
 }
 
 func Test未実装のパスはError形式(t *testing.T) {
-	srv, _ := newServer(t, handler.New())
+	srv, _ := newServer(t, handler.New(handler.Deps{}))
 	tests := []struct {
 		method, target string
 		status         int
@@ -148,7 +150,7 @@ func Testハンドラーのエラーの変換(t *testing.T) {
 }
 
 func Testアクセスログ(t *testing.T) {
-	srv, logs := newServer(t, handler.New())
+	srv, logs := newServer(t, handler.New(handler.Deps{}))
 	rec := do(t, srv, http.MethodGet, "/api/deals/24123456/complete?token=secret-token-value")
 
 	var entry map[string]any

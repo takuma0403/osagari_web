@@ -20,6 +20,7 @@
 | セッション | `Session` | `sessions` | `__session` Cookie に入れるID |
 | 認証コード | `VerificationCode` | `verification_codes` | メールで送る6桁コード（ハッシュで保存） |
 | 登録端末 | `TrustedDevice` | `trusted_devices` | 再確認を省略できる端末 |
+| パスワード設定用の一時トークン | `PasswordSetupToken` | `password_setup_tokens` | コードの確認後に発行する15分有効・一度だけのトークン（ハッシュで保存。[ADR 0007](decisions/0007-signup-flow.md)） |
 | 設定 | `Setting` | `settings` | 手数料率など |
 
 ## 列挙値
@@ -38,6 +39,7 @@
 | カテゴリ | `ItemCategory` | `textbook` 教科書・参考書 / `furniture_appliance` 家具・家電 / `game_other` ゲーム・その他 |
 | キャンパス | `Campus` | `honjo` 本庄 / `nabeshima` 鍋島 |
 | 認証コードの用途 | `VerificationPurpose` | `signup` / `password_reset` / `login_recheck` |
+| 一時トークンの用途 | `PasswordSetupPurpose` | `signup` 新規登録 / `password_reset` パスワードの再設定 |
 
 - 商品の「状態」（目立った傷なし 等）はステータスと紛らわしいため、コードでは `condition`（`ItemCondition`）と呼ぶ。値の一覧はデザイン（[Sell](design/screens/Sell.dc.html)）と合わせて実装時に決める。
 - デザインのカテゴリチップは「教科書・参考書／家具・家電／ゲーム／その他」と4つに分かれているが、要件（[ITEM](product/03-listing.md)）の区分は3つ。違いは実装時にユーザーへ確認する。
@@ -51,6 +53,8 @@
 | 学部・学科コード | `departmentCode` | 学籍番号の3〜5桁目 |
 | 学部・学科 | `department` | [AUTH-4](product/01-account-auth.md) の表で確定した学部・学科のコード。表にないコードは空（不明）で登録し、管理者が後から直す。`departmentCode`（学籍番号から取った値）とは別に持つ |
 | 有効期限 | `expiresOn` | アカウントの失効日（3月31日） |
+| 学籍番号からの推定 | `StudentEstimate` | 学籍番号から推定した入学年度・学部・有効期限（[AUTH-2〜4](product/01-account-auth.md)） |
+| 自分の情報 | `CurrentUser` | ログイン中の本人に返すユーザー情報（API のスキーマ名） |
 | 手数料率 | `feeRate` | 取引ごとに記録する。整数のベーシスポイント（1% = 100）で保持し、浮動小数点を使わない |
 | 手数料 | `fee` | 円（整数） |
 | 出品者の売上 | `sellerProceeds` | 商品価格 − 手数料 |

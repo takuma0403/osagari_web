@@ -7,13 +7,20 @@ import (
 	"github.com/takuma0403/osagari_web/server/internal/api"
 )
 
+// Deps は handler が使う service。
+type Deps struct {
+	Signup SignupService
+}
+
 // Handler は api.StrictServerInterface の実装。
-type Handler struct{}
+type Handler struct {
+	d Deps
+}
 
 var _ api.StrictServerInterface = (*Handler)(nil)
 
-func New() *Handler {
-	return &Handler{}
+func New(d Deps) *Handler {
+	return &Handler{d: d}
 }
 
 // GetHealth は稼働確認（GET /api/health）。

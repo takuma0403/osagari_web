@@ -15,7 +15,9 @@ import (
 	"github.com/takuma0403/osagari_web/server/internal/handler"
 	"github.com/takuma0403/osagari_web/server/internal/logging"
 	"github.com/takuma0403/osagari_web/server/internal/mail"
+	"github.com/takuma0403/osagari_web/server/internal/repository"
 	"github.com/takuma0403/osagari_web/server/internal/server"
+	"github.com/takuma0403/osagari_web/server/internal/service"
 )
 
 // config は環境変数から読む設定。一覧は .env.example。
@@ -65,8 +67,17 @@ func run(logger *slog.Logger) error {
 
 // wire は repository → service → handler の順に依存を組み立てる。機能を足すときはここに追加する。
 func wire(gdb *gorm.DB, clk clock.Clock, mailer mail.Mailer) api.StrictServerInterface {
-	_, _, _ = gdb, clk, mailer // 最初の repository・service を追加したら使う
-	return handler.New()
+	signup := service.NewSignupService(service.SignupDeps{
+		Tx:       repository.NewTransactor(gdb),
+		Users:    repository.NewUserRepository(gdb),
+		Codes:    repository.NewVerificationCodeRepository(gdb),
+		Tokens:   repository.NewPasswordSetupTokenRepository(gdb),
+		Sessions: repository.NewSessionRepository(gdb),
+		Devices:  repository.NewTrustedDeviceRepository(gdb),
+		Mailer:   mailer,
+		Clock:    clk,
+	})
+	return handler.New(handler.Deps{Signup: signup})
 }
 
 func loadConfig() (config, error) {

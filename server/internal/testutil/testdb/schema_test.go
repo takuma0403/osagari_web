@@ -77,6 +77,18 @@ func Test認証テーブルの制約(t *testing.T) {
 			}
 			return exec(q, "d2", now, now, now)
 		}},
+		{"一時トークンの用途が想定外の値", func() error {
+			return exec(`INSERT INTO password_setup_tokens (id, email, purpose, token_hash, expires_at, created_at, updated_at)
+				VALUES ('p9', 'a@example.com', 'login_recheck', 'other', ?, ?, ?)`, now, now, now)
+		}},
+		{"一時トークンのハッシュの重複", func() error {
+			q := `INSERT INTO password_setup_tokens (id, email, purpose, token_hash, expires_at, created_at, updated_at)
+				VALUES (?, 'a@example.com', 'signup', 'same', ?, ?, ?)`
+			if err := exec(q, "p1", now, now, now); err != nil {
+				t.Fatalf("1件目の一時トークン: %v", err)
+			}
+			return exec(q, "p2", now, now, now)
+		}},
 	}
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {

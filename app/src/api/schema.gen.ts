@@ -21,10 +21,177 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/auth/signup/estimate": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * 学籍番号から学部・入学年度・有効期限を推定する
+         * @description AUTH-2, AUTH-4: 新規登録画面の入力中の表示に使う。学籍番号から計算するだけで、登録済みかどうかには触れない。
+         *     メールアドレスを URL に載せない（リクエストログに残さない）ため、本文で受け取る。
+         */
+        post: operations["estimateStudent"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/auth/signup/codes": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * 新規登録の認証コードを送る
+         * @description AUTHN-2: 大学のメールアドレス（^\d{8}@edu\.cc\.saga-u\.ac\.jp$）に6桁のコード（10分有効）を送る。
+         *     登録済みのアドレスにはコードの代わりに「登録済みです」の案内を送り、応答は未登録のときと同じにする（登録の有無を判別させない）。
+         *     形式が違うアドレスには送らず 400 invalid_email を返す。
+         */
+        post: operations["sendSignupCode"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/auth/signup/codes/verify": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * 新規登録の認証コードを確認する
+         * @description AUTHN-2, AUTHN-6: コードが一致したら、パスワード設定用の一時トークン（15分有効・一度だけ使える）と推定結果を返す。
+         *     不一致は 400 invalid_verification_code（メッセージに残り回数）。期限切れ・使用済み・入力ミスが5回に達したコードは 400 verification_code_expired。
+         */
+        post: operations["verifySignupCode"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/auth/signup/complete": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * パスワードを設定してアカウントを作成する
+         * @description AUTHN-2, AUTH-2〜4, AUTHN-5: 一時トークンを使ってパスワード（10文字以上128文字以下）を設定し、学籍番号から入学年度・学部・有効期限を計算してアカウントを作る。
+         *     そのままログイン状態にし、`__session` Cookie を返す。`X-Device-Id` があれば、その端末を登録済みの端末にする（AUTHN-3）。
+         *     トークンが無効・期限切れ・使用済みなら 400 invalid_setup_token、パスワードの長さが範囲外なら 400 invalid_password_length。
+         */
+        post: operations["completeSignup"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
 }
 export type webhooks = Record<string, never>;
 export interface components {
     schemas: {
+        EmailInput: {
+            /**
+             * @description 大学のメールアドレス（学籍番号@edu.cc.saga-u.ac.jp）。前後の空白と大文字・小文字の違いは無視する
+             * @example 26238001@edu.cc.saga-u.ac.jp
+             */
+            email: string;
+        };
+        /** @description AUTH-2, AUTH-4 学籍番号から推定した情報 */
+        StudentEstimate: {
+            /** @example 26238001 */
+            studentNumber: string;
+            /**
+             * @description 入学年度（学籍番号の上2桁 + 2000）
+             * @example 2026
+             */
+            admissionYear: number;
+            /**
+             * @description 学部・学科コード（学籍番号の3〜5桁目）
+             * @example 238
+             */
+            departmentCode: string;
+            /**
+             * @description AUTH-4 の表で確定した学部・学科のコード。表にないコードは null（不明）
+             * @example 238
+             */
+            department: string | null;
+            /**
+             * @description 学部・学科の名前。不明なら null
+             * @example 理工学部 理工学科
+             */
+            departmentName: string | null;
+            /**
+             * Format: date
+             * @description 有効期限の初期値（入学年度 + 修業年限 の3月31日。不明なら4年）
+             * @example 2030-03-31
+             */
+            expiresOn: string;
+        };
+        SignupCodeVerification: {
+            /** @example 26238001@edu.cc.saga-u.ac.jp */
+            email: string;
+            /**
+             * @description メールで届いた6桁のコード
+             * @example 012345
+             */
+            code: string;
+        };
+        SignupCodeVerified: {
+            /** @description パスワード設定用の一時トークン（15分有効・一度だけ使える） */
+            setupToken: string;
+            estimate: components["schemas"]["StudentEstimate"];
+        };
+        SignupCompletion: {
+            setupToken: string;
+            /** @description 10文字以上128文字以下（AUTHN-5） */
+            password: string;
+        };
+        /** @description ログイン中の本人の情報。本人にだけ返す */
+        CurrentUser: {
+            id: string;
+            email: string;
+            studentNumber: string;
+            admissionYear: number;
+            departmentCode: string;
+            department: string | null;
+            departmentName: string | null;
+            /** Format: date */
+            expiresOn: string;
+            status: components["schemas"]["UserStatus"];
+            sellerStatus: components["schemas"]["SellerStatus"];
+        };
+        /**
+         * @description ユーザーの状態
+         * @enum {string}
+         */
+        UserStatus: "active" | "suspended" | "expired" | "deleted";
+        /**
+         * @description 出品者の承認状態
+         * @enum {string}
+         */
+        SellerStatus: "none" | "pending" | "approved" | "rejected";
         Health: {
             /** @enum {string} */
             status: "ok";
@@ -80,6 +247,109 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["Health"];
+                };
+            };
+            default: components["responses"]["Error"];
+        };
+    };
+    estimateStudent: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["EmailInput"];
+            };
+        };
+        responses: {
+            /** @description 推定結果 */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["StudentEstimate"];
+                };
+            };
+            default: components["responses"]["Error"];
+        };
+    };
+    sendSignupCode: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["EmailInput"];
+            };
+        };
+        responses: {
+            /** @description 受け付けた（登録済みかどうかにかかわらず同じ応答） */
+            202: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            default: components["responses"]["Error"];
+        };
+    };
+    verifySignupCode: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["SignupCodeVerification"];
+            };
+        };
+        responses: {
+            /** @description コードを確認した */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["SignupCodeVerified"];
+                };
+            };
+            default: components["responses"]["Error"];
+        };
+    };
+    completeSignup: {
+        parameters: {
+            query?: never;
+            header?: {
+                /** @description ブラウザの localStorage に保存した端末識別子（AUTHN-3） */
+                "X-Device-Id"?: components["parameters"]["DeviceId"];
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["SignupCompletion"];
+            };
+        };
+        responses: {
+            /** @description アカウントを作成し、ログイン状態にした */
+            201: {
+                headers: {
+                    /** @description セッションの `__session` Cookie（HttpOnly, Secure, SameSite=Lax） */
+                    "Set-Cookie"?: string;
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["CurrentUser"];
                 };
             };
             default: components["responses"]["Error"];
