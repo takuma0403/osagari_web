@@ -1,0 +1,21 @@
+.dialog {
+  gap: 14px;
+  padding: 26px 20px 18px;
+}
+
+.title {
+  font-size: 20px;
+  font-weight: 700;
+  text-align: center;
+}
+
+.body {
+  font-size: 14px;
+  line-height: 1.75;
+}
+
+.actions {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
