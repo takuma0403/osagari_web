@@ -25,7 +25,7 @@
 - コード送信では、**登録済みのアドレスでも未登録と同じ処理**（コードの生成・argon2id・`verification_codes` への保存・メール1通の送信）を行い、メールの本文だけを変える（登録済みにはコードを書かず案内を送る）。応答・DB への書き込み・計算量・送信が同じなので、所要時間も揃う。登録済みのアドレスのコードは誰にも届かないので確認には使えず、コード確認の応答（入力ミスと残り回数）も未登録のときと同じになる。万一コードを当てても、アカウント作成で一意制約に当たり、無効なトークンと同じ応答にする。
 - 学部・入学年度・有効期限の推定は、登録状態に触れない公開の API `POST /auth/signup/estimate` で返す。学部の表はサーバーの1か所（`server/internal/domain/department.go`）だけに置く。メールアドレスを URL に載せてリクエストログに残さないため、GET のクエリではなく POST の本文で受け取る。
 - コードの入力回数は**照合の前に**数える（`failed_attempts < 5` を条件に +1 する UPDATE）。数えられなかったら照合しない。成功した回も数に入るが、成功したコードは使用済みになるので影響しない。
-- 機能固有のエラーコード `invalid_email`・`invalid_verification_code`・`verification_code_expired`・`invalid_setup_token`・`password_too_short` を追加する（いずれも 400）。
+- 機能固有のエラーコード `invalid_email`・`invalid_verification_code`・`verification_code_expired`・`invalid_setup_token`・`password_too_short` を追加する（いずれも 400）。`password_too_short` は [ADR 0008](0008-password-max-length.md) で `invalid_password_length` に変えた。
 
 ## 理由と検討した選択肢
 

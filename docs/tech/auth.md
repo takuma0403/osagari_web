@@ -81,7 +81,7 @@ sequenceDiagram
 
 ### AUTHN-5 パスワードとセッションの扱い
 
-- パスワードは argon2id でハッシュ化して保存します。長さは10文字以上とします。
+- パスワードは argon2id でハッシュ化して保存します。長さは10文字以上128文字以下とします（文字数で数える。上限の理由は [ADR 0008](../decisions/0008-password-max-length.md)）。
 - セッションIDは `__session` という名前のCookieに入れます（HttpOnly、Secure、SameSite=Lax）。セッションはDBで管理し、ログアウトや強制停止ですぐ無効にできるようにします。
 - **DBに秘密の値を平文で置かない**（[ADR 0006](../decisions/0006-auth-secret-hashing.md)）：
   - セッションIDは推測できない乱数（256ビット）を Cookie に入れ、DB には SHA-256 のハッシュだけを保存します。端末識別子も同じく SHA-256 で保存します。

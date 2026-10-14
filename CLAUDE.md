@@ -21,7 +21,7 @@
 | チャット・商品Q&A・配送・受け渡し代行は作らない | OVERVIEW |
 | 登録できるのは `^\d{8}@edu\.cc\.saga-u\.ac\.jp$` のみ（サーバー側で検証） | AUTHN-2 |
 | 登録済みかどうかを画面・応答から判別できないようにする | AUTHN-2 |
-| パスワードは argon2id・10文字以上。認証コードはハッシュで保存 | AUTHN-2, AUTHN-5 |
+| パスワードは argon2id・10文字以上128文字以下。認証コードはハッシュで保存 | AUTHN-2, AUTHN-5 |
 | セッションCookie名は `__session`（HttpOnly, Secure, SameSite=Lax）。ほかのCookieは使わない。端末識別子は localStorage → ヘッダー | API, AUTHN-3, AUTHN-5 |
 | 学籍番号は出品者が承認するまで相手に開示しない | DEAL-1 |
 | 代金を動かすきっかけ（受け渡し完了）は**購入者の操作**だけ（自動完了は未決） | DEAL-3, DEAL-5 |
