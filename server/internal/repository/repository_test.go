@@ -62,6 +62,24 @@ func TestUserRepository(t *testing.T) {
 	if _, err := users.FindByID(ctx, "no-such-user"); !errors.Is(err, repository.ErrNotFound) {
 		t.Errorf("ErrNotFound にならない: %v", err)
 	}
+
+	if got, err := users.FindByEmail(ctx, email); err != nil || got.ID != u.ID {
+		t.Errorf("FindByEmail: got=%+v err=%v", got, err)
+	}
+	if _, err := users.FindByEmail(ctx, "26238002@edu.cc.saga-u.ac.jp"); !errors.Is(err, repository.ErrNotFound) {
+		t.Errorf("FindByEmail が ErrNotFound にならない: %v", err)
+	}
+
+	later := t0.Add(31 * 24 * time.Hour)
+	if err := users.UpdateCodeVerifiedAt(ctx, u.ID, later); err != nil {
+		t.Fatal(err)
+	}
+	if got, _ := users.FindByID(ctx, u.ID); !got.CodeVerifiedAt.Equal(later) || !got.UpdatedAt.Equal(later) {
+		t.Errorf("UpdateCodeVerifiedAt: code_verified_at=%s updated_at=%s", got.CodeVerifiedAt, got.UpdatedAt)
+	}
+	if err := users.UpdateCodeVerifiedAt(ctx, "no-such-user", later); !errors.Is(err, repository.ErrNotFound) {
+		t.Errorf("UpdateCodeVerifiedAt が ErrNotFound にならない: %v", err)
+	}
 }
 
 func newCode(createdAt time.Time) *domain.VerificationCode {
@@ -290,6 +308,144 @@ func TestTransactorとセッションと端末(t *testing.T) {
 		gdb.Raw("SELECT count(*) FROM sessions WHERE user_id = ?", u.ID).Scan(&n)
 		if n != 1 {
 			t.Errorf("セッション: n=%d", n)
+		}
+	})
+}
+
+func TestSessionRepository_検索と失効(t *testing.T) {
+	ctx := context.Background()
+	gdb := testdb.New(t)
+	users := repository.NewUserRepository(gdb)
+	sessions := repository.NewSessionRepository(gdb)
+	u := newUser("", email, "26238001")
+	if err := users.Create(ctx, u); err != nil {
+		t.Fatal(err)
+	}
+	if err := sessions.Create(ctx, &domain.Session{UserID: u.ID, TokenHash: "s", ExpiresAt: t0.Add(time.Hour), CreatedAt: t0, UpdatedAt: t0}); err != nil {
+		t.Fatal(err)
+	}
+
+	got, err := sessions.FindActiveByTokenHash(ctx, "s", t0)
+	if err != nil || got.UserID != u.ID || !got.ExpiresAt.Equal(t0.Add(time.Hour)) || got.RevokedAt != nil {
+		t.Fatalf("期限内: got=%+v err=%v", got, err)
+	}
+	if _, err := sessions.FindActiveByTokenHash(ctx, "s", t0.Add(time.Hour)); !errors.Is(err, repository.ErrNotFound) {
+		t.Errorf("期限ちょうどで見つかった: %v", err)
+	}
+	if _, err := sessions.FindActiveByTokenHash(ctx, "other", t0); !errors.Is(err, repository.ErrNotFound) {
+		t.Errorf("違うハッシュで見つかった: %v", err)
+	}
+
+	if err := sessions.Revoke(ctx, "s", t0); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := sessions.FindActiveByTokenHash(ctx, "s", t0); !errors.Is(err, repository.ErrNotFound) {
+		t.Errorf("失効後に見つかった: %v", err)
+	}
+	if err := sessions.Revoke(ctx, "s", t0); !errors.Is(err, repository.ErrNotFound) {
+		t.Errorf("2回目の失効が ErrNotFound にならない: %v", err)
+	}
+}
+
+func TestTrustedDeviceRepository_Exists(t *testing.T) {
+	ctx := context.Background()
+	gdb := testdb.New(t)
+	users := repository.NewUserRepository(gdb)
+	devices := repository.NewTrustedDeviceRepository(gdb)
+	u := newUser("", email, "26238001")
+	other := newUser("", "26238002@edu.cc.saga-u.ac.jp", "26238002")
+	for _, x := range []*domain.User{u, other} {
+		if err := users.Create(ctx, x); err != nil {
+			t.Fatal(err)
+		}
+	}
+	if err := devices.Upsert(ctx, &domain.TrustedDevice{UserID: u.ID, DeviceHash: "d", LastUsedAt: t0, CreatedAt: t0, UpdatedAt: t0}); err != nil {
+		t.Fatal(err)
+	}
+	for _, tt := range []struct {
+		name         string
+		userID, hash string
+		want         bool
+	}{
+		{"登録した端末", u.ID, "d", true},
+		{"登録していない端末", u.ID, "x", false},
+		{"ほかのユーザーが登録した端末", other.ID, "d", false},
+	} {
+		if got, err := devices.Exists(ctx, tt.userID, tt.hash); err != nil || got != tt.want {
+			t.Errorf("%s: got=%v err=%v", tt.name, got, err)
+		}
+	}
+}
+
+func TestLoginChallengeRepository(t *testing.T) {
+	ctx := context.Background()
+	gdb := testdb.New(t)
+	users := repository.NewUserRepository(gdb)
+	challenges := repository.NewLoginChallengeRepository(gdb)
+	u := newUser("", email, "26238001")
+	if err := users.Create(ctx, u); err != nil {
+		t.Fatal(err)
+	}
+	newChallenge := func(hash, device string) *domain.LoginChallenge {
+		return &domain.LoginChallenge{
+			UserID: u.ID, TokenHash: hash, Reason: domain.LoginRecheckReasonNewDevice, DeviceHash: device,
+			ExpiresAt: t0.Add(15 * time.Minute), CreatedAt: t0, UpdatedAt: t0,
+		}
+	}
+
+	t.Run("保存して読み戻す（端末なしは空）", func(t *testing.T) {
+		for _, c := range []*domain.LoginChallenge{newChallenge("with-device", "d"), newChallenge("no-device", "")} {
+			if err := challenges.Create(ctx, c); err != nil {
+				t.Fatal(err)
+			}
+			got, err := challenges.FindActive(ctx, c.TokenHash, t0)
+			if err != nil {
+				t.Fatal(err)
+			}
+			if got.ID != c.ID || got.UserID != u.ID || got.Reason != domain.LoginRecheckReasonNewDevice ||
+				got.DeviceHash != c.DeviceHash || !got.ExpiresAt.Equal(c.ExpiresAt) || got.ConsumedAt != nil {
+				t.Errorf("got=%+v want=%+v", got, c)
+			}
+		}
+	})
+
+	t.Run("期限切れは使えない", func(t *testing.T) {
+		c := newChallenge("expiring", "")
+		if err := challenges.Create(ctx, c); err != nil {
+			t.Fatal(err)
+		}
+		if _, err := challenges.FindActive(ctx, c.TokenHash, c.ExpiresAt); !errors.Is(err, repository.ErrNotFound) {
+			t.Errorf("FindActive: %v", err)
+		}
+		if err := challenges.Consume(ctx, c.ID, c.ExpiresAt); !errors.Is(err, repository.ErrConflict) {
+			t.Errorf("Consume: %v", err)
+		}
+	})
+
+	t.Run("同時に使っても成功するのは1回だけ", func(t *testing.T) {
+		c := newChallenge("once", "")
+		if err := challenges.Create(ctx, c); err != nil {
+			t.Fatal(err)
+		}
+		var ok atomic.Int32
+		var wg sync.WaitGroup
+		for range 10 {
+			wg.Add(1)
+			go func() {
+				defer wg.Done()
+				if err := challenges.Consume(ctx, c.ID, t0); err == nil {
+					ok.Add(1)
+				} else if !errors.Is(err, repository.ErrConflict) {
+					t.Errorf("想定外のエラー: %v", err)
+				}
+			}()
+		}
+		wg.Wait()
+		if ok.Load() != 1 {
+			t.Errorf("成功した回数=%d want=1", ok.Load())
+		}
+		if _, err := challenges.FindActive(ctx, c.TokenHash, t0); !errors.Is(err, repository.ErrNotFound) {
+			t.Errorf("使用済みが見つかった: %v", err)
 		}
 	})
 }
