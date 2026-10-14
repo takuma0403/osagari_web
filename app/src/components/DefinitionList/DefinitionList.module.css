@@ -3,12 +3,12 @@
   grid-template-columns: max-content minmax(0, 1fr);
   column-gap: 16px;
   row-gap: 10px;
-  font-size: 14px;
+  font-size: var(--text-body);
 }
 
 .sm {
   row-gap: 8px;
-  font-size: 13px;
+  font-size: var(--text-label);
 }
 
 /* 地の色の枠に入れる（登録内容の確認など） */

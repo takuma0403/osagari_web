@@ -4,13 +4,13 @@
 }
 
 .title {
-  font-size: 20px;
+  font-size: var(--text-heading);
   font-weight: 700;
   text-align: center;
 }
 
 .body {
-  font-size: 14px;
+  font-size: var(--text-body);
   line-height: 1.75;
 }
 

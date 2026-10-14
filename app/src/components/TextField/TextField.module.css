@@ -5,7 +5,7 @@
 }
 
 .label {
-  font-size: 13px;
+  font-size: var(--text-label);
   font-weight: 700;
 }
 
@@ -21,13 +21,13 @@
 
 .lg {
   height: var(--btn-h);
-  font-size: 17px;
+  font-size: var(--text-subheading);
 }
 
 .md {
   height: 48px;
   padding: 0 12px;
-  font-size: 15px;
+  font-size: var(--text-button-md);
 }
 
 /* フォーカス中・エラーは 1.5px の枠（DS-3）。幅を変えずに太く見せるため、外側に 0.5px の影を足す */
@@ -71,7 +71,7 @@
   flex-shrink: 0;
   color: var(--color-text-muted);
   font-family: var(--font-num);
-  font-size: 15px;
+  font-size: var(--text-button-md);
 }
 
 .prefix {
@@ -94,11 +94,11 @@
 
 .hint {
   color: var(--color-text-muted);
-  font-size: 12px;
+  font-size: var(--text-note);
 }
 
 .error {
   color: var(--color-danger);
-  font-size: 13px;
+  font-size: var(--text-label);
   font-weight: 700;
 }

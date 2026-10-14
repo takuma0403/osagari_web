@@ -33,7 +33,7 @@
   flex-grow: 1;
   min-width: 0;
   overflow: hidden;
-  font-size: 17px;
+  font-size: var(--text-subheading);
   font-weight: 700;
   text-overflow: ellipsis;
   white-space: nowrap;
@@ -42,7 +42,7 @@
 /* 戻るボタンがないときは、ページの余白に合わせて左をそろえる */
 .title:first-child {
   padding-left: calc(var(--space-page) - 4px);
-  font-size: 18px;
+  font-size: var(--text-header);
 }
 
 .right {

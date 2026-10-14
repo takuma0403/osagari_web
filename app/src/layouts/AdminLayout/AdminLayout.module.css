@@ -21,7 +21,7 @@
   align-items: center;
   gap: 10px;
   padding: 4px 8px 20px;
-  font-size: 15px;
+  font-size: var(--text-button-md);
   font-weight: 700;
 }
 
@@ -32,7 +32,7 @@
   padding: 0 12px;
   border-radius: var(--radius-sm);
   color: var(--color-admin-nav-text);
-  font-size: 14px;
+  font-size: var(--text-body);
   text-decoration: none;
 }
 

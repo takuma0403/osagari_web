@@ -1,6 +1,6 @@
 .step {
   color: var(--color-primary);
   font-family: var(--font-num);
-  font-size: 13px;
+  font-size: var(--text-label);
   font-weight: 700;
 }

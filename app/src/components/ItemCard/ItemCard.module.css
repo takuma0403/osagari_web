@@ -34,22 +34,22 @@
 .title {
   display: -webkit-box;
   overflow: hidden;
-  font-size: 13px;
+  font-size: var(--text-label);
   font-weight: 500;
   line-height: 1.4;
   -webkit-box-orient: vertical;
   -webkit-line-clamp: 2;
-  min-height: calc(13px * 1.4 * 2);
+  min-height: calc(var(--text-label) * 1.4 * 2);
 }
 
 .price {
   font-family: var(--font-num);
-  font-size: 17px;
+  font-size: var(--text-subheading);
   font-weight: 700;
   line-height: 1.4;
 }
 
 .meta {
   color: var(--color-text-muted);
-  font-size: 11px;
+  font-size: var(--text-badge);
 }

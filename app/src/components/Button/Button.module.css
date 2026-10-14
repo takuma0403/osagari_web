@@ -20,17 +20,17 @@
 /* 高さ（DS-1：主要 52 / 副 48 / 最小 44） */
 .lg {
   min-height: var(--btn-h);
-  font-size: 16px;
+  font-size: var(--text-button);
 }
 
 .md {
   min-height: 48px;
-  font-size: 15px;
+  font-size: var(--text-button-md);
 }
 
 .sm {
   min-height: var(--tap-min);
-  font-size: 14px;
+  font-size: var(--text-body);
 }
 
 .primary {
@@ -48,7 +48,7 @@
   border: 1px solid var(--color-border);
   background: var(--color-surface);
   color: var(--color-text);
-  font-size: 14px;
+  font-size: var(--text-body);
 }
 
 .danger {
@@ -60,7 +60,7 @@
 .text {
   background: transparent;
   color: var(--color-text-muted);
-  font-size: 14px;
+  font-size: var(--text-body);
   font-weight: 400;
 }
 

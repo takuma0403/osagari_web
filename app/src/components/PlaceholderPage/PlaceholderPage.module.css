@@ -6,7 +6,7 @@
 }
 
 .title {
-  font-size: 18px;
+  font-size: var(--text-header);
   font-weight: 700;
 }
 
