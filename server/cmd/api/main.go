@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"log/slog"
 	"os"
+	"strconv"
 
 	"gorm.io/gorm"
 
@@ -13,6 +14,7 @@ import (
 	"github.com/takuma0403/osagari_web/server/internal/db"
 	"github.com/takuma0403/osagari_web/server/internal/handler"
 	"github.com/takuma0403/osagari_web/server/internal/logging"
+	"github.com/takuma0403/osagari_web/server/internal/mail"
 	"github.com/takuma0403/osagari_web/server/internal/server"
 )
 
@@ -20,6 +22,7 @@ import (
 type config struct {
 	Port        string
 	DatabaseURL string
+	SMTP        mail.SMTPConfig
 }
 
 func main() {
@@ -48,17 +51,21 @@ func run(logger *slog.Logger) error {
 	}
 
 	clk := clock.System()
+	mailer, err := mail.NewSMTP(cfg.SMTP, clk)
+	if err != nil {
+		return err
+	}
 	e := server.New(server.Deps{
 		Logger:  logger,
 		Clock:   clk,
-		Handler: wire(gdb, clk),
+		Handler: wire(gdb, clk, mailer),
 	})
 	return e.Start(":" + cfg.Port)
 }
 
 // wire は repository → service → handler の順に依存を組み立てる。機能を足すときはここに追加する。
-func wire(gdb *gorm.DB, clk clock.Clock) api.StrictServerInterface {
-	_, _ = gdb, clk // 最初の repository・service を追加したら使う
+func wire(gdb *gorm.DB, clk clock.Clock, mailer mail.Mailer) api.StrictServerInterface {
+	_, _, _ = gdb, clk, mailer // 最初の repository・service を追加したら使う
 	return handler.New()
 }
 
@@ -66,10 +73,23 @@ func loadConfig() (config, error) {
 	cfg := config{
 		Port:        envOr("PORT", "8080"),
 		DatabaseURL: os.Getenv("DATABASE_URL"),
+		SMTP: mail.SMTPConfig{
+			Host:     os.Getenv("SMTP_HOST"),
+			Port:     envOr("SMTP_PORT", "587"),
+			Username: os.Getenv("SMTP_USERNAME"),
+			Password: os.Getenv("SMTP_PASSWORD"),
+			From:     os.Getenv("SMTP_FROM"),
+		},
 	}
 	if cfg.DatabaseURL == "" {
 		return config{}, fmt.Errorf("環境変数 DATABASE_URL が設定されていません")
 	}
+	// 本番（Gmail SMTP）は STARTTLS を必須にする。無効にするのはローカルの Mailpit だけ（AUTHN-7）
+	startTLS, err := strconv.ParseBool(envOr("SMTP_STARTTLS", "true"))
+	if err != nil {
+		return config{}, fmt.Errorf("環境変数 SMTP_STARTTLS が true / false ではありません")
+	}
+	cfg.SMTP.StartTLS = startTLS
 	return cfg, nil
 }
 
