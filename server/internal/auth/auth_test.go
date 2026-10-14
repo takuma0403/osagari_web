@@ -23,6 +23,9 @@ func TestValidatePassword(t *testing.T) {
 		{"日本語は文字数で数える（10文字）", "あいうえおかきくけこ", true},
 		{"日本語の9文字（30バイト近いが短い）", "あいうえおかきくけ", false},
 		{"空", "", false},
+		{"128文字", strings.Repeat("a", 128), true},
+		{"129文字", strings.Repeat("a", 129), false},
+		{"日本語の128文字（バイト数ではなく文字数で数える）", strings.Repeat("あ", 128), true},
 	}
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {
@@ -30,8 +33,8 @@ func TestValidatePassword(t *testing.T) {
 			if tc.ok != (err == nil) {
 				t.Fatalf("err=%v", err)
 			}
-			if err != nil && !errors.Is(err, ErrPasswordTooShort) {
-				t.Fatalf("ErrPasswordTooShort ではない: %v", err)
+			if err != nil && !errors.Is(err, ErrPasswordLength) {
+				t.Fatalf("ErrPasswordLength ではない: %v", err)
 			}
 		})
 	}
@@ -60,7 +63,7 @@ func TestHashPasswordとVerifyPassword(t *testing.T) {
 	if ok, err := VerifyPassword(h1, password+"x"); err != nil || ok {
 		t.Errorf("違うパスワードで一致する: ok=%v err=%v", ok, err)
 	}
-	if _, err := HashPassword("short"); !errors.Is(err, ErrPasswordTooShort) {
+	if _, err := HashPassword("short"); !errors.Is(err, ErrPasswordLength) {
 		t.Errorf("短いパスワードをハッシュ化できてしまう: %v", err)
 	}
 }

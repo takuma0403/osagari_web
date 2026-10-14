@@ -375,7 +375,11 @@ func TestComplete(t *testing.T) {
 				t.Errorf("入力し直せない: %v", err2)
 			}
 			return err
-		}, service.CodePasswordTooShort},
+		}, service.CodeInvalidPasswordLength},
+		{"パスワードが129文字", func(t *testing.T, f *fixture, token string) error {
+			_, err := f.svc.Complete(ctx, token, strings.Repeat("a", 129), "")
+			return err
+		}, service.CodeInvalidPasswordLength},
 		{"15分たったトークン", func(t *testing.T, f *fixture, token string) error {
 			f.clock.Advance(auth.SetupTokenTTL)
 			_, err := f.svc.Complete(ctx, token, password, "")

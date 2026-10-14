@@ -165,7 +165,7 @@ func Test入力の誤りはError形式の400(t *testing.T) {
 	}{
 		{"形式が違うアドレスの推定", "/auth/signup/estimate", api.EmailInput{Email: "a@example.com"}, string(service.CodeInvalidEmail)},
 		{"形式が違うアドレスへの送信", "/auth/signup/codes", api.EmailInput{Email: "a@example.com"}, string(service.CodeInvalidEmail)},
-		{"短いパスワード", "/auth/signup/complete", api.SignupCompletion{SetupToken: "x", Password: "short"}, string(service.CodePasswordTooShort)},
+		{"短いパスワード", "/auth/signup/complete", api.SignupCompletion{SetupToken: "x", Password: "short"}, string(service.CodeInvalidPasswordLength)},
 		{"無効なトークン", "/auth/signup/complete", api.SignupCompletion{SetupToken: "x", Password: "correct horse battery"}, string(service.CodeInvalidSetupToken)},
 	}
 	for _, tc := range cases {

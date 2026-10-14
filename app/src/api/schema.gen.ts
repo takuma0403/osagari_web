@@ -96,9 +96,9 @@ export interface paths {
         put?: never;
         /**
          * パスワードを設定してアカウントを作成する
-         * @description AUTHN-2, AUTH-2〜4, AUTHN-5: 一時トークンを使ってパスワード（10文字以上）を設定し、学籍番号から入学年度・学部・有効期限を計算してアカウントを作る。
+         * @description AUTHN-2, AUTH-2〜4, AUTHN-5: 一時トークンを使ってパスワード（10文字以上128文字以下）を設定し、学籍番号から入学年度・学部・有効期限を計算してアカウントを作る。
          *     そのままログイン状態にし、`__session` Cookie を返す。`X-Device-Id` があれば、その端末を登録済みの端末にする（AUTHN-3）。
-         *     トークンが無効・期限切れ・使用済みなら 400 invalid_setup_token、パスワードが短ければ 400 password_too_short。
+         *     トークンが無効・期限切れ・使用済みなら 400 invalid_setup_token、パスワードの長さが範囲外なら 400 invalid_password_length。
          */
         post: operations["completeSignup"];
         delete?: never;
@@ -165,7 +165,7 @@ export interface components {
         };
         SignupCompletion: {
             setupToken: string;
-            /** @description 10文字以上（AUTHN-5） */
+            /** @description 10文字以上128文字以下（AUTHN-5） */
             password: string;
         };
         /** @description ログイン中の本人の情報。本人にだけ返す */

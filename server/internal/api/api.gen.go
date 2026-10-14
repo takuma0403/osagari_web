@@ -150,7 +150,7 @@ type SignupCodeVerified struct {
 
 // SignupCompletion defines model for SignupCompletion.
 type SignupCompletion struct {
-	// Password 10文字以上（AUTHN-5）
+	// Password 10文字以上128文字以下（AUTHN-5）
 	Password   string `json:"password"`
 	SetupToken string `json:"setupToken"`
 }

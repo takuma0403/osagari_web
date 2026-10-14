@@ -21,7 +21,7 @@ const (
 	CodeInvalidVerificationCode apperr.Code = "invalid_verification_code"
 	CodeVerificationCodeExpired apperr.Code = "verification_code_expired"
 	CodeInvalidSetupToken       apperr.Code = "invalid_setup_token"
-	CodePasswordTooShort        apperr.Code = "password_too_short"
+	CodeInvalidPasswordLength   apperr.Code = "invalid_password_length"
 )
 
 var (
@@ -32,8 +32,8 @@ var (
 		"コードの有効期限が切れたか、使えなくなりました。もう一度コードを送ってください")
 	errInvalidSetupToken = apperr.New(http.StatusBadRequest, CodeInvalidSetupToken,
 		"手続きの有効期限が切れました。もう一度最初からやり直してください")
-	errPasswordTooShort = apperr.New(http.StatusBadRequest, CodePasswordTooShort,
-		fmt.Sprintf("パスワードは%d文字以上にしてください", auth.MinPasswordLength))
+	errPasswordLength = apperr.New(http.StatusBadRequest, CodeInvalidPasswordLength,
+		fmt.Sprintf("パスワードは%d文字以上%d文字以下にしてください", auth.MinPasswordLength, auth.MaxPasswordLength))
 )
 
 // errWrongCode はコードが違うときのエラー。残りの回数をメッセージに入れる（AUTHN-6）。
@@ -201,9 +201,9 @@ type CompletedSignup struct {
 // 学籍番号から入学年度・学部・有効期限を計算して登録する。deviceID があれば登録済みの端末にする（AUTHN-3）。
 // トークンの消費・ユーザー・セッション・端末の作成は1つのトランザクションで行う。
 func (s *SignupService) Complete(ctx context.Context, setupToken, password, deviceID string) (CompletedSignup, error) {
-	// パスワードが短いときはトークンを消費しない（入力し直せるようにする）
+	// パスワードの長さが範囲外のときはトークンを消費しない（入力し直せるようにする）
 	if err := auth.ValidatePassword(password); err != nil {
-		return CompletedSignup{}, errPasswordTooShort
+		return CompletedSignup{}, errPasswordLength
 	}
 	passwordHash, err := auth.HashPassword(password)
 	if err != nil {

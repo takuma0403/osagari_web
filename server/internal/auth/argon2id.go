@@ -11,11 +11,14 @@ import (
 	"golang.org/x/crypto/argon2"
 )
 
-// MinPasswordLength はパスワードの最短の長さ（文字数。AUTHN-5）。
-const MinPasswordLength = 10
+// パスワードの長さ（文字数。AUTHN-5）。上限は、巨大な入力をそのまま argon2id に渡さないため（ADR 0008）。
+const (
+	MinPasswordLength = 10
+	MaxPasswordLength = 128
+)
 
-// ErrPasswordTooShort はパスワードが MinPasswordLength 文字より短いときに返す。
-var ErrPasswordTooShort = errors.New("auth: パスワードが短すぎます")
+// ErrPasswordLength はパスワードが MinPasswordLength 文字より短いか、MaxPasswordLength 文字より長いときに返す。
+var ErrPasswordLength = errors.New("auth: パスワードの長さが範囲外です")
 
 // errMalformedHash は保存されたハッシュが PHC 形式として読めないときに返す。
 var errMalformedHash = errors.New("auth: argon2id のハッシュの形式が不正です")
@@ -32,8 +35,8 @@ const (
 
 // ValidatePassword はパスワードの長さを確かめる。
 func ValidatePassword(password string) error {
-	if utf8.RuneCountInString(password) < MinPasswordLength {
-		return ErrPasswordTooShort
+	if n := utf8.RuneCountInString(password); n < MinPasswordLength || n > MaxPasswordLength {
+		return ErrPasswordLength
 	}
 	return nil
 }
