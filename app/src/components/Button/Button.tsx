@@ -19,7 +19,14 @@ type StyleProps = {
   children: ReactNode
 }
 
-function classNames({ variant = 'primary', size = 'lg', fullWidth }: StyleProps, extra?: string) {
+function classNames(
+  {
+    variant = 'primary',
+    size = 'lg',
+    fullWidth,
+  }: Pick<StyleProps, 'variant' | 'size' | 'fullWidth'>,
+  extra?: string,
+) {
   return [styles.button, styles[variant], styles[size], fullWidth && styles.fullWidth, extra]
     .filter(Boolean)
     .join(' ')
@@ -48,11 +55,7 @@ export function Button({
   ...rest
 }: ButtonProps) {
   return (
-    <button
-      type={type}
-      className={classNames({ variant, size, fullWidth, children }, className)}
-      {...rest}
-    >
+    <button type={type} className={classNames({ variant, size, fullWidth }, className)} {...rest}>
       <Content icon={icon}>{children}</Content>
     </button>
   )
@@ -71,7 +74,7 @@ export function ButtonLink({
   ...rest
 }: ButtonLinkProps) {
   return (
-    <Link className={classNames({ variant, size, fullWidth, children }, className)} {...rest}>
+    <Link className={classNames({ variant, size, fullWidth }, className)} {...rest}>
       <Content icon={icon}>{children}</Content>
     </Link>
   )

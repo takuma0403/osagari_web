@@ -16,6 +16,7 @@ type Props = Omit<TextFieldProps, 'label' | 'value' | 'onChange' | 'suffix' | 't
 export function EmailField({ label = '大学のメールアドレス', value, onChange, ...rest }: Props) {
   return (
     <TextField
+      {...rest}
       label={label}
       value={value}
       onChange={(e) => onChange(normalizeStudentId(e.target.value))}
@@ -25,7 +26,6 @@ export function EmailField({ label = '大学のメールアドレス', value, on
       autoComplete="username"
       // アドレスごと貼り付けられても @ より前を取り出せるよう、長さは normalizeStudentId で切る
       inputClassName={styles.studentId}
-      {...rest}
     />
   )
 }

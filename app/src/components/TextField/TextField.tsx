@@ -69,13 +69,14 @@ export function TextField({
       </label>
       <div className={boxClass}>
         {prefix && <span className={`${styles.affix} ${styles.prefix}`}>{prefix}</span>}
+        {/* 補足・エラーとの関連付けを呼び出し側の props で上書きさせないよう、rest を先に展開する */}
         <input
+          {...rest}
           id={inputId}
           type={isPassword && revealed ? 'text' : type}
           className={inputClass}
           aria-invalid={error ? true : undefined}
           aria-describedby={describedBy}
-          {...rest}
         />
         {suffix && <span className={styles.affix}>{suffix}</span>}
         {isPassword && (
