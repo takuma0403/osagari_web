@@ -20,10 +20,18 @@ type Deps struct {
 	Logger  *slog.Logger
 	Clock   clock.Clock
 	Handler api.StrictServerInterface
+	// Sessions は `__session` の検証に使う（AUTHN-5）
+	Sessions Authenticator
 }
 
 // New はミドルウェアとエラーハンドラーを設定し、生成したルートを登録した Echo を返す。
+// 埋め込んだ OpenAPI が読めないとき（生成物の不整合）は panic する。
 func New(d Deps) *echo.Echo {
+	public, err := publicOperations()
+	if err != nil {
+		panic(err)
+	}
+
 	e := echo.New()
 	e.Logger = d.Logger
 	e.HTTPErrorHandler = errorHandler(d.Logger)
@@ -33,6 +41,7 @@ func New(d Deps) *echo.Echo {
 	e.Use(accessLog(d.Logger, d.Clock))
 	e.Use(middleware.Recover())
 
-	api.RegisterHandlersWithBaseURL(e, api.NewStrictHandler(d.Handler, nil), BasePath)
+	strict := api.NewStrictHandler(d.Handler, []api.StrictMiddlewareFunc{sessionMiddleware(d.Sessions, public)})
+	api.RegisterHandlersWithBaseURL(e, strict, BasePath)
 	return e
 }

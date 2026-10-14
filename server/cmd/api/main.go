@@ -57,27 +57,51 @@ func run(logger *slog.Logger) error {
 	if err != nil {
 		return err
 	}
+	h, sessions := wire(gdb, clk, mailer)
 	e := server.New(server.Deps{
-		Logger:  logger,
-		Clock:   clk,
-		Handler: wire(gdb, clk, mailer),
+		Logger:   logger,
+		Clock:    clk,
+		Handler:  h,
+		Sessions: sessions,
 	})
 	return e.Start(":" + cfg.Port)
 }
 
 // wire は repository → service → handler の順に依存を組み立てる。機能を足すときはここに追加する。
-func wire(gdb *gorm.DB, clk clock.Clock, mailer mail.Mailer) api.StrictServerInterface {
+// セッションの検証（server のミドルウェアが使う）も返す。
+func wire(gdb *gorm.DB, clk clock.Clock, mailer mail.Mailer) (api.StrictServerInterface, server.Authenticator) {
+	tx := repository.NewTransactor(gdb)
+	users := repository.NewUserRepository(gdb)
+	codes := repository.NewVerificationCodeRepository(gdb)
+	sessions := repository.NewSessionRepository(gdb)
+	devices := repository.NewTrustedDeviceRepository(gdb)
+
 	signup := service.NewSignupService(service.SignupDeps{
-		Tx:       repository.NewTransactor(gdb),
-		Users:    repository.NewUserRepository(gdb),
-		Codes:    repository.NewVerificationCodeRepository(gdb),
+		Tx:       tx,
+		Users:    users,
+		Codes:    codes,
 		Tokens:   repository.NewPasswordSetupTokenRepository(gdb),
-		Sessions: repository.NewSessionRepository(gdb),
-		Devices:  repository.NewTrustedDeviceRepository(gdb),
+		Sessions: sessions,
+		Devices:  devices,
 		Mailer:   mailer,
 		Clock:    clk,
 	})
-	return handler.New(handler.Deps{Signup: signup})
+	login := service.NewLoginService(service.LoginDeps{
+		Tx:         tx,
+		Users:      users,
+		Codes:      codes,
+		Challenges: repository.NewLoginChallengeRepository(gdb),
+		Sessions:   sessions,
+		Devices:    devices,
+		Mailer:     mailer,
+		Clock:      clk,
+	})
+	session := service.NewSessionService(service.SessionDeps{
+		Sessions: sessions,
+		Users:    users,
+		Clock:    clk,
+	})
+	return handler.New(handler.Deps{Signup: signup, Login: login, Session: session}), session
 }
 
 func loadConfig() (config, error) {

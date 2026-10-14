@@ -6,6 +6,7 @@ import (
 	"errors"
 	"fmt"
 	"strings"
+	"sync"
 	"unicode/utf8"
 
 	"golang.org/x/crypto/argon2"
@@ -52,6 +53,19 @@ func HashPassword(password string) (string, error) {
 // VerifyPassword はパスワードが PHC 形式のハッシュと一致するかを定数時間で確かめる。
 func VerifyPassword(encoded, password string) (bool, error) {
 	return verifyArgon2id(encoded, password)
+}
+
+// dummyPasswordHash は VerifyDummyPassword が照合に使うハッシュ。最初に使うときに1回だけ作る。
+var dummyPasswordHash = sync.OnceValues(func() (string, error) {
+	return hashArgon2id("dummy password for constant time")
+})
+
+// VerifyDummyPassword は、照合するユーザーがいないときにも VerifyPassword と同じ計算をする。
+// ログインの所要時間から登録の有無を判別させないために使う（AUTHN-2, ADR 0009）。結果は常に捨てる。
+func VerifyDummyPassword(password string) {
+	if h, err := dummyPasswordHash(); err == nil {
+		_, _ = verifyArgon2id(h, password)
+	}
 }
 
 func hashArgon2id(secret string) (string, error) {

@@ -107,6 +107,32 @@ func (r *UserRepository) FindByID(ctx context.Context, id string) (*domain.User,
 	return rows[0].toDomain()
 }
 
+// FindByEmail はメールアドレスでユーザーを探す。状態にかかわらず返す。なければ ErrNotFound。
+func (r *UserRepository) FindByEmail(ctx context.Context, email string) (*domain.User, error) {
+	var rows []userRow
+	if err := conn(ctx, r.db).Where("email = ?", email).Limit(1).Find(&rows).Error; err != nil {
+		return nil, err
+	}
+	if len(rows) == 0 {
+		return nil, ErrNotFound
+	}
+	return rows[0].toDomain()
+}
+
+// UpdateCodeVerifiedAt は最後にメールのコードで確認した日時を更新する（AUTHN-3）。ユーザーがいなければ ErrNotFound。
+func (r *UserRepository) UpdateCodeVerifiedAt(ctx context.Context, id string, at time.Time) error {
+	ts := formatTime(at)
+	res := conn(ctx, r.db).Model(&userRow{}).Where("id = ?", id).
+		Updates(map[string]any{"code_verified_at": ts, "updated_at": ts})
+	if res.Error != nil {
+		return res.Error
+	}
+	if res.RowsAffected == 0 {
+		return ErrNotFound
+	}
+	return nil
+}
+
 // ExistsByEmail はメールアドレスのユーザーがいるかを返す。状態（停止・失効・削除）にかかわらず、行があれば true。
 func (r *UserRepository) ExistsByEmail(ctx context.Context, email string) (bool, error) {
 	var n int64

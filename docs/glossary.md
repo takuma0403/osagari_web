@@ -21,6 +21,7 @@
 | 認証コード | `VerificationCode` | `verification_codes` | メールで送る6桁コード（ハッシュで保存） |
 | 登録端末 | `TrustedDevice` | `trusted_devices` | 再確認を省略できる端末 |
 | パスワード設定用の一時トークン | `PasswordSetupToken` | `password_setup_tokens` | コードの確認後に発行する15分有効・一度だけのトークン（ハッシュで保存。[ADR 0007](decisions/0007-signup-flow.md)） |
+| ログインチャレンジ | `LoginChallenge` | `login_challenges` | パスワードが一致したが再確認が必要なときに発行する、15分有効・一度だけのトークン。コードの確認・再送に使う（ハッシュで保存。[ADR 0009](decisions/0009-login-recheck-challenge.md)） |
 | 設定 | `Setting` | `settings` | 手数料率など |
 
 ## 列挙値
@@ -40,6 +41,7 @@
 | キャンパス | `Campus` | `honjo` 本庄 / `nabeshima` 鍋島 |
 | 認証コードの用途 | `VerificationPurpose` | `signup` / `password_reset` / `login_recheck` |
 | 一時トークンの用途 | `PasswordSetupPurpose` | `signup` 新規登録 / `password_reset` パスワードの再設定 |
+| ログインの再確認の理由 | `LoginRecheckReason` | `code_expired` 最後のコード確認から30日以上 / `new_device` 初めての端末 |
 
 - 商品の「状態」（目立った傷なし 等）はステータスと紛らわしいため、コードでは `condition`（`ItemCondition`）と呼ぶ。値の一覧はデザイン（[Sell](design/screens/Sell.dc.html)）と合わせて実装時に決める。
 - デザインのカテゴリチップは「教科書・参考書／家具・家電／ゲーム／その他」と4つに分かれているが、要件（[ITEM](product/03-listing.md)）の区分は3つ。違いは実装時にユーザーへ確認する。

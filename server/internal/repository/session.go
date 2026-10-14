@@ -2,6 +2,8 @@ package repository
 
 import (
 	"context"
+	"fmt"
+	"time"
 
 	"gorm.io/gorm"
 	"gorm.io/gorm/clause"
@@ -48,6 +50,54 @@ func (r *SessionRepository) Create(ctx context.Context, s *domain.Session) error
 	return conn(ctx, r.db).Create(&row).Error
 }
 
+func (r sessionRow) toDomain() (*domain.Session, error) {
+	s := &domain.Session{ID: r.ID, UserID: r.UserID, TokenHash: r.TokenHash}
+	var err error
+	for _, f := range []struct {
+		dst *time.Time
+		src string
+	}{{&s.ExpiresAt, r.ExpiresAt}, {&s.CreatedAt, r.CreatedAt}, {&s.UpdatedAt, r.UpdatedAt}} {
+		if *f.dst, err = parseTime(f.src); err != nil {
+			return nil, fmt.Errorf("repository: sessions: %w", err)
+		}
+	}
+	if s.RevokedAt, err = parseTimePtr(r.RevokedAt); err != nil {
+		return nil, fmt.Errorf("repository: sessions.revoked_at: %w", err)
+	}
+	return s, nil
+}
+
+// FindActiveByTokenHash はハッシュが一致する、失効しておらず期限内のセッションを返す。なければ ErrNotFound。
+func (r *SessionRepository) FindActiveByTokenHash(ctx context.Context, tokenHash string, now time.Time) (*domain.Session, error) {
+	var rows []sessionRow
+	err := conn(ctx, r.db).
+		Where("token_hash = ? AND revoked_at IS NULL AND expires_at > ?", tokenHash, formatTime(now)).
+		Limit(1).Find(&rows).Error
+	if err != nil {
+		return nil, err
+	}
+	if len(rows) == 0 {
+		return nil, ErrNotFound
+	}
+	return rows[0].toDomain()
+}
+
+// Revoke はハッシュが一致するセッションを失効させる（ログアウト。AUTHN-5）。
+// 条件付きUPDATE で、まだ失効していないセッションだけを更新する。対象がなければ ErrNotFound。
+func (r *SessionRepository) Revoke(ctx context.Context, tokenHash string, now time.Time) error {
+	ts := formatTime(now)
+	res := conn(ctx, r.db).Model(&sessionRow{}).
+		Where("token_hash = ? AND revoked_at IS NULL", tokenHash).
+		Updates(map[string]any{"revoked_at": ts, "updated_at": ts})
+	if res.Error != nil {
+		return res.Error
+	}
+	if res.RowsAffected == 0 {
+		return ErrNotFound
+	}
+	return nil
+}
+
 // trustedDeviceRow は trusted_devices の1行（migrations/000004_create_trusted_devices）。
 type trustedDeviceRow struct {
 	ID         string
@@ -86,4 +136,15 @@ func (r *TrustedDeviceRepository) Upsert(ctx context.Context, d *domain.TrustedD
 		Columns:   []clause.Column{{Name: "user_id"}, {Name: "device_hash"}},
 		DoUpdates: clause.AssignmentColumns([]string{"last_used_at", "updated_at"}),
 	}).Create(&row).Error
+}
+
+// Exists はユーザーの端末が登録済みかを返す（AUTHN-3）。
+func (r *TrustedDeviceRepository) Exists(ctx context.Context, userID, deviceHash string) (bool, error) {
+	var n int64
+	err := conn(ctx, r.db).Model(&trustedDeviceRow{}).
+		Where("user_id = ? AND device_hash = ?", userID, deviceHash).Count(&n).Error
+	if err != nil {
+		return false, err
+	}
+	return n > 0, nil
 }

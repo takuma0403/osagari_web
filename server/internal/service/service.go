@@ -19,6 +19,9 @@ type Transactor interface {
 type UserStore interface {
 	Create(ctx context.Context, u *domain.User) error
 	ExistsByEmail(ctx context.Context, email string) (bool, error)
+	FindByID(ctx context.Context, id string) (*domain.User, error)
+	FindByEmail(ctx context.Context, email string) (*domain.User, error)
+	UpdateCodeVerifiedAt(ctx context.Context, id string, at time.Time) error
 }
 
 // VerificationCodeStore は verification_codes の読み書き（repository.VerificationCodeRepository）。
@@ -39,9 +42,19 @@ type PasswordSetupTokenStore interface {
 // SessionStore は sessions の読み書き（repository.SessionRepository）。
 type SessionStore interface {
 	Create(ctx context.Context, s *domain.Session) error
+	FindActiveByTokenHash(ctx context.Context, tokenHash string, now time.Time) (*domain.Session, error)
+	Revoke(ctx context.Context, tokenHash string, now time.Time) error
 }
 
 // TrustedDeviceStore は trusted_devices の読み書き（repository.TrustedDeviceRepository）。
 type TrustedDeviceStore interface {
 	Upsert(ctx context.Context, d *domain.TrustedDevice) error
+	Exists(ctx context.Context, userID, deviceHash string) (bool, error)
+}
+
+// LoginChallengeStore は login_challenges の読み書き（repository.LoginChallengeRepository）。
+type LoginChallengeStore interface {
+	Create(ctx context.Context, c *domain.LoginChallenge) error
+	FindActive(ctx context.Context, tokenHash string, now time.Time) (*domain.LoginChallenge, error)
+	Consume(ctx context.Context, id string, now time.Time) error
 }

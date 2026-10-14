@@ -12,6 +12,8 @@ const (
 	CodeTTL = 10 * time.Minute
 	// SetupTokenTTL はコードの確認後に発行するパスワード設定用の一時トークンの有効期限（AUTHN-2）
 	SetupTokenTTL = 15 * time.Minute
+	// LoginChallengeTTL はログインの再確認用のチャレンジの有効期限（AUTHN-3, ADR 0009）
+	LoginChallengeTTL = 15 * time.Minute
 	// RecheckInterval は、最後にコードで確認してからこの期間がたつとログイン時に再確認を求める（AUTHN-3）
 	RecheckInterval = 30 * 24 * time.Hour
 	// MaxCodeFailures はコードの入力ミスの上限。超えたらそのコードを無効にする（AUTHN-6）

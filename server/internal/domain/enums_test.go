@@ -39,6 +39,8 @@ func TestEnums(t *testing.T) {
 			func(s string) bool { return domain.VerificationPurpose(s).Valid() }},
 		{"PasswordSetupPurpose", strs(domain.PasswordSetupPurposes), []string{"signup", "password_reset"},
 			func(s string) bool { return domain.PasswordSetupPurpose(s).Valid() }},
+		{"LoginRecheckReason", strs(domain.LoginRecheckReasons), []string{"code_expired", "new_device"},
+			func(s string) bool { return domain.LoginRecheckReason(s).Valid() }},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {

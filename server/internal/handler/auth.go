@@ -7,7 +7,6 @@ import (
 
 	"github.com/takuma0403/osagari_web/server/internal/api"
 	"github.com/takuma0403/osagari_web/server/internal/apperr"
-	"github.com/takuma0403/osagari_web/server/internal/auth"
 	"github.com/takuma0403/osagari_web/server/internal/domain"
 	"github.com/takuma0403/osagari_web/server/internal/service"
 )
@@ -62,18 +61,13 @@ func (h *Handler) CompleteSignup(ctx context.Context, req api.CompleteSignupRequ
 	if req.Body == nil {
 		return nil, errMissingBody
 	}
-	deviceID := ""
-	if req.Params.XDeviceId != nil {
-		deviceID = *req.Params.XDeviceId
-	}
-	out, err := h.d.Signup.Complete(ctx, req.Body.SetupToken, req.Body.Password, deviceID)
+	out, err := h.d.Signup.Complete(ctx, req.Body.SetupToken, req.Body.Password, deviceIDOf(req.Params.XDeviceId))
 	if err != nil {
 		return nil, err
 	}
-	cookie := auth.NewSessionCookie(out.Session.Token, out.Session.IssuedAt, out.Session.ExpiresAt).String()
 	return api.CompleteSignup201JSONResponse{
 		Body:    toCurrentUser(out.User),
-		Headers: api.CompleteSignup201ResponseHeaders{SetCookie: &cookie},
+		Headers: api.CompleteSignup201ResponseHeaders{SetCookie: sessionCookie(out.Session)},
 	}, nil
 }
 

@@ -5,11 +5,17 @@ package api
 
 import (
 	"bytes"
+	"compress/flate"
 	"context"
+	"encoding/base64"
 	"encoding/json"
 	"fmt"
 	"net/http"
+	"net/url"
+	"path"
+	"strings"
 
+	"github.com/getkin/kin-openapi/openapi3"
 	"github.com/labstack/echo/v5"
 	"github.com/oapi-codegen/runtime"
 	openapi_types "github.com/oapi-codegen/runtime/types"
@@ -24,6 +30,24 @@ const (
 func (e HealthStatus) Valid() bool {
 	switch e {
 	case Ok:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for LoginRecheckReason.
+const (
+	CodeExpired LoginRecheckReason = "code_expired"
+	NewDevice   LoginRecheckReason = "new_device"
+)
+
+// Valid indicates whether the value is a known member of the LoginRecheckReason enum.
+func (e LoginRecheckReason) Valid() bool {
+	switch e {
+	case CodeExpired:
+		return true
+	case NewDevice:
 		return true
 	default:
 		return false
@@ -125,6 +149,49 @@ type Health struct {
 // HealthStatus defines model for Health.Status.
 type HealthStatus string
 
+// LoginChallenge AUTHN-3 再確認用のログインチャレンジ。パスワードが一致したことを表し、コードの確認・再送に使う
+type LoginChallenge struct {
+	// ChallengeToken ログインチャレンジのトークン（15分有効・一度だけ使える）
+	ChallengeToken string `json:"challengeToken"`
+
+	// Email コードの送信先（ログインに使ったメールアドレス）
+	//
+	// Example: 26238001@edu.cc.saga-u.ac.jp
+	Email string `json:"email"`
+
+	// Reason 再確認が必要な理由（AUTHN-3）。code_expired = 最後にコードで確認してから30日以上たった、new_device = 初めて使う端末。
+	// 両方に当てはまるときは code_expired。
+	Reason LoginRecheckReason `json:"reason"`
+}
+
+// LoginChallengeInput defines model for LoginChallengeInput.
+type LoginChallengeInput struct {
+	ChallengeToken string `json:"challengeToken"`
+}
+
+// LoginInput defines model for LoginInput.
+type LoginInput struct {
+	// Email 大学のメールアドレス。前後の空白と大文字・小文字の違いは無視する
+	//
+	// Example: 26238001@edu.cc.saga-u.ac.jp
+	Email    string `json:"email"`
+	Password string `json:"password"`
+}
+
+// LoginRecheckReason 再確認が必要な理由（AUTHN-3）。code_expired = 最後にコードで確認してから30日以上たった、new_device = 初めて使う端末。
+// 両方に当てはまるときは code_expired。
+type LoginRecheckReason string
+
+// LoginRecheckVerification defines model for LoginRecheckVerification.
+type LoginRecheckVerification struct {
+	ChallengeToken string `json:"challengeToken"`
+
+	// Code メールで届いた6桁のコード
+	//
+	// Example: 012345
+	Code string `json:"code"`
+}
+
 // SellerStatus 出品者の承認状態
 type SellerStatus string
 
@@ -192,11 +259,26 @@ type UserStatus string
 // DeviceId defines model for DeviceId.
 type DeviceId = string
 
+// LoginParams defines parameters for Login.
+type LoginParams struct {
+	// XDeviceId ブラウザの localStorage に保存した端末識別子（AUTHN-3）
+	XDeviceId *DeviceId `json:"X-Device-Id,omitempty"`
+}
+
 // CompleteSignupParams defines parameters for CompleteSignup.
 type CompleteSignupParams struct {
 	// XDeviceId ブラウザの localStorage に保存した端末識別子（AUTHN-3）
 	XDeviceId *DeviceId `json:"X-Device-Id,omitempty"`
 }
+
+// LoginJSONRequestBody defines body for Login for application/json ContentType.
+type LoginJSONRequestBody = LoginInput
+
+// ResendLoginRecheckCodeJSONRequestBody defines body for ResendLoginRecheckCode for application/json ContentType.
+type ResendLoginRecheckCodeJSONRequestBody = LoginChallengeInput
+
+// VerifyLoginRecheckJSONRequestBody defines body for VerifyLoginRecheck for application/json ContentType.
+type VerifyLoginRecheckJSONRequestBody = LoginRecheckVerification
 
 // SendSignupCodeJSONRequestBody defines body for SendSignupCode for application/json ContentType.
 type SendSignupCodeJSONRequestBody = EmailInput
@@ -212,6 +294,18 @@ type EstimateStudentJSONRequestBody = EmailInput
 
 // ServerInterface represents all server handlers.
 type ServerInterface interface {
+	// Login メールアドレスとパスワードでログインする
+	// (POST /auth/login)
+	Login(ctx *echo.Context, params LoginParams) error
+	// ResendLoginRecheckCode 再確認のコードを送り直す
+	// (POST /auth/login/recheck/codes)
+	ResendLoginRecheckCode(ctx *echo.Context) error
+	// VerifyLoginRecheck 再確認のコードを確認してログインする
+	// (POST /auth/login/recheck/verify)
+	VerifyLoginRecheck(ctx *echo.Context) error
+	// Logout ログアウトする
+	// (POST /auth/logout)
+	Logout(ctx *echo.Context) error
 	// SendSignupCode 新規登録の認証コードを送る
 	// (POST /auth/signup/codes)
 	SendSignupCode(ctx *echo.Context) error
@@ -227,11 +321,70 @@ type ServerInterface interface {
 	// GetHealth 稼働確認
 	// (GET /health)
 	GetHealth(ctx *echo.Context) error
+	// GetMe ログイン中の本人の情報を取得する
+	// (GET /me)
+	GetMe(ctx *echo.Context) error
 }
 
 // ServerInterfaceWrapper converts echo contexts to parameters.
 type ServerInterfaceWrapper struct {
 	Handler ServerInterface
+}
+
+// Login converts echo context to params.
+func (w *ServerInterfaceWrapper) Login(ctx *echo.Context) error {
+	var err error
+
+	// Parameter object where we will unmarshal all parameters from the context
+	var params LoginParams
+
+	headers := ctx.Request().Header
+	// ------------- Optional header parameter "X-Device-Id" -------------
+	if valueList, found := headers[http.CanonicalHeaderKey("X-Device-Id")]; found {
+		var XDeviceId DeviceId
+		n := len(valueList)
+		if n != 1 {
+			return echo.NewHTTPError(http.StatusBadRequest, fmt.Sprintf("Expected one value for X-Device-Id, got %d", n))
+		}
+
+		err = runtime.BindStyledParameterWithOptions("simple", "X-Device-Id", valueList[0], &XDeviceId, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationHeader, Explode: false, Required: false, Type: "string", Format: ""})
+		if err != nil {
+			return echo.NewHTTPError(http.StatusBadRequest, fmt.Sprintf("Invalid format for parameter X-Device-Id: %s", err))
+		}
+
+		params.XDeviceId = &XDeviceId
+	}
+
+	// Invoke the callback with all the unmarshaled arguments
+	err = w.Handler.Login(ctx, params)
+	return err
+}
+
+// ResendLoginRecheckCode converts echo context to params.
+func (w *ServerInterfaceWrapper) ResendLoginRecheckCode(ctx *echo.Context) error {
+	var err error
+
+	// Invoke the callback with all the unmarshaled arguments
+	err = w.Handler.ResendLoginRecheckCode(ctx)
+	return err
+}
+
+// VerifyLoginRecheck converts echo context to params.
+func (w *ServerInterfaceWrapper) VerifyLoginRecheck(ctx *echo.Context) error {
+	var err error
+
+	// Invoke the callback with all the unmarshaled arguments
+	err = w.Handler.VerifyLoginRecheck(ctx)
+	return err
+}
+
+// Logout converts echo context to params.
+func (w *ServerInterfaceWrapper) Logout(ctx *echo.Context) error {
+	var err error
+
+	// Invoke the callback with all the unmarshaled arguments
+	err = w.Handler.Logout(ctx)
+	return err
 }
 
 // SendSignupCode converts echo context to params.
@@ -299,6 +452,15 @@ func (w *ServerInterfaceWrapper) GetHealth(ctx *echo.Context) error {
 	return err
 }
 
+// GetMe converts echo context to params.
+func (w *ServerInterfaceWrapper) GetMe(ctx *echo.Context) error {
+	var err error
+
+	// Invoke the callback with all the unmarshaled arguments
+	err = w.Handler.GetMe(ctx)
+	return err
+}
+
 // This is a simple interface which specifies echo.Route addition functions which
 // are present on both echo.Echo and echo.Group, since we want to allow using
 // either of them for path registration
@@ -351,10 +513,201 @@ func RegisterHandlersWithOptions(router EchoRouter, si ServerInterface, options 
 	router.POST(options.BaseURL+"/auth/signup/codes", wrapper.SendSignupCode, options.OperationMiddlewares["sendSignupCode"]...)
 	router.POST(options.BaseURL+"/auth/signup/codes/verify", wrapper.VerifySignupCode, options.OperationMiddlewares["verifySignupCode"]...)
 	router.POST(options.BaseURL+"/auth/signup/complete", wrapper.CompleteSignup, options.OperationMiddlewares["completeSignup"]...)
+	router.POST(options.BaseURL+"/auth/login", wrapper.Login, options.OperationMiddlewares["login"]...)
+	router.POST(options.BaseURL+"/auth/login/recheck/codes", wrapper.ResendLoginRecheckCode, options.OperationMiddlewares["resendLoginRecheckCode"]...)
+	router.POST(options.BaseURL+"/auth/login/recheck/verify", wrapper.VerifyLoginRecheck, options.OperationMiddlewares["verifyLoginRecheck"]...)
+	router.POST(options.BaseURL+"/auth/logout", wrapper.Logout, options.OperationMiddlewares["logout"]...)
+	router.GET(options.BaseURL+"/me", wrapper.GetMe, options.OperationMiddlewares["getMe"]...)
 
 }
 
 type ErrorJSONResponse Error
+
+type LoginRequestObject struct {
+	Params LoginParams
+	Body   *LoginJSONRequestBody
+}
+
+type LoginResponseObject interface {
+	VisitLoginResponse(w http.ResponseWriter) error
+}
+
+type Login200ResponseHeaders struct {
+	SetCookie *string
+}
+
+type Login200JSONResponse struct {
+	Body    CurrentUser
+	Headers Login200ResponseHeaders
+}
+
+func (response Login200JSONResponse) VisitLoginResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response.Body); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	if response.Headers.SetCookie != nil {
+		w.Header().Set("Set-Cookie", fmt.Sprint(*response.Headers.SetCookie))
+	}
+	w.WriteHeader(200)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type Login202JSONResponse LoginChallenge
+
+func (response Login202JSONResponse) VisitLoginResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(202)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type LogindefaultJSONResponse struct {
+	Body       Error
+	StatusCode int
+}
+
+func (response LogindefaultJSONResponse) VisitLoginResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response.Body); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(response.StatusCode)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type ResendLoginRecheckCodeRequestObject struct {
+	Body *ResendLoginRecheckCodeJSONRequestBody
+}
+
+type ResendLoginRecheckCodeResponseObject interface {
+	VisitResendLoginRecheckCodeResponse(w http.ResponseWriter) error
+}
+
+type ResendLoginRecheckCode202Response struct {
+}
+
+func (response ResendLoginRecheckCode202Response) VisitResendLoginRecheckCodeResponse(w http.ResponseWriter) error {
+	w.WriteHeader(202)
+	return nil
+}
+
+type ResendLoginRecheckCodedefaultJSONResponse struct {
+	Body       Error
+	StatusCode int
+}
+
+func (response ResendLoginRecheckCodedefaultJSONResponse) VisitResendLoginRecheckCodeResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response.Body); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(response.StatusCode)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type VerifyLoginRecheckRequestObject struct {
+	Body *VerifyLoginRecheckJSONRequestBody
+}
+
+type VerifyLoginRecheckResponseObject interface {
+	VisitVerifyLoginRecheckResponse(w http.ResponseWriter) error
+}
+
+type VerifyLoginRecheck200ResponseHeaders struct {
+	SetCookie *string
+}
+
+type VerifyLoginRecheck200JSONResponse struct {
+	Body    CurrentUser
+	Headers VerifyLoginRecheck200ResponseHeaders
+}
+
+func (response VerifyLoginRecheck200JSONResponse) VisitVerifyLoginRecheckResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response.Body); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	if response.Headers.SetCookie != nil {
+		w.Header().Set("Set-Cookie", fmt.Sprint(*response.Headers.SetCookie))
+	}
+	w.WriteHeader(200)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type VerifyLoginRecheckdefaultJSONResponse struct {
+	Body       Error
+	StatusCode int
+}
+
+func (response VerifyLoginRecheckdefaultJSONResponse) VisitVerifyLoginRecheckResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response.Body); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(response.StatusCode)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type LogoutRequestObject struct {
+}
+
+type LogoutResponseObject interface {
+	VisitLogoutResponse(w http.ResponseWriter) error
+}
+
+type Logout204ResponseHeaders struct {
+	SetCookie *string
+}
+
+type Logout204Response struct {
+	Headers Logout204ResponseHeaders
+}
+
+func (response Logout204Response) VisitLogoutResponse(w http.ResponseWriter) error {
+	if response.Headers.SetCookie != nil {
+		w.Header().Set("Set-Cookie", fmt.Sprint(*response.Headers.SetCookie))
+	}
+	w.WriteHeader(204)
+	return nil
+}
+
+type LogoutdefaultJSONResponse struct {
+	Body       Error
+	StatusCode int
+}
+
+func (response LogoutdefaultJSONResponse) VisitLogoutResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response.Body); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(response.StatusCode)
+	_, err := buf.WriteTo(w)
+	return err
+}
 
 type SendSignupCodeRequestObject struct {
 	Body *SendSignupCodeJSONRequestBody
@@ -555,8 +908,58 @@ func (response GetHealthdefaultJSONResponse) VisitGetHealthResponse(w http.Respo
 	return err
 }
 
+type GetMeRequestObject struct {
+}
+
+type GetMeResponseObject interface {
+	VisitGetMeResponse(w http.ResponseWriter) error
+}
+
+type GetMe200JSONResponse CurrentUser
+
+func (response GetMe200JSONResponse) VisitGetMeResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(200)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type GetMedefaultJSONResponse struct {
+	Body       Error
+	StatusCode int
+}
+
+func (response GetMedefaultJSONResponse) VisitGetMeResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response.Body); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(response.StatusCode)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
 // StrictServerInterface represents all server handlers.
 type StrictServerInterface interface {
+	// Login メールアドレスとパスワードでログインする
+	// (POST /auth/login)
+	Login(ctx context.Context, request LoginRequestObject) (LoginResponseObject, error)
+	// ResendLoginRecheckCode 再確認のコードを送り直す
+	// (POST /auth/login/recheck/codes)
+	ResendLoginRecheckCode(ctx context.Context, request ResendLoginRecheckCodeRequestObject) (ResendLoginRecheckCodeResponseObject, error)
+	// VerifyLoginRecheck 再確認のコードを確認してログインする
+	// (POST /auth/login/recheck/verify)
+	VerifyLoginRecheck(ctx context.Context, request VerifyLoginRecheckRequestObject) (VerifyLoginRecheckResponseObject, error)
+	// Logout ログアウトする
+	// (POST /auth/logout)
+	Logout(ctx context.Context, request LogoutRequestObject) (LogoutResponseObject, error)
 	// SendSignupCode 新規登録の認証コードを送る
 	// (POST /auth/signup/codes)
 	SendSignupCode(ctx context.Context, request SendSignupCodeRequestObject) (SendSignupCodeResponseObject, error)
@@ -572,6 +975,9 @@ type StrictServerInterface interface {
 	// GetHealth 稼働確認
 	// (GET /health)
 	GetHealth(ctx context.Context, request GetHealthRequestObject) (GetHealthResponseObject, error)
+	// GetMe ログイン中の本人の情報を取得する
+	// (GET /me)
+	GetMe(ctx context.Context, request GetMeRequestObject) (GetMeResponseObject, error)
 }
 
 type StrictHandlerFunc func(ctx *echo.Context, request any) (any, error)
@@ -584,6 +990,148 @@ func NewStrictHandler(ssi StrictServerInterface, middlewares []StrictMiddlewareF
 type strictHandler struct {
 	ssi         StrictServerInterface
 	middlewares []StrictMiddlewareFunc
+}
+
+// Login operation middleware
+func (sh *strictHandler) Login(ctx *echo.Context, params LoginParams) error {
+	var request LoginRequestObject
+
+	request.Params = params
+
+	var body LoginJSONRequestBody
+	var err error
+	if _, ok := ctx.Echo().Binder.(*echo.DefaultBinder); ok {
+		// Bind only the request body, so that path and query parameters
+		// are not also bound into the body struct.
+		err = echo.BindBody(ctx, &body)
+	} else {
+		// A custom binder is installed on the Echo instance; defer to it
+		// entirely, since echo.Binder does not expose body-only binding.
+		err = ctx.Bind(&body)
+	}
+	if err != nil {
+		return err
+	}
+	request.Body = &body
+
+	handler := func(ctx *echo.Context, request interface{}) (interface{}, error) {
+		return sh.ssi.Login(ctx.Request().Context(), request.(LoginRequestObject))
+	}
+	for _, middleware := range sh.middlewares {
+		handler = middleware(handler, "Login")
+	}
+
+	response, err := handler(ctx, request)
+
+	if err != nil {
+		return err
+	} else if validResponse, ok := response.(LoginResponseObject); ok {
+		return validResponse.VisitLoginResponse(ctx.Response())
+	} else if response != nil {
+		return fmt.Errorf("unexpected response type: %T", response)
+	}
+	return nil
+}
+
+// ResendLoginRecheckCode operation middleware
+func (sh *strictHandler) ResendLoginRecheckCode(ctx *echo.Context) error {
+	var request ResendLoginRecheckCodeRequestObject
+
+	var body ResendLoginRecheckCodeJSONRequestBody
+	var err error
+	if _, ok := ctx.Echo().Binder.(*echo.DefaultBinder); ok {
+		// Bind only the request body, so that path and query parameters
+		// are not also bound into the body struct.
+		err = echo.BindBody(ctx, &body)
+	} else {
+		// A custom binder is installed on the Echo instance; defer to it
+		// entirely, since echo.Binder does not expose body-only binding.
+		err = ctx.Bind(&body)
+	}
+	if err != nil {
+		return err
+	}
+	request.Body = &body
+
+	handler := func(ctx *echo.Context, request interface{}) (interface{}, error) {
+		return sh.ssi.ResendLoginRecheckCode(ctx.Request().Context(), request.(ResendLoginRecheckCodeRequestObject))
+	}
+	for _, middleware := range sh.middlewares {
+		handler = middleware(handler, "ResendLoginRecheckCode")
+	}
+
+	response, err := handler(ctx, request)
+
+	if err != nil {
+		return err
+	} else if validResponse, ok := response.(ResendLoginRecheckCodeResponseObject); ok {
+		return validResponse.VisitResendLoginRecheckCodeResponse(ctx.Response())
+	} else if response != nil {
+		return fmt.Errorf("unexpected response type: %T", response)
+	}
+	return nil
+}
+
+// VerifyLoginRecheck operation middleware
+func (sh *strictHandler) VerifyLoginRecheck(ctx *echo.Context) error {
+	var request VerifyLoginRecheckRequestObject
+
+	var body VerifyLoginRecheckJSONRequestBody
+	var err error
+	if _, ok := ctx.Echo().Binder.(*echo.DefaultBinder); ok {
+		// Bind only the request body, so that path and query parameters
+		// are not also bound into the body struct.
+		err = echo.BindBody(ctx, &body)
+	} else {
+		// A custom binder is installed on the Echo instance; defer to it
+		// entirely, since echo.Binder does not expose body-only binding.
+		err = ctx.Bind(&body)
+	}
+	if err != nil {
+		return err
+	}
+	request.Body = &body
+
+	handler := func(ctx *echo.Context, request interface{}) (interface{}, error) {
+		return sh.ssi.VerifyLoginRecheck(ctx.Request().Context(), request.(VerifyLoginRecheckRequestObject))
+	}
+	for _, middleware := range sh.middlewares {
+		handler = middleware(handler, "VerifyLoginRecheck")
+	}
+
+	response, err := handler(ctx, request)
+
+	if err != nil {
+		return err
+	} else if validResponse, ok := response.(VerifyLoginRecheckResponseObject); ok {
+		return validResponse.VisitVerifyLoginRecheckResponse(ctx.Response())
+	} else if response != nil {
+		return fmt.Errorf("unexpected response type: %T", response)
+	}
+	return nil
+}
+
+// Logout operation middleware
+func (sh *strictHandler) Logout(ctx *echo.Context) error {
+	var request LogoutRequestObject
+
+	handler := func(ctx *echo.Context, request interface{}) (interface{}, error) {
+		return sh.ssi.Logout(ctx.Request().Context(), request.(LogoutRequestObject))
+	}
+	for _, middleware := range sh.middlewares {
+		handler = middleware(handler, "Logout")
+	}
+
+	response, err := handler(ctx, request)
+
+	if err != nil {
+		return err
+	} else if validResponse, ok := response.(LogoutResponseObject); ok {
+		return validResponse.VisitLogoutResponse(ctx.Response())
+	} else if response != nil {
+		return fmt.Errorf("unexpected response type: %T", response)
+	}
+	return nil
 }
 
 // SendSignupCode operation middleware
@@ -765,4 +1313,189 @@ func (sh *strictHandler) GetHealth(ctx *echo.Context) error {
 		return fmt.Errorf("unexpected response type: %T", response)
 	}
 	return nil
+}
+
+// GetMe operation middleware
+func (sh *strictHandler) GetMe(ctx *echo.Context) error {
+	var request GetMeRequestObject
+
+	handler := func(ctx *echo.Context, request interface{}) (interface{}, error) {
+		return sh.ssi.GetMe(ctx.Request().Context(), request.(GetMeRequestObject))
+	}
+	for _, middleware := range sh.middlewares {
+		handler = middleware(handler, "GetMe")
+	}
+
+	response, err := handler(ctx, request)
+
+	if err != nil {
+		return err
+	} else if validResponse, ok := response.(GetMeResponseObject); ok {
+		return validResponse.VisitGetMeResponse(ctx.Response())
+	} else if response != nil {
+		return fmt.Errorf("unexpected response type: %T", response)
+	}
+	return nil
+}
+
+// Base64 encoded, compressed with deflate, json marshaled OpenAPI spec.
+// Stored as a slice of fixed-width chunks rather than one concatenated
+// const string: with thousands of chunks the chained `+` fold is several
+// times slower for the Go compiler than parsing a slice literal.
+var swaggerSpec = []string{
+	"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",
+}
+
+// decodeSpec returns the embedded OpenAPI spec as raw JSON bytes,
+// after base64-decoding and flate-decompressing the embedded blob.
+func decodeSpec() ([]byte, error) {
+	encoded := strings.Join(swaggerSpec, "")
+	compressed, err := base64.StdEncoding.DecodeString(encoded)
+	if err != nil {
+		return nil, fmt.Errorf("error base64 decoding spec: %w", err)
+	}
+	zr := flate.NewReader(bytes.NewReader(compressed))
+	var buf bytes.Buffer
+	if _, err := buf.ReadFrom(zr); err != nil {
+		return nil, fmt.Errorf("read flate: %w", err)
+	}
+	if err := zr.Close(); err != nil {
+		return nil, fmt.Errorf("close flate reader: %w", err)
+	}
+
+	return buf.Bytes(), nil
+}
+
+var rawSpec = decodeSpecCached()
+
+// a naive cache of the decoded OpenAPI spec
+func decodeSpecCached() func() ([]byte, error) {
+	data, err := decodeSpec()
+	return func() ([]byte, error) {
+		return data, err
+	}
+}
+
+// Constructs a synthetic filesystem for resolving external references when loading openapi specifications.
+func PathToRawSpec(pathToFile string) map[string]func() ([]byte, error) {
+	res := make(map[string]func() ([]byte, error))
+	if len(pathToFile) > 0 {
+		res[pathToFile] = rawSpec
+	}
+
+	return res
+}
+
+// GetSpec returns the OpenAPI specification corresponding to the generated
+// code in this file. External references in the spec are resolved through
+// PathToRawSpec; externally-referenced files must be embedded in their
+// corresponding Go packages (via the import-mapping feature). URL-based
+// external refs are not supported.
+func GetSpec() (swagger *openapi3.T, err error) {
+	resolvePath := PathToRawSpec("")
+
+	loader := openapi3.NewLoader()
+	loader.IsExternalRefsAllowed = true
+	loader.ReadFromURIFunc = func(loader *openapi3.Loader, url *url.URL) ([]byte, error) {
+		pathToFile := url.String()
+		pathToFile = path.Clean(pathToFile)
+		getSpec, ok := resolvePath[pathToFile]
+		if !ok {
+			err1 := fmt.Errorf("path not found: %s", pathToFile)
+			return nil, err1
+		}
+		return getSpec()
+	}
+	var specData []byte
+	specData, err = rawSpec()
+	if err != nil {
+		return
+	}
+	swagger, err = loader.LoadFromData(specData)
+	if err != nil {
+		return
+	}
+	return
+}
+
+// GetSpecJSON returns the raw JSON bytes of the embedded OpenAPI
+// specification: decompressed but not unmarshaled. External references
+// are not resolved here; the bytes are the spec exactly as embedded by
+// codegen. The result is cached at package init time, so repeated calls
+// are cheap.
+func GetSpecJSON() ([]byte, error) {
+	return rawSpec()
+}
+
+// GetSwagger returns the OpenAPI specification corresponding to the
+// generated code in this file.
+//
+// Deprecated: GetSwagger predates kin-openapi renaming openapi3.Swagger
+// to openapi3.T. Use [GetSpec] instead. This wrapper is retained for
+// backwards compatibility.
+func GetSwagger() (*openapi3.T, error) {
+	return GetSpec()
 }

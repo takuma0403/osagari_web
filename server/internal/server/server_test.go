@@ -15,6 +15,7 @@ import (
 	"github.com/takuma0403/osagari_web/server/internal/api"
 	"github.com/takuma0403/osagari_web/server/internal/apperr"
 	"github.com/takuma0403/osagari_web/server/internal/clock"
+	"github.com/takuma0403/osagari_web/server/internal/domain"
 	"github.com/takuma0403/osagari_web/server/internal/handler"
 	"github.com/takuma0403/osagari_web/server/internal/logging"
 	"github.com/takuma0403/osagari_web/server/internal/server"
@@ -33,11 +34,17 @@ func (s stubHandler) GetHealth(context.Context, api.GetHealthRequestObject) (api
 
 func newServer(t *testing.T, h api.StrictServerInterface) (http.Handler, *bytes.Buffer) {
 	t.Helper()
+	return newServerWithSessions(t, h, nil)
+}
+
+func newServerWithSessions(t *testing.T, h api.StrictServerInterface, sessions server.Authenticator) (http.Handler, *bytes.Buffer) {
+	t.Helper()
 	var logs bytes.Buffer
 	e := server.New(server.Deps{
-		Logger:  logging.New(&logs, slog.LevelInfo),
-		Clock:   clock.NewFake(time.Date(2026, 10, 14, 9, 0, 0, 0, time.UTC)),
-		Handler: h,
+		Logger:   logging.New(&logs, slog.LevelInfo),
+		Clock:    clock.NewFake(time.Date(2026, 10, 14, 9, 0, 0, 0, time.UTC)),
+		Handler:  h,
+		Sessions: sessions,
 	})
 	return e, &logs
 }
@@ -179,5 +186,51 @@ func Testアクセスログ(t *testing.T) {
 	do(t, srv, http.MethodGet, "/api/health")
 	if !strings.Contains(logs.String(), `"route":"/api/health"`) {
 		t.Fatalf("ルートのパターンが出ていない: %s", logs.String())
+	}
+}
+
+// stubAuthenticator は受け取ったトークンを記録し、"valid" だけを通す。
+type stubAuthenticator struct {
+	tokens []string
+}
+
+func (a *stubAuthenticator) Authenticate(_ context.Context, token string) (*domain.User, error) {
+	a.tokens = append(a.tokens, token)
+	if token != "valid" {
+		return nil, apperr.Unauthorized("ログインしてください")
+	}
+	return &domain.User{ID: "u1", Email: "26238001@edu.cc.saga-u.ac.jp", Status: domain.UserStatusActive}, nil
+}
+
+// セッションが要らないのは OpenAPI で security: [] の操作だけ。それ以外は __session を確かめる（AUTHN-5）。
+func Testセッションの検証はAPI契約に従う(t *testing.T) {
+	authn := &stubAuthenticator{}
+	srv, _ := newServerWithSessions(t, handler.New(handler.Deps{}), authn)
+
+	if rec := do(t, srv, http.MethodGet, "/api/health"); rec.Code != http.StatusOK {
+		t.Fatalf("health: %d", rec.Code)
+	}
+	if len(authn.tokens) != 0 {
+		t.Errorf("security: [] の操作でセッションを確かめた: %v", authn.tokens)
+	}
+
+	rec := do(t, srv, http.MethodGet, "/api/me")
+	if rec.Code != http.StatusUnauthorized || decodeError(t, rec).Code != "unauthorized" {
+		t.Fatalf("Cookie なし: %d %s", rec.Code, rec.Body.String())
+	}
+
+	req := httptest.NewRequest(http.MethodGet, "/api/me", nil)
+	req.AddCookie(&http.Cookie{Name: "__session", Value: "valid"})
+	rec = httptest.NewRecorder()
+	srv.ServeHTTP(rec, req)
+	if rec.Code != http.StatusOK {
+		t.Fatalf("有効なセッション: %d %s", rec.Code, rec.Body.String())
+	}
+	var me api.CurrentUser
+	if err := json.Unmarshal(rec.Body.Bytes(), &me); err != nil || me.Id != "u1" {
+		t.Errorf("me=%s err=%v", rec.Body.String(), err)
+	}
+	if want := []string{"", "valid"}; strings.Join(authn.tokens, ",") != strings.Join(want, ",") {
+		t.Errorf("確かめたトークン=%q want=%q", authn.tokens, want)
 	}
 }

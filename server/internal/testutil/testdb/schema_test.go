@@ -89,6 +89,22 @@ func Test認証テーブルの制約(t *testing.T) {
 			}
 			return exec(q, "p2", now, now, now)
 		}},
+		{"ログインチャレンジの理由が用語集にない値", func() error {
+			return exec(`INSERT INTO login_challenges (id, user_id, token_hash, reason, expires_at, created_at, updated_at)
+				VALUES ('l9', 'u1', 'other', 'unknown', ?, ?, ?)`, now, now, now)
+		}},
+		{"存在しないユーザーのログインチャレンジ（外部キー）", func() error {
+			return exec(`INSERT INTO login_challenges (id, user_id, token_hash, reason, expires_at, created_at, updated_at)
+				VALUES ('l8', 'no-such-user', 'other2', 'new_device', ?, ?, ?)`, now, now, now)
+		}},
+		{"ログインチャレンジのハッシュの重複", func() error {
+			q := `INSERT INTO login_challenges (id, user_id, token_hash, reason, expires_at, created_at, updated_at)
+				VALUES (?, 'u1', 'same', 'new_device', ?, ?, ?)`
+			if err := exec(q, "l1", now, now, now); err != nil {
+				t.Fatalf("1件目のログインチャレンジ: %v", err)
+			}
+			return exec(q, "l2", now, now, now)
+		}},
 	}
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {

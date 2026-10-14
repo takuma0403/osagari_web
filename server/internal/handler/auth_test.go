@@ -40,10 +40,26 @@ func newServer(t *testing.T) (http.Handler, *mail.Recorder) {
 		Mailer:   mailer,
 		Clock:    clk,
 	})
+	login := service.NewLoginService(service.LoginDeps{
+		Tx:         repository.NewTransactor(gdb),
+		Users:      repository.NewUserRepository(gdb),
+		Codes:      repository.NewVerificationCodeRepository(gdb),
+		Challenges: repository.NewLoginChallengeRepository(gdb),
+		Sessions:   repository.NewSessionRepository(gdb),
+		Devices:    repository.NewTrustedDeviceRepository(gdb),
+		Mailer:     mailer,
+		Clock:      clk,
+	})
+	session := service.NewSessionService(service.SessionDeps{
+		Sessions: repository.NewSessionRepository(gdb),
+		Users:    repository.NewUserRepository(gdb),
+		Clock:    clk,
+	})
 	e := server.New(server.Deps{
-		Logger:  logging.New(io.Discard, slog.LevelInfo),
-		Clock:   clk,
-		Handler: handler.New(handler.Deps{Signup: signup}),
+		Logger:   logging.New(io.Discard, slog.LevelInfo),
+		Clock:    clk,
+		Handler:  handler.New(handler.Deps{Signup: signup, Login: login, Session: session}),
+		Sessions: session,
 	})
 	return e, mailer
 }
