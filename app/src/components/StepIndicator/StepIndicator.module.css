@@ -1,0 +1,6 @@
+.step {
+  color: var(--color-primary);
+  font-family: var(--font-num);
+  font-size: 13px;
+  font-weight: 700;
+}
