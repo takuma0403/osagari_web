@@ -47,6 +47,16 @@ APIが担当する主な処理は次のとおりです。
   | `too_many_requests` | 429 | レート制限（[AUTHN](auth.md)） |
   | `internal_error` | 500 | 想定外のエラー |
 
+  機能固有のコード：
+
+  | code | HTTP | 使う場面 |
+  | --- | --- | --- |
+  | `invalid_email` | 400 | 大学のメールアドレス（`^\d{8}@edu\.cc\.saga-u\.ac\.jp$`）の形式ではない（[AUTHN-2](auth.md)） |
+  | `invalid_verification_code` | 400 | 認証コードが違う。メッセージに残りの回数を入れる（[AUTHN-6](auth.md)） |
+  | `verification_code_expired` | 400 | 認証コードが期限切れ・使用済み・入力の上限に達した |
+  | `invalid_setup_token` | 400 | パスワード設定用の一時トークンが無効・期限切れ・使用済み |
+  | `password_too_short` | 400 | パスワードが10文字未満（[AUTHN-5](auth.md)） |
+
   表にない 4xx（413・415 など）は HTTP ステータスをそのまま使い、`code` は `bad_request` にする。5xx はすべて 500 `internal_error` にする。
 
 - ログは JSON で標準出力に出す（Cloud Logging が `severity` を読む）。学籍番号・メールアドレス・トークン・パスワード・コードは伏せ字にし、アクセスログには実際の URI ではなくルートのパターン（例 `/api/items/:id`）を記録する。各リクエストに `X-Request-Id` を付け、ログに `request_id` として残す。

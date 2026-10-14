@@ -33,4 +33,4 @@
 
 - 更新したドキュメント：[tech/auth.md](../tech/auth.md)（AUTHN-5）、[glossary.md](../glossary.md)（`department`）
 - 実装：`server/migrations/000001`〜`000004`、`server/internal/auth`（`HashToken`・`HashCode`）
-- AUTHN-6 の不正対策の列は #12、パスワード設定用の一時トークンの保存先は #9 で決める。
+- AUTHN-6 の不正対策の列は #12、パスワード設定用の一時トークンの保存先は #9 で決める（→ [ADR 0007](0007-signup-flow.md)）。
