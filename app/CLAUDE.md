@@ -13,7 +13,8 @@
 | APIの型 | openapi-typescript で `docs/api/openapi.yaml` から `src/api/schema.gen.ts` を生成（手書き禁止） | API-1 |
 | APIクライアント | `fetch` の薄いラッパー（`src/api/client.ts`）。`credentials: 'same-origin'`、`X-Device-Id` ヘッダーを付ける（ヘッダーは認証の実装時に追加）。失敗は `ApiError`（`status`・`code`・`message`）で投げ、通信自体の失敗はフロント専用の `network_error`（status 0） | AUTHN-3 |
 | QR | 表示はQR生成ライブラリ、読み取りはカメラを使うライブラリ（選ぶときは軽さとメンテ状況を確認） | FE |
-| テスト | Vitest + Testing Library（jsdom） | — |
+| テスト | Vitest + Testing Library（jsdom）+ user-event | — |
+| 部品カタログ | Storybook（`@storybook/react-vite` + addon-a11y）。ローカル確認用で公開しない | DS-3, ADR 0004 |
 | Lint / Format | oxlint / Prettier（Markdown は対象外） | — |
 | パッケージ管理 | npm（Node 24 LTS。リポジトリ直下の `.nvmrc`） | ADR 0002 |
 
@@ -34,13 +35,14 @@ app/
     assets/             … 画面で使う画像（logo.png は docs/design/assets/logo.png を 128px に縮小したもの）
     layouts/            … MobileLayout（390px 基準・PC は中央寄せ）、AdminLayout（PC 幅）
     components/         … DS-3 の共通部品（Button, TextField, CodeInput, ItemCard, BottomNav …）
-      Button/Button.tsx, Button.module.css, Button.test.tsx
+      Button/Button.tsx, Button.module.css, Button.test.tsx, Button.stories.tsx
     features/<機能>/     … auth, items, deals, sell, student-card, mypage, sales, admin
       pages/            … ルートに対応する画面
       components/       … その機能だけで使う部品
       hooks/, api.ts
     lib/                … 汎用関数（金額表示、日付、共有文の生成など）
   public/
+  .storybook/           … Storybook の設定（トークン・フォントの読み込み、390px のビューポート、ルーター）
 ```
 
 ## 規約
@@ -48,7 +50,7 @@ app/
 - **色・余白・角丸・フォントは必ず `var(--…)` を使う。** 16進カラーや px の直書きは tokens.css 以外に書かない（レイアウト上の幅などは除く）。
 - 画面は **390px 幅のスマホを基準**に作り、PC では中央寄せの最大幅（例 480px）にする。管理画面（`features/admin`）だけはPC幅のレイアウト。
 - タップ領域 44px 以上、アイコンボタンに `aria-label`、入力に `<label>`、エラーは `role="alert"`（[DS-1](../docs/design/README.md)）。
-- 共通部品は `components/` を探してから作る。同じ見た目の部品を画面ごとに作らない。
+- 共通部品は `components/` を探してから作る。同じ見た目の部品を画面ごとに作らない。部品を作ったら、状態ごと（無効・エラー・選択中など）の story を `<Name>.stories.tsx` に置く。
 - 金額は `lib/format.ts` の関数で `¥1,500` 形式にする（Outfit フォント）。手数料などの計算はサーバーの値を表示し、フロントで計算しない（出品画面の見込み表示を除く）。
 - 学籍番号の入力は8桁の数字だけを受け付け、ドメイン部分は固定表示（EmailField）。最終的な検証はサーバーが行う。
 - 端末識別子は localStorage に保存する。Cookie は `__session` 以外を使わない（[AUTHN-3](../docs/tech/auth.md)）。
@@ -69,3 +71,4 @@ app/
 | テスト | `npm test` |
 | APIの型生成 | `npm run gen:api`（openapi-typescript は TS 5 を peer に指定しているため、package.json の overrides で TS 6 を使わせている） |
 | ビルド | `npm run build` |
+| 部品カタログ | `npm run storybook`（http://localhost:6006）/ `npm run build-storybook` |
