@@ -175,3 +175,16 @@ var VerificationPurposes = []VerificationPurpose{
 }
 
 func (v VerificationPurpose) Valid() bool { return enumValid(v, VerificationPurposes) }
+
+// PasswordSetupPurpose はパスワード設定用の一時トークンの用途。
+type PasswordSetupPurpose string
+
+const (
+	PasswordSetupPurposeSignup        PasswordSetupPurpose = "signup"         // 新規登録
+	PasswordSetupPurposePasswordReset PasswordSetupPurpose = "password_reset" // パスワードの再設定
+)
+
+// PasswordSetupPurposes は PasswordSetupPurpose のすべての値。
+var PasswordSetupPurposes = []PasswordSetupPurpose{PasswordSetupPurposeSignup, PasswordSetupPurposePasswordReset}
+
+func (v PasswordSetupPurpose) Valid() bool { return enumValid(v, PasswordSetupPurposes) }
