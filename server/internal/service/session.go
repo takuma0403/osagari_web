@@ -11,6 +11,7 @@ import (
 // IssuedSession は発行したセッション。Token は `__session` Cookie に入れる値で、DB にはハッシュだけを保存している。
 type IssuedSession struct {
 	Token     string
+	IssuedAt  time.Time
 	ExpiresAt time.Time
 }
 
@@ -31,7 +32,7 @@ func issueSession(ctx context.Context, sessions SessionStore, userID string, now
 	if err != nil {
 		return IssuedSession{}, err
 	}
-	return IssuedSession{Token: token, ExpiresAt: expiresAt}, nil
+	return IssuedSession{Token: token, IssuedAt: now, ExpiresAt: expiresAt}, nil
 }
 
 // trustDevice は、メールのコードで確認した端末を登録済みの端末にする（AUTHN-3）。deviceID が空なら何もしない。
