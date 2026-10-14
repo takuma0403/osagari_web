@@ -119,7 +119,7 @@ Google Fonts から `Zen+Kaku+Gothic+New:wght@400;500;700` と `Outfit:wght@500;
 
 ## DS-3 共通部品
 
-デザインで繰り返し出てくる部品。実装時は `app/src/components/` に1つずつ作り、画面ごとに作り直さない。実装済みの部品と状態ごとの見た目は Storybook（`cd app && npm run storybook`）で確認できる（[ADR 0004](../decisions/0004-storybook-and-bottom-nav.md)）。
+デザインで繰り返し出てくる部品。実装時は `app/src/components/` に1つずつ作り、画面ごとに作り直さない。実装済みの部品と状態ごとの見た目は Storybook（`cd app && npm run storybook`）で確認できる（[ADR 0004](../decisions/0004-storybook-and-bottom-nav.md)）。全 story の描画と DS-1 のアクセシビリティは PR の CI で検査する（[ADR 0005](../decisions/0005-storybook-tests-in-ci.md)）。
 
 | 部品 | 見た目 | 出てくる画面 |
 | --- | --- | --- |

@@ -1,7 +1,7 @@
 # ADR 0004: 部品カタログに Storybook を使い、下部ナビはデザインどおり4画面だけに出す
 
 - 日付: 2026-10-14
-- 状態: 採用
+- 状態: 採用（決定1の「CI での検査はしない」は [ADR 0005](0005-storybook-tests-in-ci.md) で変更）
 - 関連する章ID: DS-1, DS-3, FE-1
 
 ## 背景
@@ -15,7 +15,7 @@ issue #7（DS-3 の共通部品）で、次の2点を決める必要があった
 
 1. 部品カタログは **Storybook**（`storybook`・`@storybook/react-vite`・`@storybook/addon-a11y`）で作る。自作の `/dev/components` ページは作らない。
    - 各部品に `<Name>.stories.tsx` を置き、状態ごとの見た目を並べる。既定のビューポートは 390px。
-   - ローカルでの確認用とし、公開（Chromatic など）や CI での検査はしない。
+   - ローカルでの確認用とし、公開（Chromatic など）や CI での検査はしない。→ CI での検査は [ADR 0005](0005-storybook-tests-in-ci.md) で行うことにした。
 2. 下部ナビ（`BottomNav`）は `/`・`/search`・`/deals`・`/mypage` だけに出す。商品詳細・出品・取引詳細・学生証登録・売上管理などには出さない。
 
 ## 理由と検討した選択肢
