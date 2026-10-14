@@ -1,0 +1,40 @@
+.overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 20;
+  background: var(--color-overlay);
+}
+
+/* カメラ画面の上など、暗い地に重ねるとき */
+.dark {
+  background: var(--color-overlay-dark);
+}
+
+.dialog {
+  position: fixed;
+  z-index: 21;
+  display: flex;
+  flex-direction: column;
+  overflow-y: auto;
+  max-height: calc(100dvh - 40px);
+  background: var(--color-surface);
+  color: var(--color-text);
+  outline: none;
+}
+
+/* 利用者向け画面の列（MobileLayout の最大幅 480px）に合わせて中央に置く */
+.bottom {
+  bottom: 0;
+  left: 50%;
+  width: min(100%, 480px);
+  transform: translateX(-50%);
+  border-radius: var(--radius-sheet) var(--radius-sheet) 0 0;
+}
+
+.center {
+  top: 50%;
+  left: 50%;
+  width: min(calc(100% - 40px), 440px);
+  transform: translate(-50%, -50%);
+  border-radius: var(--radius-dialog);
+}
