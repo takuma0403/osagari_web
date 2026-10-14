@@ -1,0 +1,54 @@
+.header {
+  display: flex;
+  flex-shrink: 0;
+  align-items: center;
+  gap: 4px;
+  height: 56px;
+  padding: 0 4px;
+}
+
+.bordered {
+  border-bottom: 1px solid var(--color-border);
+  background: var(--color-surface);
+}
+
+.back {
+  display: flex;
+  flex-shrink: 0;
+  align-items: center;
+  justify-content: center;
+  width: var(--tap-min);
+  height: var(--tap-min);
+  padding: 0;
+  border: none;
+  background: transparent;
+  color: var(--color-text);
+}
+
+.back:hover {
+  color: var(--color-text);
+}
+
+.title {
+  flex-grow: 1;
+  min-width: 0;
+  overflow: hidden;
+  font-size: 17px;
+  font-weight: 700;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* 戻るボタンがないときは、ページの余白に合わせて左をそろえる */
+.title:first-child {
+  padding-left: calc(var(--space-page) - 4px);
+  font-size: 18px;
+}
+
+.right {
+  display: flex;
+  flex-shrink: 0;
+  align-items: center;
+  gap: 4px;
+  margin-right: 12px;
+}
