@@ -4,10 +4,10 @@ import '../src/styles/tokens.css'
 import '../src/styles/global.css'
 
 const preview: Preview = {
-  // Link・NavLink を使う部品があるため、すべての story をルーターで包む
+  // Link・NavLink を使う部品があるため、すべての story をルーターで包む。いまのパスは parameters.path で変えられる
   decorators: [
-    (Story) => (
-      <MemoryRouter>
+    (Story, { parameters }) => (
+      <MemoryRouter initialEntries={[parameters.path ?? '/']}>
         <Story />
       </MemoryRouter>
     ),
