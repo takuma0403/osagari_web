@@ -27,7 +27,7 @@ M1 以降は画面の実装とともに部品と story が増える。表示の�
 | `@storybook/test-runner` | 実績が長い | Storybook をビルドして配信するサーバーが別に要る。Storybook 10 では addon-vitest が推奨 |
 | **addon-vitest ＋ Vitest のブラウザモード（採用）** | 既存の Vitest にプロジェクトとして足せる。サーバー不要。preview.tsx の設定（ルーター・トークン・a11y）がそのまま効く | Chromium のインストールが要る |
 
-費用（COST）：ローカル計測で story のテストは約15秒（19ファイル・52 story）、`build-storybook` は数秒。Chromium はキャッシュがあれば OS の依存パッケージを入れるだけなので、app job の増加は1回あたり1分前後の見込み。GitHub Actions の枠（Pro で月3,000分）に対して十分小さい。
+費用（COST）：PR #51 の CI で実測すると、app job は追加前の約1分から、Chromium のキャッシュなしで1分57秒、キャッシュありで1分35秒になった（story のテスト約16〜19秒・19ファイル52 story、`build-storybook` 約4秒、Chromium のインストール約20秒）。増加は1回あたり0.5〜1分で、GitHub Actions の枠（Pro で月3,000分）に対して十分小さい。
 
 ## 影響
 
