@@ -64,7 +64,7 @@ export function TextField({
 
   return (
     <div className={[styles.field, className].filter(Boolean).join(' ')}>
-      <label htmlFor={inputId} className={hideLabel ? styles.visuallyHidden : styles.label}>
+      <label htmlFor={inputId} className={hideLabel ? 'visually-hidden' : styles.label}>
         {label}
       </label>
       <div className={boxClass}>
