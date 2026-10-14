@@ -111,6 +111,21 @@ jobs:
       - run: npm run lint
       - run: npm run format:check
       - run: npm test
+      # 全 story の描画と a11y 検査（DS-1, DS-3, ADR 0005）。Chromium はバージョンごとにキャッシュし、OS の依存パッケージだけ毎回入れる
+      - name: Playwright のバージョン
+        id: playwright
+        run: echo "version=$(npx playwright --version | cut -d' ' -f2)" >> "$GITHUB_OUTPUT"
+      - uses: actions/cache@v6
+        id: playwright-cache
+        with:
+          path: ~/.cache/ms-playwright
+          key: playwright-${{ runner.os }}-${{ steps.playwright.outputs.version }}-chromium
+      - if: steps.playwright-cache.outputs.cache-hit != 'true'
+        run: npx playwright install --with-deps chromium
+      - if: steps.playwright-cache.outputs.cache-hit == 'true'
+        run: npx playwright install-deps chromium
+      - run: npm run test:storybook
+      - run: npm run build-storybook
       - run: npm run build
       - name: 生成物の差分検査（schema.gen.ts, API-1）
         run: |
