@@ -75,12 +75,13 @@ func wire(gdb *gorm.DB, clk clock.Clock, mailer mail.Mailer) (api.StrictServerIn
 	codes := repository.NewVerificationCodeRepository(gdb)
 	sessions := repository.NewSessionRepository(gdb)
 	devices := repository.NewTrustedDeviceRepository(gdb)
+	tokens := repository.NewPasswordSetupTokenRepository(gdb)
 
 	signup := service.NewSignupService(service.SignupDeps{
 		Tx:       tx,
 		Users:    users,
 		Codes:    codes,
-		Tokens:   repository.NewPasswordSetupTokenRepository(gdb),
+		Tokens:   tokens,
 		Sessions: sessions,
 		Devices:  devices,
 		Mailer:   mailer,
@@ -96,12 +97,22 @@ func wire(gdb *gorm.DB, clk clock.Clock, mailer mail.Mailer) (api.StrictServerIn
 		Mailer:     mailer,
 		Clock:      clk,
 	})
+	reset := service.NewPasswordResetService(service.PasswordResetDeps{
+		Tx:       tx,
+		Users:    users,
+		Codes:    codes,
+		Tokens:   tokens,
+		Sessions: sessions,
+		Devices:  devices,
+		Mailer:   mailer,
+		Clock:    clk,
+	})
 	session := service.NewSessionService(service.SessionDeps{
 		Sessions: sessions,
 		Users:    users,
 		Clock:    clk,
 	})
-	return handler.New(handler.Deps{Signup: signup, Login: login, Session: session}), session
+	return handler.New(handler.Deps{Signup: signup, Login: login, Session: session, PasswordReset: reset}), session
 }
 
 func loadConfig() (config, error) {

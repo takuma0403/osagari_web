@@ -9,9 +9,10 @@ import (
 
 // Deps は handler が使う service。
 type Deps struct {
-	Signup  SignupService
-	Login   LoginService
-	Session SessionService
+	Signup        SignupService
+	Login         LoginService
+	Session       SessionService
+	PasswordReset PasswordResetService
 }
 
 // Handler は api.StrictServerInterface の実装。

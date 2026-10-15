@@ -133,6 +133,21 @@ func (r *UserRepository) UpdateCodeVerifiedAt(ctx context.Context, id string, at
 	return nil
 }
 
+// UpdatePassword はパスワードのハッシュを更新する（AUTHN-4）。メールのコードで本人確認をした後に呼ぶので、
+// 最後にコードで確認した日時も at にする。ユーザーがいなければ ErrNotFound。
+func (r *UserRepository) UpdatePassword(ctx context.Context, id, passwordHash string, at time.Time) error {
+	ts := formatTime(at)
+	res := conn(ctx, r.db).Model(&userRow{}).Where("id = ?", id).
+		Updates(map[string]any{"password_hash": passwordHash, "code_verified_at": ts, "updated_at": ts})
+	if res.Error != nil {
+		return res.Error
+	}
+	if res.RowsAffected == 0 {
+		return ErrNotFound
+	}
+	return nil
+}
+
 // ExistsByEmail はメールアドレスのユーザーがいるかを返す。状態（停止・失効・削除）にかかわらず、行があれば true。
 func (r *UserRepository) ExistsByEmail(ctx context.Context, email string) (bool, error) {
 	var n int64

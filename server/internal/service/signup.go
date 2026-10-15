@@ -5,6 +5,7 @@ import (
 	"errors"
 	"fmt"
 	"net/http"
+	"time"
 
 	"github.com/takuma0403/osagari_web/server/internal/apperr"
 	"github.com/takuma0403/osagari_web/server/internal/auth"
@@ -110,22 +111,32 @@ func (s *SignupService) VerifyCode(ctx context.Context, rawEmail, code string) (
 		return VerifiedSignup{}, err
 	}
 
-	token, err := auth.GenerateToken()
+	token, err := issueSetupToken(ctx, s.d.Tokens, email, domain.PasswordSetupPurposeSignup, now)
 	if err != nil {
 		return VerifiedSignup{}, apperr.Internal(err)
 	}
-	err = s.d.Tokens.Create(ctx, &domain.PasswordSetupToken{
+	return VerifiedSignup{SetupToken: token, Estimate: domain.EstimateStudent(number)}, nil
+}
+
+// issueSetupToken はパスワード設定用の一時トークン（auth.SetupTokenTTL 有効・一度だけ使える）を発行し、
+// SHA-256 のハッシュを保存して平文のトークンを返す（AUTHN-2, AUTHN-4, ADR 0007）。
+func issueSetupToken(ctx context.Context, tokens PasswordSetupTokenStore, email string, purpose domain.PasswordSetupPurpose, now time.Time) (string, error) {
+	token, err := auth.GenerateToken()
+	if err != nil {
+		return "", err
+	}
+	err = tokens.Create(ctx, &domain.PasswordSetupToken{
 		Email:     email,
-		Purpose:   domain.PasswordSetupPurposeSignup,
+		Purpose:   purpose,
 		TokenHash: auth.HashToken(token),
 		ExpiresAt: now.Add(auth.SetupTokenTTL),
 		CreatedAt: now,
 		UpdatedAt: now,
 	})
 	if err != nil {
-		return VerifiedSignup{}, apperr.Internal(err)
+		return "", err
 	}
-	return VerifiedSignup{SetupToken: token, Estimate: domain.EstimateStudent(number)}, nil
+	return token, nil
 }
 
 // CompletedSignup は登録の結果。作成したユーザーと、ログイン状態にするためのセッション。
