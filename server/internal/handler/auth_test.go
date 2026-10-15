@@ -50,6 +50,16 @@ func newServer(t *testing.T) (http.Handler, *mail.Recorder) {
 		Mailer:     mailer,
 		Clock:      clk,
 	})
+	reset := service.NewPasswordResetService(service.PasswordResetDeps{
+		Tx:       repository.NewTransactor(gdb),
+		Users:    repository.NewUserRepository(gdb),
+		Codes:    repository.NewVerificationCodeRepository(gdb),
+		Tokens:   repository.NewPasswordSetupTokenRepository(gdb),
+		Sessions: repository.NewSessionRepository(gdb),
+		Devices:  repository.NewTrustedDeviceRepository(gdb),
+		Mailer:   mailer,
+		Clock:    clk,
+	})
 	session := service.NewSessionService(service.SessionDeps{
 		Sessions: repository.NewSessionRepository(gdb),
 		Users:    repository.NewUserRepository(gdb),
@@ -58,7 +68,7 @@ func newServer(t *testing.T) (http.Handler, *mail.Recorder) {
 	e := server.New(server.Deps{
 		Logger:   logging.New(io.Discard, slog.LevelInfo),
 		Clock:    clk,
-		Handler:  handler.New(handler.Deps{Signup: signup, Login: login, Session: session}),
+		Handler:  handler.New(handler.Deps{Signup: signup, Login: login, Session: session, PasswordReset: reset}),
 		Sessions: session,
 	})
 	return e, mailer

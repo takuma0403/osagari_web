@@ -193,6 +193,72 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/auth/password-reset/codes": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * パスワード再設定の認証コードを送る
+         * @description AUTHN-4: 登録済みのアドレスに6桁のコード（10分有効）を送る。
+         *     未登録・削除済みのアドレスにはコードの代わりに「登録されていません」の案内を送り、応答は登録済みのときと同じにする（登録の有無を判別させない。AUTHN-2）。
+         *     形式が違うアドレスには送らず 400 invalid_email を返す。
+         */
+        post: operations["sendPasswordResetCode"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/auth/password-reset/codes/verify": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * パスワード再設定の認証コードを確認する
+         * @description AUTHN-4, AUTHN-6: コードが一致したら、パスワード設定用の一時トークン（15分有効・一度だけ使える）を返す。
+         *     不一致は 400 invalid_verification_code（メッセージに残り回数）。期限切れ・使用済み・入力ミスが5回に達したコードは 400 verification_code_expired。
+         */
+        post: operations["verifyPasswordResetCode"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/auth/password-reset/complete": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * 新しいパスワードを設定する
+         * @description AUTHN-4, AUTHN-5: 一時トークンを使って新しいパスワード（10文字以上128文字以下）を設定し、その利用者の既存のセッションをすべて無効にする。
+         *     コードで本人確認をしたので、最後の確認日時を更新し、そのままこの端末でログイン状態にして `__session` Cookie を返す。`X-Device-Id` があれば、その端末を登録済みの端末にする（AUTHN-3）。
+         *     トークンが無効・期限切れ・使用済みなら 400 invalid_setup_token、パスワードの長さが範囲外なら 400 invalid_password_length。
+         *     停止中なら 403 account_suspended、失効なら 403 account_expired を返し、パスワードは変えない。
+         */
+        post: operations["completePasswordReset"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/me": {
         parameters: {
             query?: never;
@@ -270,6 +336,24 @@ export interface components {
             estimate: components["schemas"]["StudentEstimate"];
         };
         SignupCompletion: {
+            setupToken: string;
+            /** @description 10文字以上128文字以下（AUTHN-5） */
+            password: string;
+        };
+        PasswordResetCodeVerification: {
+            /** @example 26238001@edu.cc.saga-u.ac.jp */
+            email: string;
+            /**
+             * @description メールで届いた6桁のコード
+             * @example 012345
+             */
+            code: string;
+        };
+        PasswordResetCodeVerified: {
+            /** @description パスワード設定用の一時トークン（15分有効・一度だけ使える） */
+            setupToken: string;
+        };
+        PasswordResetCompletion: {
             setupToken: string;
             /** @description 10文字以上128文字以下（AUTHN-5） */
             password: string;
@@ -603,6 +687,84 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content?: never;
+            };
+            default: components["responses"]["Error"];
+        };
+    };
+    sendPasswordResetCode: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["EmailInput"];
+            };
+        };
+        responses: {
+            /** @description 受け付けた（登録済みかどうかにかかわらず同じ応答） */
+            202: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            default: components["responses"]["Error"];
+        };
+    };
+    verifyPasswordResetCode: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["PasswordResetCodeVerification"];
+            };
+        };
+        responses: {
+            /** @description コードを確認した */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PasswordResetCodeVerified"];
+                };
+            };
+            default: components["responses"]["Error"];
+        };
+    };
+    completePasswordReset: {
+        parameters: {
+            query?: never;
+            header?: {
+                /** @description ブラウザの localStorage に保存した端末識別子（AUTHN-3） */
+                "X-Device-Id"?: components["parameters"]["DeviceId"];
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["PasswordResetCompletion"];
+            };
+        };
+        responses: {
+            /** @description パスワードを変更し、ログイン状態にした */
+            200: {
+                headers: {
+                    /** @description セッションの `__session` Cookie（HttpOnly, Secure, SameSite=Lax） */
+                    "Set-Cookie"?: string;
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["CurrentUser"];
+                };
             };
             default: components["responses"]["Error"];
         };

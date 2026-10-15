@@ -242,6 +242,84 @@ paths:
                 type: string
         default:
           $ref: '#/components/responses/Error'
+  /auth/password-reset/codes:
+    post:
+      tags: [auth]
+      operationId: sendPasswordResetCode
+      summary: パスワード再設定の認証コードを送る
+      description: |
+        AUTHN-4: 登録済みのアドレスに6桁のコード（10分有効）を送る。
+        未登録・削除済みのアドレスにはコードの代わりに「登録されていません」の案内を送り、応答は登録済みのときと同じにする（登録の有無を判別させない。AUTHN-2）。
+        形式が違うアドレスには送らず 400 invalid_email を返す。
+      security: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/EmailInput'
+      responses:
+        '202':
+          description: 受け付けた（登録済みかどうかにかかわらず同じ応答）
+        default:
+          $ref: '#/components/responses/Error'
+  /auth/password-reset/codes/verify:
+    post:
+      tags: [auth]
+      operationId: verifyPasswordResetCode
+      summary: パスワード再設定の認証コードを確認する
+      description: |
+        AUTHN-4, AUTHN-6: コードが一致したら、パスワード設定用の一時トークン（15分有効・一度だけ使える）を返す。
+        不一致は 400 invalid_verification_code（メッセージに残り回数）。期限切れ・使用済み・入力ミスが5回に達したコードは 400 verification_code_expired。
+      security: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/PasswordResetCodeVerification'
+      responses:
+        '200':
+          description: コードを確認した
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PasswordResetCodeVerified'
+        default:
+          $ref: '#/components/responses/Error'
+  /auth/password-reset/complete:
+    post:
+      tags: [auth]
+      operationId: completePasswordReset
+      summary: 新しいパスワードを設定する
+      description: |
+        AUTHN-4, AUTHN-5: 一時トークンを使って新しいパスワード（10文字以上128文字以下）を設定し、その利用者の既存のセッションをすべて無効にする。
+        コードで本人確認をしたので、最後の確認日時を更新し、そのままこの端末でログイン状態にして `__session` Cookie を返す。`X-Device-Id` があれば、その端末を登録済みの端末にする（AUTHN-3）。
+        トークンが無効・期限切れ・使用済みなら 400 invalid_setup_token、パスワードの長さが範囲外なら 400 invalid_password_length。
+        停止中なら 403 account_suspended、失効なら 403 account_expired を返し、パスワードは変えない。
+      security: []
+      parameters:
+        - $ref: '#/components/parameters/DeviceId'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/PasswordResetCompletion'
+      responses:
+        '200':
+          description: パスワードを変更し、ログイン状態にした
+          headers:
+            Set-Cookie:
+              description: セッションの `__session` Cookie（HttpOnly, Secure, SameSite=Lax）
+              schema:
+                type: string
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CurrentUser'
+        default:
+          $ref: '#/components/responses/Error'
   /me:
     get:
       tags: [auth]
@@ -340,6 +418,35 @@ components:
         estimate:
           $ref: '#/components/schemas/StudentEstimate'
     SignupCompletion:
+      type: object
+      required: [setupToken, password]
+      properties:
+        setupToken:
+          type: string
+        password:
+          type: string
+          description: 10文字以上128文字以下（AUTHN-5）
+          minLength: 10
+          maxLength: 128
+    PasswordResetCodeVerification:
+      type: object
+      required: [email, code]
+      properties:
+        email:
+          type: string
+          example: 26238001@edu.cc.saga-u.ac.jp
+        code:
+          type: string
+          description: メールで届いた6桁のコード
+          example: '012345'
+    PasswordResetCodeVerified:
+      type: object
+      required: [setupToken]
+      properties:
+        setupToken:
+          type: string
+          description: パスワード設定用の一時トークン（15分有効・一度だけ使える）
+    PasswordResetCompletion:
       type: object
       required: [setupToken, password]
       properties:

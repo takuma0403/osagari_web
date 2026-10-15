@@ -192,6 +192,30 @@ type LoginRecheckVerification struct {
 	Code string `json:"code"`
 }
 
+// PasswordResetCodeVerification defines model for PasswordResetCodeVerification.
+type PasswordResetCodeVerification struct {
+	// Code メールで届いた6桁のコード
+	//
+	// Example: 012345
+	Code string `json:"code"`
+
+	// Email Example: 26238001@edu.cc.saga-u.ac.jp
+	Email string `json:"email"`
+}
+
+// PasswordResetCodeVerified defines model for PasswordResetCodeVerified.
+type PasswordResetCodeVerified struct {
+	// SetupToken パスワード設定用の一時トークン（15分有効・一度だけ使える）
+	SetupToken string `json:"setupToken"`
+}
+
+// PasswordResetCompletion defines model for PasswordResetCompletion.
+type PasswordResetCompletion struct {
+	// Password 10文字以上128文字以下（AUTHN-5）
+	Password   string `json:"password"`
+	SetupToken string `json:"setupToken"`
+}
+
 // SellerStatus 出品者の承認状態
 type SellerStatus string
 
@@ -265,6 +289,12 @@ type LoginParams struct {
 	XDeviceId *DeviceId `json:"X-Device-Id,omitempty"`
 }
 
+// CompletePasswordResetParams defines parameters for CompletePasswordReset.
+type CompletePasswordResetParams struct {
+	// XDeviceId ブラウザの localStorage に保存した端末識別子（AUTHN-3）
+	XDeviceId *DeviceId `json:"X-Device-Id,omitempty"`
+}
+
 // CompleteSignupParams defines parameters for CompleteSignup.
 type CompleteSignupParams struct {
 	// XDeviceId ブラウザの localStorage に保存した端末識別子（AUTHN-3）
@@ -279,6 +309,15 @@ type ResendLoginRecheckCodeJSONRequestBody = LoginChallengeInput
 
 // VerifyLoginRecheckJSONRequestBody defines body for VerifyLoginRecheck for application/json ContentType.
 type VerifyLoginRecheckJSONRequestBody = LoginRecheckVerification
+
+// SendPasswordResetCodeJSONRequestBody defines body for SendPasswordResetCode for application/json ContentType.
+type SendPasswordResetCodeJSONRequestBody = EmailInput
+
+// VerifyPasswordResetCodeJSONRequestBody defines body for VerifyPasswordResetCode for application/json ContentType.
+type VerifyPasswordResetCodeJSONRequestBody = PasswordResetCodeVerification
+
+// CompletePasswordResetJSONRequestBody defines body for CompletePasswordReset for application/json ContentType.
+type CompletePasswordResetJSONRequestBody = PasswordResetCompletion
 
 // SendSignupCodeJSONRequestBody defines body for SendSignupCode for application/json ContentType.
 type SendSignupCodeJSONRequestBody = EmailInput
@@ -306,6 +345,15 @@ type ServerInterface interface {
 	// Logout ログアウトする
 	// (POST /auth/logout)
 	Logout(ctx *echo.Context) error
+	// SendPasswordResetCode パスワード再設定の認証コードを送る
+	// (POST /auth/password-reset/codes)
+	SendPasswordResetCode(ctx *echo.Context) error
+	// VerifyPasswordResetCode パスワード再設定の認証コードを確認する
+	// (POST /auth/password-reset/codes/verify)
+	VerifyPasswordResetCode(ctx *echo.Context) error
+	// CompletePasswordReset 新しいパスワードを設定する
+	// (POST /auth/password-reset/complete)
+	CompletePasswordReset(ctx *echo.Context, params CompletePasswordResetParams) error
 	// SendSignupCode 新規登録の認証コードを送る
 	// (POST /auth/signup/codes)
 	SendSignupCode(ctx *echo.Context) error
@@ -384,6 +432,53 @@ func (w *ServerInterfaceWrapper) Logout(ctx *echo.Context) error {
 
 	// Invoke the callback with all the unmarshaled arguments
 	err = w.Handler.Logout(ctx)
+	return err
+}
+
+// SendPasswordResetCode converts echo context to params.
+func (w *ServerInterfaceWrapper) SendPasswordResetCode(ctx *echo.Context) error {
+	var err error
+
+	// Invoke the callback with all the unmarshaled arguments
+	err = w.Handler.SendPasswordResetCode(ctx)
+	return err
+}
+
+// VerifyPasswordResetCode converts echo context to params.
+func (w *ServerInterfaceWrapper) VerifyPasswordResetCode(ctx *echo.Context) error {
+	var err error
+
+	// Invoke the callback with all the unmarshaled arguments
+	err = w.Handler.VerifyPasswordResetCode(ctx)
+	return err
+}
+
+// CompletePasswordReset converts echo context to params.
+func (w *ServerInterfaceWrapper) CompletePasswordReset(ctx *echo.Context) error {
+	var err error
+
+	// Parameter object where we will unmarshal all parameters from the context
+	var params CompletePasswordResetParams
+
+	headers := ctx.Request().Header
+	// ------------- Optional header parameter "X-Device-Id" -------------
+	if valueList, found := headers[http.CanonicalHeaderKey("X-Device-Id")]; found {
+		var XDeviceId DeviceId
+		n := len(valueList)
+		if n != 1 {
+			return echo.NewHTTPError(http.StatusBadRequest, fmt.Sprintf("Expected one value for X-Device-Id, got %d", n))
+		}
+
+		err = runtime.BindStyledParameterWithOptions("simple", "X-Device-Id", valueList[0], &XDeviceId, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationHeader, Explode: false, Required: false, Type: "string", Format: ""})
+		if err != nil {
+			return echo.NewHTTPError(http.StatusBadRequest, fmt.Sprintf("Invalid format for parameter X-Device-Id: %s", err))
+		}
+
+		params.XDeviceId = &XDeviceId
+	}
+
+	// Invoke the callback with all the unmarshaled arguments
+	err = w.Handler.CompletePasswordReset(ctx, params)
 	return err
 }
 
@@ -517,6 +612,9 @@ func RegisterHandlersWithOptions(router EchoRouter, si ServerInterface, options 
 	router.POST(options.BaseURL+"/auth/login/recheck/codes", wrapper.ResendLoginRecheckCode, options.OperationMiddlewares["resendLoginRecheckCode"]...)
 	router.POST(options.BaseURL+"/auth/login/recheck/verify", wrapper.VerifyLoginRecheck, options.OperationMiddlewares["verifyLoginRecheck"]...)
 	router.POST(options.BaseURL+"/auth/logout", wrapper.Logout, options.OperationMiddlewares["logout"]...)
+	router.POST(options.BaseURL+"/auth/password-reset/codes", wrapper.SendPasswordResetCode, options.OperationMiddlewares["sendPasswordResetCode"]...)
+	router.POST(options.BaseURL+"/auth/password-reset/codes/verify", wrapper.VerifyPasswordResetCode, options.OperationMiddlewares["verifyPasswordResetCode"]...)
+	router.POST(options.BaseURL+"/auth/password-reset/complete", wrapper.CompletePasswordReset, options.OperationMiddlewares["completePasswordReset"]...)
 	router.GET(options.BaseURL+"/me", wrapper.GetMe, options.OperationMiddlewares["getMe"]...)
 
 }
@@ -698,6 +796,128 @@ type LogoutdefaultJSONResponse struct {
 }
 
 func (response LogoutdefaultJSONResponse) VisitLogoutResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response.Body); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(response.StatusCode)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type SendPasswordResetCodeRequestObject struct {
+	Body *SendPasswordResetCodeJSONRequestBody
+}
+
+type SendPasswordResetCodeResponseObject interface {
+	VisitSendPasswordResetCodeResponse(w http.ResponseWriter) error
+}
+
+type SendPasswordResetCode202Response struct {
+}
+
+func (response SendPasswordResetCode202Response) VisitSendPasswordResetCodeResponse(w http.ResponseWriter) error {
+	w.WriteHeader(202)
+	return nil
+}
+
+type SendPasswordResetCodedefaultJSONResponse struct {
+	Body       Error
+	StatusCode int
+}
+
+func (response SendPasswordResetCodedefaultJSONResponse) VisitSendPasswordResetCodeResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response.Body); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(response.StatusCode)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type VerifyPasswordResetCodeRequestObject struct {
+	Body *VerifyPasswordResetCodeJSONRequestBody
+}
+
+type VerifyPasswordResetCodeResponseObject interface {
+	VisitVerifyPasswordResetCodeResponse(w http.ResponseWriter) error
+}
+
+type VerifyPasswordResetCode200JSONResponse PasswordResetCodeVerified
+
+func (response VerifyPasswordResetCode200JSONResponse) VisitVerifyPasswordResetCodeResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(200)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type VerifyPasswordResetCodedefaultJSONResponse struct {
+	Body       Error
+	StatusCode int
+}
+
+func (response VerifyPasswordResetCodedefaultJSONResponse) VisitVerifyPasswordResetCodeResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response.Body); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(response.StatusCode)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type CompletePasswordResetRequestObject struct {
+	Params CompletePasswordResetParams
+	Body   *CompletePasswordResetJSONRequestBody
+}
+
+type CompletePasswordResetResponseObject interface {
+	VisitCompletePasswordResetResponse(w http.ResponseWriter) error
+}
+
+type CompletePasswordReset200ResponseHeaders struct {
+	SetCookie *string
+}
+
+type CompletePasswordReset200JSONResponse struct {
+	Body    CurrentUser
+	Headers CompletePasswordReset200ResponseHeaders
+}
+
+func (response CompletePasswordReset200JSONResponse) VisitCompletePasswordResetResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response.Body); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	if response.Headers.SetCookie != nil {
+		w.Header().Set("Set-Cookie", fmt.Sprint(*response.Headers.SetCookie))
+	}
+	w.WriteHeader(200)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type CompletePasswordResetdefaultJSONResponse struct {
+	Body       Error
+	StatusCode int
+}
+
+func (response CompletePasswordResetdefaultJSONResponse) VisitCompletePasswordResetResponse(w http.ResponseWriter) error {
 
 	var buf bytes.Buffer
 	if err := json.NewEncoder(&buf).Encode(response.Body); err != nil {
@@ -960,6 +1180,15 @@ type StrictServerInterface interface {
 	// Logout ログアウトする
 	// (POST /auth/logout)
 	Logout(ctx context.Context, request LogoutRequestObject) (LogoutResponseObject, error)
+	// SendPasswordResetCode パスワード再設定の認証コードを送る
+	// (POST /auth/password-reset/codes)
+	SendPasswordResetCode(ctx context.Context, request SendPasswordResetCodeRequestObject) (SendPasswordResetCodeResponseObject, error)
+	// VerifyPasswordResetCode パスワード再設定の認証コードを確認する
+	// (POST /auth/password-reset/codes/verify)
+	VerifyPasswordResetCode(ctx context.Context, request VerifyPasswordResetCodeRequestObject) (VerifyPasswordResetCodeResponseObject, error)
+	// CompletePasswordReset 新しいパスワードを設定する
+	// (POST /auth/password-reset/complete)
+	CompletePasswordReset(ctx context.Context, request CompletePasswordResetRequestObject) (CompletePasswordResetResponseObject, error)
 	// SendSignupCode 新規登録の認証コードを送る
 	// (POST /auth/signup/codes)
 	SendSignupCode(ctx context.Context, request SendSignupCodeRequestObject) (SendSignupCodeResponseObject, error)
@@ -1128,6 +1357,125 @@ func (sh *strictHandler) Logout(ctx *echo.Context) error {
 		return err
 	} else if validResponse, ok := response.(LogoutResponseObject); ok {
 		return validResponse.VisitLogoutResponse(ctx.Response())
+	} else if response != nil {
+		return fmt.Errorf("unexpected response type: %T", response)
+	}
+	return nil
+}
+
+// SendPasswordResetCode operation middleware
+func (sh *strictHandler) SendPasswordResetCode(ctx *echo.Context) error {
+	var request SendPasswordResetCodeRequestObject
+
+	var body SendPasswordResetCodeJSONRequestBody
+	var err error
+	if _, ok := ctx.Echo().Binder.(*echo.DefaultBinder); ok {
+		// Bind only the request body, so that path and query parameters
+		// are not also bound into the body struct.
+		err = echo.BindBody(ctx, &body)
+	} else {
+		// A custom binder is installed on the Echo instance; defer to it
+		// entirely, since echo.Binder does not expose body-only binding.
+		err = ctx.Bind(&body)
+	}
+	if err != nil {
+		return err
+	}
+	request.Body = &body
+
+	handler := func(ctx *echo.Context, request interface{}) (interface{}, error) {
+		return sh.ssi.SendPasswordResetCode(ctx.Request().Context(), request.(SendPasswordResetCodeRequestObject))
+	}
+	for _, middleware := range sh.middlewares {
+		handler = middleware(handler, "SendPasswordResetCode")
+	}
+
+	response, err := handler(ctx, request)
+
+	if err != nil {
+		return err
+	} else if validResponse, ok := response.(SendPasswordResetCodeResponseObject); ok {
+		return validResponse.VisitSendPasswordResetCodeResponse(ctx.Response())
+	} else if response != nil {
+		return fmt.Errorf("unexpected response type: %T", response)
+	}
+	return nil
+}
+
+// VerifyPasswordResetCode operation middleware
+func (sh *strictHandler) VerifyPasswordResetCode(ctx *echo.Context) error {
+	var request VerifyPasswordResetCodeRequestObject
+
+	var body VerifyPasswordResetCodeJSONRequestBody
+	var err error
+	if _, ok := ctx.Echo().Binder.(*echo.DefaultBinder); ok {
+		// Bind only the request body, so that path and query parameters
+		// are not also bound into the body struct.
+		err = echo.BindBody(ctx, &body)
+	} else {
+		// A custom binder is installed on the Echo instance; defer to it
+		// entirely, since echo.Binder does not expose body-only binding.
+		err = ctx.Bind(&body)
+	}
+	if err != nil {
+		return err
+	}
+	request.Body = &body
+
+	handler := func(ctx *echo.Context, request interface{}) (interface{}, error) {
+		return sh.ssi.VerifyPasswordResetCode(ctx.Request().Context(), request.(VerifyPasswordResetCodeRequestObject))
+	}
+	for _, middleware := range sh.middlewares {
+		handler = middleware(handler, "VerifyPasswordResetCode")
+	}
+
+	response, err := handler(ctx, request)
+
+	if err != nil {
+		return err
+	} else if validResponse, ok := response.(VerifyPasswordResetCodeResponseObject); ok {
+		return validResponse.VisitVerifyPasswordResetCodeResponse(ctx.Response())
+	} else if response != nil {
+		return fmt.Errorf("unexpected response type: %T", response)
+	}
+	return nil
+}
+
+// CompletePasswordReset operation middleware
+func (sh *strictHandler) CompletePasswordReset(ctx *echo.Context, params CompletePasswordResetParams) error {
+	var request CompletePasswordResetRequestObject
+
+	request.Params = params
+
+	var body CompletePasswordResetJSONRequestBody
+	var err error
+	if _, ok := ctx.Echo().Binder.(*echo.DefaultBinder); ok {
+		// Bind only the request body, so that path and query parameters
+		// are not also bound into the body struct.
+		err = echo.BindBody(ctx, &body)
+	} else {
+		// A custom binder is installed on the Echo instance; defer to it
+		// entirely, since echo.Binder does not expose body-only binding.
+		err = ctx.Bind(&body)
+	}
+	if err != nil {
+		return err
+	}
+	request.Body = &body
+
+	handler := func(ctx *echo.Context, request interface{}) (interface{}, error) {
+		return sh.ssi.CompletePasswordReset(ctx.Request().Context(), request.(CompletePasswordResetRequestObject))
+	}
+	for _, middleware := range sh.middlewares {
+		handler = middleware(handler, "CompletePasswordReset")
+	}
+
+	response, err := handler(ctx, request)
+
+	if err != nil {
+		return err
+	} else if validResponse, ok := response.(CompletePasswordResetResponseObject); ok {
+		return validResponse.VisitCompletePasswordResetResponse(ctx.Response())
 	} else if response != nil {
 		return fmt.Errorf("unexpected response type: %T", response)
 	}
@@ -1343,70 +1691,75 @@ func (sh *strictHandler) GetMe(ctx *echo.Context) error {
 // const string: with thousands of chunks the chained `+` fold is several
 // times slower for the Go compiler than parsing a slice literal.
 var swaggerSpec = []string{
-	"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",
+	"7Fx7UxtXlv8qXb3z14wAIXDKpapU7aw3O0ltNjNlJlu7Fby4I11Dx1JL291y4nVRpdttY4nHgLENJmAT",
+	"CEgYBWGPvQkG2XyYq27BX3yFqXNvd6tfetgB25XkH9Cj+95zzj2v3zmndYNPZNLZjIQkVeHjN/isIAtp",
+	"pCKZvvtXdE1MoE+S8DqJlIQsZlUxI/FxnugLRH9MtBLRfiS4yqUyCSE1pGZkYRRxBFfqhw+NnQcELxK8",
+	"2qjsmiuVo50HRmHT2Jk7qRX++PlfP/6sZ+CkVuQjvAjrjSEhiWQ+wktCGvFx/r962N49nyT5CK8kxlBa",
+	"ACrU61n4WlFlURrlx8fHI7yMlGxGUhCl+CNZzsjwIpGRVCSp8FLIZlNiQgDK+75SgPwbrhV/J6MrfJz/",
+	"p76mIPrYt0ofW43u4mNf2wL29RoP31mXw2oXcrKMJPVzBclhQtsh2hOibRD9WX1vh+CqufJDfX8fXui3",
+	"jO+ekrxmf1Ih+DuC7xwd3iN4iY/wWTmTRbIqMjaFZFpUFDEj/TcSZJdcRElFo0jmKcFZQVbTlgykXCol",
+	"fJlCfFyVcyjil6P78guZJAoRtfuSz+ghdbEqSgtiKnQx9E1WlJHyZ3oaVzJyWlD5OJ8UVMSHrCMmQxdR",
+	"UCqF5CFVUHNKp7Mccl8L93Z11+eK955cEtjPpb9Ecpg6gjb+b06UUZKPfwFU2yLw3xvxHWHgANwf8AHZ",
+	"u+XnsOKTxyVHjpkvv0IJFRj4CIj5RMrmqFJ4dco5K6/SGhtlY6dEcJXoa0SvEb1CtHWiF4n+A9FenNQK",
+	"xk6p8XSmcX/bmP3pn1Ey15tI9CrCqNCT6xUSvV9lT2pFkteM4ozxaprgauPxfmPpJcFbxkbZXLht7CwS",
+	"/cB4Mmu9xtVjfJ/gmwTvNm6uHZUWCF4i2hTlWEhnQdf42AexgfPRaH/Ybnykw6EwNkOFY/sOn9XiJYJf",
+	"EExlYNu9cbjS2LlHcNW49fQ4/63xct2ozQbMNGGZkndB8/Gquf6E4LJR2DCq3zIGCV4lGnZvQbRn8Fcv",
+	"ntQKiiRcRSMJQUEkr9VfTXGidE1IickRdvQjqixIigjrW9KmVDkrEFyt7+WPSmWCd7lkJqH0qSgx1idk",
+	"xd50kgP//ce/fNLT7xFyyx3C7DONFEUYDeHVKDxu3Ns6yt8iuHK0ttXY2Ce4TPAM0abMxU1z5Yej7Ue2",
+	"bulEO6B873kIIfguyHl2wajdJ3iXHkeZ4IpRna7vT9AQU6IK84p5yvbHn2DGZRMcpgcfIyGljgUNpOkx",
+	"kJRLw2KZq/ylThsqra3x08yoKF0YE1IpJIUJzwqTnDEx01jfP9qeadzbosJqhhGiY6J/D7aoPyPaHslr",
+	"RL9DtBdE37WPfhqO/vZzFoupMLeINn+0tgWf5LFbSdguYI8TM8d5DHH85SHBE0HFton+a+YqktpHOj+J",
+	"wECBnvMu0Z+d1Ar954zChLlSNCZfEP2gvpc39kss+tHdC0SbYplC6/Dij85Nlo7zuH64ZtwqnNQKHqos",
+	"3r4HoYR7tuLPcDqgA4KVa7SLL1QFLqLEGEpcvcjuCGisV9bOypE2rsyrWS0cfvAQO5iO9/qW+55mfHmn",
+	"kSPCZwVF+TojJzsLxw7zzh0txeM97aA8bGMneNo4vHVUwgRvN+YmGveeejJnktfAl42wRCDJfciZK3kq",
+	"qIpL/8v2WsxLThGtOBA1FzfrB5v1vUnqEKgF5LGEvh5J0pyb+5AzCg9pNCox+2cZPMlrw1J9b81ceAHu",
+	"9+VduuQuOF6IX1vg1vEu56aK3sJHHIfp/g6SfWfPED/qFdd/Ilm8YmXxb6DKkRaxuKl0uGw8naTqs/qB",
+	"ucYisSVGjwpF+2MDg+c6xxm/1dL9w5TiL5bGXEQKorlfB1bPmA+XVz3VjOv1JYCSITEYqblsy6DjiXxH",
+	"WztG9VsWMut7eXNJO6W44w/wTZK6YA4EGn6wbl/jZaw/ylwcM9r+2HnX2ynHKZxjxKaFbz5F0igkMP2x",
+	"8xE+LUrO+2gkDEO5Jdo1qx083ZAPmfl83O194y6mWWHVLB5CZjP5o3lryuUppIwEeVoWSUmgJAIoXs5c",
+	"o25DRrANSoY6jSFxVMplf5V25Gc9zICQooppQNmd4DKDqx/Zlwc05X2zvUiTtXay+bXYn+/4QrFFTyzC",
+	"0f+DnBvEszTB/NsWBaeAGlh1qnMVymfltzaNnZLx4rmxX/LVCahaTMbMNcz9gYtFo1Ffth2Lxj6IdCxq",
+	"hXA0CGiWYhvIfBwGjJ3Ssb4F6eJOqVG+4zZmktfo9RWCt8Hcnc/xLgf1rZNaob43Yz74WwAQDJznI51L",
+	"YMHCmk9KPtJcqN8nsQGSXzlnruHGcjWcli4qdu33xlVjbsYozkCRgfIMMtGKVA6e/RpzE8ZPm+x2znnT",
+	"KN/pRiKe0p+vNEI9grmyerw0B9QUHporq0Z+A4Th0ibuD1z9sGpu7hgvnh8vzcGZD5grhYF+c3HTR/ug",
+	"8eJ5QFrRgWhPdKBnACoeHWuPgaJf0J139lNnVfwLs31XzTLET5eoG/4R/uJqIOwKCVW8BlsoOQViL0o6",
+	"2yUpJSkUHnipJ0vkZFG9PgQhxE7XKJcXMpmrItU/WuxPsLdOsX9kxLquKUchK/47us5K76J0JRPk5N9E",
+	"GX0pKIj7OKOoojRKy1gy+loWVaRwBJe5y1Dg6vv97y9zRJvnLqQyuSR3MSdBe+LoYJ3WN5ZonCmEVMO4",
+	"RuU7hrKGpaPtmaOtGjiEyw6plznG1Emt8LGqZv8spa5HuCGQAIpwQ0IaDYkq+vBT4Ru2iK8HQtdy9Tgu",
+	"c0R/QHSd6Hl6MGWgzkVaTh1zaHMjQAquVFGl2lh/OXf0LG9slAmerO9NETxNtEmi3yf6NtEfAVN8hL+G",
+	"ZIUJMNrb3xsFfclkkSRkRT7OD/RGewdoaFHH6PnRnftSgMPgbTajtHK8/RGbMvvFuTjXrhaVxzZebfpi",
+	"G6w6MNVc2Tb38/AB3mgsHRxP/93cKxB8CKpLJXpSK3jkCGKhdg+VLfwQFoe64Ctv6QfAcMhZgp6whstJ",
+	"rRCLRm0ZhyBmWnEE1DvlQGWHpiYBzWSy4s8hIQeKOjkQ7KTN00OfJHncfcGv61TKy1rMZi286IKrrKBt",
+	"FVT0A3Nlm4kfYkVx8nhpwzoH/cB3xk4NBtiY3jcKmwQvE/wtNxjtd6rWCRmBOxSFlHJSK1grQzes2Li5",
+	"RrR5KIzDjffpvRCWm/S2qW6WiKbBtnjF3FmnDTYavQajA5yQSGRykjriuDW4buMpFX3BHXWMwm2iTQMN",
+	"cxWi5R198qziq25ATkRRBnRKWdWCj3haqV+EJ9vNS/qcVuv4JRY6kKL+SyZ5/dR6ma7S3Lg3PEGY9vdR",
+	"Y9Hoqe3s7omG9VL9prnKR6x+MCVlCKk9zQDiuxc6BjrRfiJ6md5efUMX3b7JPB7hY9HY6R5Fs+4fIpOQ",
+	"ImBea9qqu8TH3Aat4rGU74qQS6mtSHAO2eltN+M2H//iEgT+dFqQr3uwsMc3bAVssOw9QqvqqgqjCk0p",
+	"cuoYfwk2ckWTPpmV9foAzCrtY8tnPQNxzrOFv6Mwbbk/2/GaC0+oJt3s7G6noMI8u+HL/C3PCa5nlq46",
+	"ZXkf/8aNm2vM73q8h35Qf3nYuLdlByvLgUQdB0hlMOLUCMMdCVSMpKS7CGolh2fmHnwdg678RKxd/+Xs",
+	"lNNlIVX/ftpkY/m51QzsSgmvQbnkekcttDObD+KcS1m8/TWt6KQ1jD7IYpY0os2by88tvcxjtzbDt07q",
+	"oM2HpjkUntIIl8ft8harRD9jk7Tr0bprroLYCBge7Yl5Oq8EV8zqFNEmjeVH5v0nLOy20239AIDZ5DLR",
+	"V6l3mD5nLD8iuHKM79kScQFqoCZAhSecvl0To3Wy624TO0vzCmtl/BaLXz8WvwU34mmbvWZ0y+TUTq4E",
+	"sJE1slD1y02bh03wHMEVS/WZ8beyfPPHArP8IMahe7AYBrkxF4sO+nxFWPYK9AdUcLB1k38dxgD1wuvq",
+	"Sztu3qYKBNjocMJ23bVHRgpSu0tgBuOcz697c6ru4SFLRFriscDCgMTcY0AH3xNtFlAmrpD8tLUIvg8u",
+	"tTlGs0y0uyQPNmGuFYyJWx5sak0+7foZshrAW8bcNMEP6NZWeaUbgEfyGhOVA00ZBCV4mkLKiSBflKQi",
+	"w5ZNv0+7JJ20fAhJyUDX8Yxcv2vm7k0TKmN2EeD8wQOC7xC86ojUFv4UwY9BRPCiQv9O0VMG4bDjYKcG",
+	"zvW0jceDBYyJGdb6gSo8q5r5c7PXNa0uk7PB7pIzmnudRavqF5SCtciS3pa9tJ+HeMv5UuvRhNCp8NAE",
+	"YvVd2pxNx+sGNdonRV1b3bk4FzQeos3bM3alJiT3Uk8DXdv2KjUti8FFp6zrGiytmovr9GGDVqkUDO+6",
+	"UqklB8675qTY3L0lLW2eHRwNa2V3qbodpnOXm/FdF3bz1EdYy8UBdFwHOOfrEuBpgjUarJ84W3YBHa1A",
+	"7OsdeM7qjYEWbUqPqNCVDnpXmMq7/xMN9NON3ZvG8t+NjYWQRWz9G0nRXjlLAF6rjtu6TOvIczGMvl1j",
+	"o2jXem6G+z9ragB5nMH7V+FtNWn0vkFM7wFo88ZG0Vx+HiyMeC3ll45EWzlIl/fr4MMVOuLSHSCJxbmO",
+	"D3b8z/Bw8sb5cZhVGh7uTSSGh615peHhXgHefZX9He2PvC56aQ+FukEs9r1l6iQ7AJUmWPrZKOVtYZPm",
+	"JNdvoOSNTOmoNOuc5xsAEbcpdQlAYu8agOAtNrLV+P8589HKLx+PnLmNtJgkfcvhNGSo891Bj46W1SXc",
+	"cOyrO5hhzynGSH6le8jxs5FGcCjSPYTGxubY/Jxnbg0WKTSqi/ZMwjrRKrS2+AwoBQJXHATSYkTFk/rk",
+	"8W8YoRVGaJmrM7N5/5L0wBxyV+6k/61l52Haahbmfu3ZeeukvKWNU6l15wfdQ/ltZuycce0453bEjXsH",
+	"xw/X6bPIEHbZLwvYD9taT3DClEPAm9luij1//B3N46Da0TaP2z0ql6hzcfBy+JyINs99fvFTOmxZK7oS",
+	"6AKMI2q78JgzCNR+KJMlGfi+fVnReiAaai8/mAu34XkMmnAaswu29wwYvz3ubk2/vye58ynmAv6HMoIG",
+	"7M4BT3vkIhgOnflxb1z0hUP7UYLWxjDmPHI9iiit3nP9E1Kth7LPULjWDiEybWzVDH2mvrdzygJl67KU",
+	"ySUX5bqiorQlmTRySaXd3O25uMeNhlRD7TEpOvFIo/fELTbbaU9CFpn9e4fEm3exghwcN73e6T3CXU2z",
+	"3aYzMN7fNXElKzQfmbBvucPyFDodmpNAIzKy+H+tEv8/IfU/EP/ualc+tt5UHQKt59Y/CKPNww8fvFps",
+	"aTxe9QpM3H9xCRIZBcnX7AQoJ6f4OA/T7jTHsda7Earydja/TfDj5ri+pZ/jEf9NHnSgH7i5Cw4KO20L",
+	"K+d0NJlFdmsvyub4pfF/DAA=",
 }
 
 // decodeSpec returns the embedded OpenAPI spec as raw JSON bytes,
