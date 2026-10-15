@@ -98,6 +98,15 @@ func (r *SessionRepository) Revoke(ctx context.Context, tokenHash string, now ti
 	return nil
 }
 
+// RevokeAllByUser はユーザーのまだ失効していないセッションをすべて失効させる（パスワードの再設定。AUTHN-4）。
+// 対象がなくてもエラーにしない。
+func (r *SessionRepository) RevokeAllByUser(ctx context.Context, userID string, now time.Time) error {
+	ts := formatTime(now)
+	return conn(ctx, r.db).Model(&sessionRow{}).
+		Where("user_id = ? AND revoked_at IS NULL", userID).
+		Updates(map[string]any{"revoked_at": ts, "updated_at": ts}).Error
+}
+
 // trustedDeviceRow は trusted_devices の1行（migrations/000004_create_trusted_devices）。
 type trustedDeviceRow struct {
 	ID         string

@@ -80,6 +80,17 @@ func TestUserRepository(t *testing.T) {
 	if err := users.UpdateCodeVerifiedAt(ctx, "no-such-user", later); !errors.Is(err, repository.ErrNotFound) {
 		t.Errorf("UpdateCodeVerifiedAt が ErrNotFound にならない: %v", err)
 	}
+
+	reset := later.Add(time.Hour)
+	if err := users.UpdatePassword(ctx, u.ID, "new-hash", reset); err != nil {
+		t.Fatal(err)
+	}
+	if got, _ := users.FindByID(ctx, u.ID); got.PasswordHash != "new-hash" || !got.CodeVerifiedAt.Equal(reset) || !got.UpdatedAt.Equal(reset) {
+		t.Errorf("UpdatePassword: got=%+v", got)
+	}
+	if err := users.UpdatePassword(ctx, "no-such-user", "new-hash", reset); !errors.Is(err, repository.ErrNotFound) {
+		t.Errorf("UpdatePassword が ErrNotFound にならない: %v", err)
+	}
 }
 
 func newCode(createdAt time.Time) *domain.VerificationCode {
@@ -344,6 +355,44 @@ func TestSessionRepository_検索と失効(t *testing.T) {
 	}
 	if err := sessions.Revoke(ctx, "s", t0); !errors.Is(err, repository.ErrNotFound) {
 		t.Errorf("2回目の失効が ErrNotFound にならない: %v", err)
+	}
+}
+
+func TestSessionRepository_RevokeAllByUser(t *testing.T) {
+	ctx := context.Background()
+	gdb := testdb.New(t)
+	users := repository.NewUserRepository(gdb)
+	sessions := repository.NewSessionRepository(gdb)
+	u := newUser("", email, "26238001")
+	other := newUser("", "26238002@edu.cc.saga-u.ac.jp", "26238002")
+	for _, x := range []*domain.User{u, other} {
+		if err := users.Create(ctx, x); err != nil {
+			t.Fatal(err)
+		}
+	}
+	for _, s := range []struct{ userID, hash string }{{u.ID, "a"}, {u.ID, "b"}, {other.ID, "c"}} {
+		if err := sessions.Create(ctx, &domain.Session{UserID: s.userID, TokenHash: s.hash, ExpiresAt: t0.Add(time.Hour), CreatedAt: t0, UpdatedAt: t0}); err != nil {
+			t.Fatal(err)
+		}
+	}
+	// 既に失効したセッションがあっても、まとめて失効できる
+	if err := sessions.Revoke(ctx, "b", t0); err != nil {
+		t.Fatal(err)
+	}
+
+	if err := sessions.RevokeAllByUser(ctx, u.ID, t0); err != nil {
+		t.Fatal(err)
+	}
+	for _, h := range []string{"a", "b"} {
+		if _, err := sessions.FindActiveByTokenHash(ctx, h, t0); !errors.Is(err, repository.ErrNotFound) {
+			t.Errorf("セッション %s が失効していない: %v", h, err)
+		}
+	}
+	if _, err := sessions.FindActiveByTokenHash(ctx, "c", t0); err != nil {
+		t.Errorf("ほかのユーザーのセッションまで失効した: %v", err)
+	}
+	if err := sessions.RevokeAllByUser(ctx, u.ID, t0); err != nil {
+		t.Errorf("対象がないときにエラー: %v", err)
 	}
 }
 
