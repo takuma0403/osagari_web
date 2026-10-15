@@ -57,8 +57,8 @@ APIが担当する主な処理は次のとおりです。
   | `invalid_setup_token` | 400 | パスワード設定用の一時トークンが無効・期限切れ・使用済み |
   | `invalid_password_length` | 400 | パスワードが10文字未満または128文字超（[AUTHN-5](auth.md)） |
   | `invalid_credentials` | 401 | ログインのメールアドレスかパスワードが違う。未登録・削除済みも区別しない（[AUTHN-3](auth.md)、[ADR 0009](../decisions/0009-login-recheck-challenge.md)） |
-  | `account_suspended` | 403 | パスワードは一致したが、アカウントが停止中（[ADR 0009](../decisions/0009-login-recheck-challenge.md)） |
-  | `account_expired` | 403 | パスワードは一致したが、アカウントが失効している（有効期限切れを含む。[AUTH-3](../product/01-account-auth.md)） |
+  | `account_suspended` | 403 | パスワードは一致したが（またはパスワード再設定のコードを確認したが）、アカウントが停止中（[ADR 0009](../decisions/0009-login-recheck-challenge.md)、[ADR 0010](../decisions/0010-password-reset.md)） |
+  | `account_expired` | 403 | パスワードは一致したが（またはパスワード再設定のコードを確認したが）、アカウントが失効している（有効期限切れを含む。[AUTH-3](../product/01-account-auth.md)） |
   | `invalid_login_challenge` | 400 | ログインの再確認のチャレンジが無効・期限切れ・使用済み（[AUTHN-3](auth.md)） |
 
   表にない 4xx（413・415 など）は HTTP ステータスをそのまま使い、`code` は `bad_request` にする。5xx はすべて 500 `internal_error` にする。
