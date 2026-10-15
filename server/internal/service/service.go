@@ -22,6 +22,7 @@ type UserStore interface {
 	FindByID(ctx context.Context, id string) (*domain.User, error)
 	FindByEmail(ctx context.Context, email string) (*domain.User, error)
 	UpdateCodeVerifiedAt(ctx context.Context, id string, at time.Time) error
+	UpdatePassword(ctx context.Context, id, passwordHash string, at time.Time) error
 }
 
 // VerificationCodeStore は verification_codes の読み書き（repository.VerificationCodeRepository）。
@@ -44,6 +45,7 @@ type SessionStore interface {
 	Create(ctx context.Context, s *domain.Session) error
 	FindActiveByTokenHash(ctx context.Context, tokenHash string, now time.Time) (*domain.Session, error)
 	Revoke(ctx context.Context, tokenHash string, now time.Time) error
+	RevokeAllByUser(ctx context.Context, userID string, now time.Time) error
 }
 
 // TrustedDeviceStore は trusted_devices の読み書き（repository.TrustedDeviceRepository）。
