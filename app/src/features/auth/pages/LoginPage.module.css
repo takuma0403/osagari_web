@@ -1,0 +1,76 @@
+.page {
+  display: flex;
+  flex-direction: column;
+  flex-grow: 1;
+  gap: 24px;
+  padding: 56px var(--space-page-form) 32px;
+  background: var(--color-surface);
+}
+
+.intro {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+
+.logo {
+  border-radius: var(--radius-dialog);
+}
+
+.catch {
+  font-size: var(--text-catch);
+  font-weight: 700;
+  line-height: 1.35;
+}
+
+.lead {
+  color: var(--color-text-muted);
+  font-size: var(--text-body);
+}
+
+.form {
+  display: flex;
+  flex-direction: column;
+  gap: 24px;
+}
+
+.fields {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.password {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.forgot {
+  align-self: flex-end;
+  padding: 8px 0;
+  font-size: var(--text-label);
+}
+
+.divider {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  color: var(--color-text-muted);
+  font-size: var(--text-note);
+}
+
+.divider::before,
+.divider::after {
+  content: '';
+  flex-grow: 1;
+  height: 1px;
+  background: var(--color-border);
+}
+
+.footer {
+  margin-top: auto;
+  color: var(--color-text-muted);
+  font-size: var(--text-note);
+  text-align: center;
+}
