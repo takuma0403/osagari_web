@@ -55,7 +55,8 @@ export function CodePage({ flow }: Props) {
   const { state } = useLocation()
   const config = flows[flow]
   if (!isSignupCodeState(state)) return <Navigate to={config.backTo} replace />
-  return <CodeForm flow={flow} sent={state} />
+  // 送り直したら作り直し、入力と残り時間を新しいコードの分から始める
+  return <CodeForm key={state.sentAt} flow={flow} sent={state} />
 }
 
 function CodeForm({ flow, sent }: Props & { sent: SignupCodeState }) {
@@ -100,7 +101,6 @@ function CodeForm({ flow, sent }: Props & { sent: SignupCodeState }) {
       // 送った時刻を state に残し、再読み込みしても有効期限と待ち時間が続くようにする
       const next: SignupCodeState = { studentId, sentAt: Date.now() }
       navigate('.', { state: next, replace: true })
-      setCode('')
     } catch (err) {
       if (!isApiError(err)) throw err
       // 送信数の制限（429）など。断られたときは前のコードがそのまま使える（AUTHN-6）

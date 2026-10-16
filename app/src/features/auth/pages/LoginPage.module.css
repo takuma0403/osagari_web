@@ -47,8 +47,11 @@
 }
 
 .forgot {
+  display: flex;
+  align-items: center;
   align-self: flex-end;
-  padding: 8px 0;
+  /* タップ領域を 44px 以上にする（DS-1） */
+  min-height: var(--tap-min);
   font-size: var(--text-label);
 }
 
