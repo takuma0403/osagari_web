@@ -73,8 +73,9 @@ func getMe(t *testing.T, srv http.Handler, cookie *http.Cookie) *httptest.Respon
 
 // 完了条件「既知端末はパスワードのみ、未知端末はコード確認を経てログインできる」（AUTHN-3）。
 func Testログインと再確認とログアウト(t *testing.T) {
-	srv, mailer := newServer(t)
+	srv, mailer, clk := newServer(t)
 	signupAndLogout(t, srv, mailer, "device-1")
+	clk.Advance(auth.CodeSendInterval) // 登録のときのコード送信から間隔をあける（AUTHN-6）
 
 	// 既知の端末：パスワードだけでログインできる
 	rec := post(t, srv, "/auth/login", api.LoginInput{Email: email, Password: password}, map[string]string{"X-Device-Id": "device-1"})
@@ -102,6 +103,12 @@ func Testログインと再確認とログアウト(t *testing.T) {
 		t.Errorf("challenge=%+v", ch)
 	}
 
+	// 送った直後の再送は 429（AUTHN-6）。1分たてば送れる
+	rec = post(t, srv, "/auth/login/recheck/codes", api.LoginChallengeInput{ChallengeToken: ch.ChallengeToken}, nil)
+	if rec.Code != http.StatusTooManyRequests || decode[api.Error](t, rec).Code != "too_many_requests" {
+		t.Fatalf("直後の再送: %d %s", rec.Code, rec.Body.String())
+	}
+	clk.Advance(auth.CodeSendInterval)
 	if rec := post(t, srv, "/auth/login/recheck/codes", api.LoginChallengeInput{ChallengeToken: ch.ChallengeToken}, nil); rec.Code != http.StatusAccepted {
 		t.Fatalf("再送: %d %s", rec.Code, rec.Body.String())
 	}
@@ -136,7 +143,7 @@ func Testログインと再確認とログアウト(t *testing.T) {
 }
 
 func Testログインの失敗はError形式(t *testing.T) {
-	srv, mailer := newServer(t)
+	srv, mailer, _ := newServer(t)
 	signupAndLogout(t, srv, mailer, "device-1")
 
 	tests := []struct {
@@ -165,7 +172,7 @@ func Testログインの失敗はError形式(t *testing.T) {
 }
 
 func Test自分の情報はセッションが必要(t *testing.T) {
-	srv, _ := newServer(t)
+	srv, _, _ := newServer(t)
 	for _, c := range []*http.Cookie{nil, {Name: auth.SessionCookieName, Value: "no-such-session"}} {
 		rec := getMe(t, srv, c)
 		if rec.Code != http.StatusUnauthorized {

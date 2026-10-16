@@ -18,4 +18,16 @@ const (
 	RecheckInterval = 30 * 24 * time.Hour
 	// MaxCodeFailures はコードの入力ミスの上限。超えたらそのコードを無効にする（AUTHN-6）
 	MaxCodeFailures = 5
+	// CodeSendInterval は同じアドレスへのコード送信の間隔。用途をまとめて数える（AUTHN-6, ADR 0011）
+	CodeSendInterval = time.Minute
+	// CodeSendWindow の間に同じアドレスへ送れるコードは MaxCodeSends 回まで（AUTHN-6）
+	CodeSendWindow = time.Hour
+	MaxCodeSends   = 5
+	// MailWarnWindow の間に全体で送ったコードのメールが MailWarnThreshold 通に達したら警告のログを出す。
+	// Gmail の1日の送信数の上限（およそ500通）に近づいたことを管理者に知らせる（AUTHN-6, AUTHN-7）
+	MailWarnWindow    = 24 * time.Hour
+	MailWarnThreshold = 400
+	// MaxPasswordFailures 回続けてパスワードを間違えたら、LoginLockDuration の間ログインを止める（AUTHN-6）
+	MaxPasswordFailures = 10
+	LoginLockDuration   = 15 * time.Minute
 )

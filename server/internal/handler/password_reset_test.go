@@ -5,12 +5,14 @@ import (
 	"testing"
 
 	"github.com/takuma0403/osagari_web/server/internal/api"
+	"github.com/takuma0403/osagari_web/server/internal/auth"
 )
 
 // 完了条件「再設定後に新パスワードでログインでき、古いセッションが無効になる」（AUTHN-4）。
 func Testパスワード再設定(t *testing.T) {
-	srv, mailer := newServer(t)
+	srv, mailer, clk := newServer(t)
 	signupAndLogout(t, srv, mailer, "device-1")
+	clk.Advance(auth.CodeSendInterval) // 登録のときのコード送信から間隔をあける（AUTHN-6）
 	rec := post(t, srv, "/auth/login", api.LoginInput{Email: email, Password: password}, map[string]string{"X-Device-Id": "device-1"})
 	if rec.Code != http.StatusOK {
 		t.Fatalf("login: %d %s", rec.Code, rec.Body.String())
@@ -58,7 +60,7 @@ func Testパスワード再設定(t *testing.T) {
 }
 
 func Testパスワード再設定は未登録でも同じ応答(t *testing.T) {
-	srv, _ := newServer(t)
+	srv, _, _ := newServer(t)
 	if rec := post(t, srv, "/auth/password-reset/codes", api.EmailInput{Email: email}, nil); rec.Code != http.StatusAccepted || rec.Body.Len() != 0 {
 		t.Errorf("未登録: %d %s", rec.Code, rec.Body.String())
 	}

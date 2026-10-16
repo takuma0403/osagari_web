@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"log/slog"
 	"net/http"
 	"time"
 
@@ -43,6 +44,8 @@ type SignupDeps struct {
 	Devices  TrustedDeviceStore
 	Mailer   mail.Mailer
 	Clock    clock.Clock
+	// Logger は送信数の警告に使う。nil なら slog.Default()
+	Logger *slog.Logger
 }
 
 // SignupService は新規登録（コード送信 → コード確認 → パスワード設定）を行う（AUTH-1, AUTHN-2）。
@@ -51,6 +54,7 @@ type SignupService struct {
 }
 
 func NewSignupService(d SignupDeps) *SignupService {
+	d.Logger = loggerOrDefault(d.Logger)
 	return &SignupService{d: d}
 }
 
@@ -78,9 +82,9 @@ func (s *SignupService) SendCode(ctx context.Context, rawEmail string) error {
 		return apperr.Internal(err)
 	}
 	// 登録済みでも同じようにコードを作って保存する（所要時間とその後の確認の応答を揃える。ADR 0007）
-	code, err := issueCode(ctx, s.d.Codes, email, domain.VerificationPurposeSignup, s.d.Clock.Now())
+	code, err := issueCode(ctx, s.d.Codes, s.d.Logger, email, domain.VerificationPurposeSignup, s.d.Clock.Now())
 	if err != nil {
-		return apperr.Internal(err)
+		return err
 	}
 
 	msg := signupCodeMail(email, code)

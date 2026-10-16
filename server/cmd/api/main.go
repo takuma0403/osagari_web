@@ -57,7 +57,7 @@ func run(logger *slog.Logger) error {
 	if err != nil {
 		return err
 	}
-	h, sessions := wire(gdb, clk, mailer)
+	h, sessions := wire(gdb, clk, mailer, logger)
 	e := server.New(server.Deps{
 		Logger:   logger,
 		Clock:    clk,
@@ -69,7 +69,7 @@ func run(logger *slog.Logger) error {
 
 // wire は repository → service → handler の順に依存を組み立てる。機能を足すときはここに追加する。
 // セッションの検証（server のミドルウェアが使う）も返す。
-func wire(gdb *gorm.DB, clk clock.Clock, mailer mail.Mailer) (api.StrictServerInterface, server.Authenticator) {
+func wire(gdb *gorm.DB, clk clock.Clock, mailer mail.Mailer, logger *slog.Logger) (api.StrictServerInterface, server.Authenticator) {
 	tx := repository.NewTransactor(gdb)
 	users := repository.NewUserRepository(gdb)
 	codes := repository.NewVerificationCodeRepository(gdb)
@@ -86,6 +86,7 @@ func wire(gdb *gorm.DB, clk clock.Clock, mailer mail.Mailer) (api.StrictServerIn
 		Devices:  devices,
 		Mailer:   mailer,
 		Clock:    clk,
+		Logger:   logger,
 	})
 	login := service.NewLoginService(service.LoginDeps{
 		Tx:         tx,
@@ -96,6 +97,7 @@ func wire(gdb *gorm.DB, clk clock.Clock, mailer mail.Mailer) (api.StrictServerIn
 		Devices:    devices,
 		Mailer:     mailer,
 		Clock:      clk,
+		Logger:     logger,
 	})
 	reset := service.NewPasswordResetService(service.PasswordResetDeps{
 		Tx:       tx,
@@ -106,6 +108,7 @@ func wire(gdb *gorm.DB, clk clock.Clock, mailer mail.Mailer) (api.StrictServerIn
 		Devices:  devices,
 		Mailer:   mailer,
 		Clock:    clk,
+		Logger:   logger,
 	})
 	session := service.NewSessionService(service.SessionDeps{
 		Sessions: sessions,

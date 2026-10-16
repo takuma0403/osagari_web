@@ -3,6 +3,7 @@ package service
 import (
 	"context"
 	"errors"
+	"log/slog"
 
 	"github.com/takuma0403/osagari_web/server/internal/apperr"
 	"github.com/takuma0403/osagari_web/server/internal/auth"
@@ -22,6 +23,8 @@ type PasswordResetDeps struct {
 	Devices  TrustedDeviceStore
 	Mailer   mail.Mailer
 	Clock    clock.Clock
+	// Logger は送信数の警告に使う。nil なら slog.Default()
+	Logger *slog.Logger
 }
 
 // PasswordResetService はメールのコードによるパスワードの再設定（コード送信 → コード確認 → 新しいパスワードの設定）を行う（AUTHN-4, ADR 0010）。
@@ -30,6 +33,7 @@ type PasswordResetService struct {
 }
 
 func NewPasswordResetService(d PasswordResetDeps) *PasswordResetService {
+	d.Logger = loggerOrDefault(d.Logger)
 	return &PasswordResetService{d: d}
 }
 
@@ -48,9 +52,9 @@ func (s *PasswordResetService) SendCode(ctx context.Context, rawEmail string) er
 		return apperr.Internal(err)
 	}
 	registered := err == nil && u.Status != domain.UserStatusDeleted
-	code, err := issueCode(ctx, s.d.Codes, email, domain.VerificationPurposePasswordReset, s.d.Clock.Now())
+	code, err := issueCode(ctx, s.d.Codes, s.d.Logger, email, domain.VerificationPurposePasswordReset, s.d.Clock.Now())
 	if err != nil {
-		return apperr.Internal(err)
+		return err
 	}
 
 	msg := passwordResetNotRegisteredMail(email)

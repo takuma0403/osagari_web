@@ -3,6 +3,7 @@ package service
 import (
 	"context"
 	"errors"
+	"log/slog"
 	"net/http"
 	"time"
 
@@ -44,6 +45,8 @@ type LoginDeps struct {
 	Devices    TrustedDeviceStore
 	Mailer     mail.Mailer
 	Clock      clock.Clock
+	// Logger は送信数の警告に使う。nil なら slog.Default()
+	Logger *slog.Logger
 }
 
 // LoginService はパスワードでのログインと、メールのコードによる再確認を行う（AUTH-1, AUTHN-3, AUTHN-5, ADR 0009）。
@@ -52,6 +55,7 @@ type LoginService struct {
 }
 
 func NewLoginService(d LoginDeps) *LoginService {
+	d.Logger = loggerOrDefault(d.Logger)
 	return &LoginService{d: d}
 }
 
@@ -178,9 +182,9 @@ func (s *LoginService) startChallenge(ctx context.Context, u *domain.User, reaso
 
 // sendRecheckCode は再確認のコードを作り直してメールで送る。古いコードは使えなくなる。
 func (s *LoginService) sendRecheckCode(ctx context.Context, email string, now time.Time) error {
-	code, err := issueCode(ctx, s.d.Codes, email, domain.VerificationPurposeLoginRecheck, now)
+	code, err := issueCode(ctx, s.d.Codes, s.d.Logger, email, domain.VerificationPurposeLoginRecheck, now)
 	if err != nil {
-		return apperr.Internal(err)
+		return err
 	}
 	if err := s.d.Mailer.Send(ctx, loginRecheckCodeMail(email, code)); err != nil {
 		return apperr.Internal(err)
@@ -188,7 +192,7 @@ func (s *LoginService) sendRecheckCode(ctx context.Context, email string, now ti
 	return nil
 }
 
-// ResendRecheckCode はチャレンジが使えるなら、再確認のコードを送り直す（AUTHN-3）。送信回数の制限は #12（AUTHN-6）。
+// ResendRecheckCode はチャレンジが使えるなら、再確認のコードを送り直す（AUTHN-3）。送信回数の制限は issueCode（AUTHN-6）。
 func (s *LoginService) ResendRecheckCode(ctx context.Context, challengeToken string) error {
 	now := s.d.Clock.Now()
 	_, u, err := s.activeChallenge(ctx, challengeToken, now)

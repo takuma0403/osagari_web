@@ -84,6 +84,7 @@ func TestPasswordReset_SendCode(t *testing.T) {
 		if err := f.gdb.Exec("UPDATE users SET status = ? WHERE email = ?", string(domain.UserStatusDeleted), deleted).Error; err != nil {
 			t.Fatal(err)
 		}
+		f.clock.Advance(auth.CodeSendInterval) // 登録のときのコード送信から間隔をあける（AUTHN-6）
 		before := f.count(t, "verification_codes")
 		sent := len(f.mailer.Messages())
 

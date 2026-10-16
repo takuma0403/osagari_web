@@ -119,14 +119,6 @@ func (r *VerificationCodeRepository) CountSince(ctx context.Context, since time.
 	return int(n), err
 }
 
-// InvalidateActive は同じアドレス・用途の未使用のコードをすべて無効にする（再送したら古いコードは使えなくする）。
-func (r *VerificationCodeRepository) InvalidateActive(ctx context.Context, email string, purpose domain.VerificationPurpose, now time.Time) error {
-	ts := formatTime(now)
-	return conn(ctx, r.db).Model(&verificationCodeRow{}).
-		Where("email = ? AND purpose = ? AND consumed_at IS NULL", email, string(purpose)).
-		Updates(map[string]any{"consumed_at": ts, "updated_at": ts}).Error
-}
-
 // InvalidateOthers は同じアドレス・用途の未使用のコードのうち、keepID 以外をすべて無効にする（再送したら古いコードは使えなくする）。
 func (r *VerificationCodeRepository) InvalidateOthers(ctx context.Context, email string, purpose domain.VerificationPurpose, keepID string, now time.Time) error {
 	ts := formatTime(now)

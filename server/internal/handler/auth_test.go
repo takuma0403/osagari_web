@@ -25,7 +25,7 @@ import (
 
 const email = "26238001@edu.cc.saga-u.ac.jp"
 
-func newServer(t *testing.T) (http.Handler, *mail.Recorder) {
+func newServer(t *testing.T) (http.Handler, *mail.Recorder, *clock.Fake) {
 	t.Helper()
 	gdb := testdb.New(t)
 	clk := clock.NewFake(time.Date(2026, 10, 14, 9, 0, 0, 0, time.UTC))
@@ -71,7 +71,7 @@ func newServer(t *testing.T) (http.Handler, *mail.Recorder) {
 		Handler:  handler.New(handler.Deps{Signup: signup, Login: login, Session: session, PasswordReset: reset}),
 		Sessions: session,
 	})
-	return e, mailer
+	return e, mailer, clk
 }
 
 func post(t *testing.T, h http.Handler, path string, body any, header map[string]string) *httptest.ResponseRecorder {
@@ -103,7 +103,7 @@ var codeInMail = regexp.MustCompile(`認証コード：([0-9]{6})`)
 
 // 完了条件「登録〜ログイン状態までが API で通る」（AUTHN-2）。
 func Test新規登録からログイン状態まで(t *testing.T) {
-	srv, mailer := newServer(t)
+	srv, mailer, _ := newServer(t)
 
 	rec := post(t, srv, "/auth/signup/estimate", api.EmailInput{Email: email}, nil)
 	if rec.Code != http.StatusOK {
@@ -150,7 +150,7 @@ func Test新規登録からログイン状態まで(t *testing.T) {
 
 // 完了条件「登録済みアドレスでも応答が区別できない」（AUTHN-2）。
 func Test登録済みのアドレスでもコード送信の応答が同じ(t *testing.T) {
-	srv, mailer := newServer(t)
+	srv, mailer, clk := newServer(t)
 	register := func(email string) {
 		post(t, srv, "/auth/signup/codes", api.EmailInput{Email: email}, nil)
 		m, _ := mailer.Last()
@@ -159,6 +159,7 @@ func Test登録済みのアドレスでもコード送信の応答が同じ(t *t
 		post(t, srv, "/auth/signup/complete", api.SignupCompletion{SetupToken: v.SetupToken, Password: "correct horse battery"}, nil)
 	}
 	register(email)
+	clk.Advance(auth.CodeSendInterval) // 登録のときのコード送信から間隔をあける（AUTHN-6）
 
 	registered := post(t, srv, "/auth/signup/codes", api.EmailInput{Email: email}, nil)
 	fresh := post(t, srv, "/auth/signup/codes", api.EmailInput{Email: "26238002@edu.cc.saga-u.ac.jp"}, nil)
@@ -182,7 +183,7 @@ func Test登録済みのアドレスでもコード送信の応答が同じ(t *t
 }
 
 func Test入力の誤りはError形式の400(t *testing.T) {
-	srv, _ := newServer(t)
+	srv, _, _ := newServer(t)
 	cases := []struct {
 		name string
 		path string
