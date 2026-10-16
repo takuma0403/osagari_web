@@ -1,5 +1,5 @@
 import { useState, type FormEvent } from 'react'
-import { Link, useNavigate } from 'react-router'
+import { Link, useLocation, useNavigate } from 'react-router'
 import { isApiError } from '../../../api/client'
 import { AppLogo } from '../../../components/AppLogo/AppLogo'
 import { Button, ButtonLink } from '../../../components/Button/Button'
@@ -8,17 +8,21 @@ import { InfoBox } from '../../../components/InfoBox/InfoBox'
 import { TextField } from '../../../components/TextField/TextField'
 import { STUDENT_ID_LENGTH } from '../../../lib/studentId'
 import { login } from '../api'
+import type { RedirectState } from '../navigation'
+import { useSession } from '../session'
 import styles from './LoginPage.module.css'
 
 type Failure = { locked: boolean; message: string }
 
 /**
  * ログイン（AUTH-1, AUTHN-3）。デザインは Login.dc.html。
- * パスワードが一致して再確認が必要なとき（202）は、チャレンジを持って /recheck へ進む。
+ * パスワードが一致して再確認が必要なとき（202）は、チャレンジと開こうとしていたページを持って /recheck へ進む。
  * 失敗の文言はサーバーの message をそのまま出す（登録の有無を区別しない文言はサーバーが返す。AUTHN-3）。
  */
 export function LoginPage() {
   const navigate = useNavigate()
+  const location = useLocation()
+  const { signIn } = useSession()
   const [studentId, setStudentId] = useState('')
   const [password, setPassword] = useState('')
   const [submitting, setSubmitting] = useState(false)
@@ -43,9 +47,11 @@ export function LoginPage() {
     try {
       const result = await login(studentId, password)
       if (result.kind === 'loggedIn') {
-        navigate('/', { replace: true })
+        // 行き先（開こうとしていたページか商品一覧）は GuestOnly が決める
+        signIn(result.user)
       } else {
-        navigate('/recheck', { state: { challenge: result.challenge } })
+        const { from } = (location.state ?? {}) as RedirectState
+        navigate('/recheck', { state: { challenge: result.challenge, from } })
       }
     } catch (err) {
       if (!isApiError(err)) throw err

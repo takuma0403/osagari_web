@@ -6,11 +6,11 @@ import { LoginPage } from './LoginPage'
 const json = (body: unknown, status = 200) =>
   new Response(JSON.stringify(body), { status, headers: { 'Content-Type': 'application/json' } })
 
-function setup(response: () => Response) {
+function setup(response: () => Response, state?: unknown) {
   const fetchMock = vi.fn(async () => response())
   vi.stubGlobal('fetch', fetchMock)
   const user = userEvent.setup()
-  const view = renderRoute('/login', <LoginPage />, { destinations: ['/', '/recheck'] })
+  const view = renderRoute('/login', <LoginPage />, { state, destinations: ['/recheck'] })
   return { ...view, user, fetchMock }
 }
 
@@ -35,11 +35,10 @@ describe('LoginPage', () => {
     expect(submit).toBeEnabled()
   })
 
-  it('ログインできたら商品一覧へ進む', async () => {
-    const { user, router, fetchMock } = setup(() => json({ id: 'u1' }))
+  it('ログインできたらログイン状態にする（行き先は GuestOnly が決める）', async () => {
+    const { user, session, fetchMock } = setup(() => json({ id: 'u1' }))
     await fillAndSubmit(user)
-    expect(await screen.findByRole('heading', { name: '/' })).toBeInTheDocument()
-    expect(router.state.location.pathname).toBe('/')
+    await vi.waitFor(() => expect(session.signIn).toHaveBeenCalledWith({ id: 'u1' }))
     expect(fetchMock).toHaveBeenCalledWith(
       '/api/auth/login',
       expect.objectContaining({
@@ -59,6 +58,18 @@ describe('LoginPage', () => {
     await fillAndSubmit(user)
     const heading = await screen.findByRole('heading', { name: '/recheck' })
     expect(JSON.parse(heading.dataset.state!)).toEqual({ challenge })
+  })
+
+  it('開こうとしていたページがあれば、再確認へも引き継ぐ', async () => {
+    const challenge = {
+      challengeToken: 't',
+      reason: 'code_expired',
+      email: '26238001@edu.cc.saga-u.ac.jp',
+    }
+    const { user } = setup(() => json(challenge, 202), { from: '/deals/42' })
+    await fillAndSubmit(user)
+    const heading = await screen.findByRole('heading', { name: '/recheck' })
+    expect(JSON.parse(heading.dataset.state!)).toEqual({ challenge, from: '/deals/42' })
   })
 
   it('失敗したらサーバーの文言を出し、入力を直すと消す', async () => {

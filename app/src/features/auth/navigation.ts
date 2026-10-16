@@ -16,3 +16,17 @@ export function isSignupCodeState(state: unknown): state is SignupCodeState {
   const s = state as Record<string, unknown>
   return typeof s.studentId === 'string' && typeof s.sentAt === 'number'
 }
+
+/**
+ * ガードがログイン画面へ送るときの state：開こうとしていたページ（パス＋クエリ＋ハッシュ）。
+ * ログイン画面から再確認へも引き継ぎ、ログインできたらここへ戻す。
+ */
+export type RedirectState = { from?: string }
+
+/** ログインできたときの行き先。開こうとしていたページがなければ商品一覧 */
+export function redirectTarget(state: unknown): string {
+  if (typeof state !== 'object' || state === null) return '/'
+  const from = (state as Record<string, unknown>).from
+  // 外部のURLへは送らない（パスだけを受け付ける）
+  return typeof from === 'string' && from.startsWith('/') && !from.startsWith('//') ? from : '/'
+}

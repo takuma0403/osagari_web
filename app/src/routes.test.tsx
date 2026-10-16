@@ -1,24 +1,25 @@
 import { render, screen } from '@testing-library/react'
 import { createMemoryRouter, RouterProvider } from 'react-router'
+import { SessionContext, type Session } from './features/auth/session'
 import { routes } from './routes'
 
-function renderAt(path: string) {
-  const router = createMemoryRouter(routes, { initialEntries: [path] })
-  render(<RouterProvider router={router} />)
+const me = { id: 'u1', email: '26238001@edu.cc.saga-u.ac.jp' } as Session['user']
+
+/** user を省くとログイン中。undefined を渡すと確認中 */
+function renderAt(path: string, options: { user?: Session['user']; state?: unknown } = {}) {
+  const { state } = options
+  const user = 'user' in options ? options.user : me
+  const router = createMemoryRouter(routes, { initialEntries: [{ pathname: path, state }] })
+  render(
+    <SessionContext value={{ user, signIn: vi.fn(), signOut: vi.fn() }}>
+      <RouterProvider router={router} />
+    </SessionContext>,
+  )
   return router
 }
 
 describe('routes', () => {
   it.each([
-    ['/login', '佐賀大生どうしで、お下がりを回そう。'],
-    ['/signup', '新規登録'],
-    ['/signup/password', 'パスワード設定'],
-    ['/password-reset', 'パスワード再設定'],
-    ['/password-reset/code', '認証コード入力（パスワード再設定）'],
-    ['/password-reset/password', '新しいパスワードの設定'],
-    ['/recheck', 'ログインの確認'],
-    ['/terms', '利用規約'],
-    ['/privacy', 'プライバシーポリシー'],
     ['/', '商品一覧'],
     ['/search', '検索結果'],
     ['/items/abc123', '商品詳細'],
@@ -36,9 +37,54 @@ describe('routes', () => {
     ['/admin/users', 'ユーザー'],
     ['/admin/items', '出品・取引'],
     ['/admin/settings', '設定（手数料率）'],
-  ])('%s で「%s」を表示する', (path, title) => {
+    ['/terms', '利用規約'],
+    ['/privacy', 'プライバシーポリシー'],
+  ])('ログイン中は %s で「%s」を表示する', (path, title) => {
     renderAt(path)
     expect(screen.getByRole('heading', { level: 1, name: title })).toBeInTheDocument()
+  })
+
+  it.each([
+    ['/login', '佐賀大生どうしで、お下がりを回そう。'],
+    ['/signup', '新規登録'],
+    ['/terms', '利用規約'],
+    ['/privacy', 'プライバシーポリシー'],
+  ])('未ログインでも %s で「%s」を表示する', (path, title) => {
+    renderAt(path, { user: null })
+    expect(screen.getByRole('heading', { level: 1, name: title })).toBeInTheDocument()
+  })
+
+  it.each(['/', '/items/abc123', '/deals/42?tab=qr', '/admin/users'])(
+    '未ログインで %s を開くとログイン画面へ送り、開こうとしたページを残す',
+    (path) => {
+      const router = renderAt(path, { user: null })
+      expect(router.state.location.pathname).toBe('/login')
+      expect(router.state.location.state).toEqual({ from: path })
+    },
+  )
+
+  it('ログイン状態の確認中は保護ルートもログイン画面も描画しない', () => {
+    const router = renderAt('/deals', { user: undefined })
+    expect(router.state.location.pathname).toBe('/deals')
+    expect(screen.queryByRole('heading')).not.toBeInTheDocument()
+  })
+
+  it.each(['/login', '/signup', '/signup/code', '/password-reset', '/recheck'])(
+    'ログイン済みで %s を開くと商品一覧へ送る',
+    (path) => {
+      const router = renderAt(path)
+      expect(router.state.location.pathname).toBe('/')
+    },
+  )
+
+  it('ログイン済みになったら、開こうとしていたページへ送る', () => {
+    const router = renderAt('/login', { state: { from: '/deals/42' } })
+    expect(router.state.location.pathname).toBe('/deals/42')
+  })
+
+  it('開こうとしていたページが外部のURLなら商品一覧へ送る', () => {
+    const router = renderAt('/login', { state: { from: '//evil.example.com' } })
+    expect(router.state.location.pathname).toBe('/')
   })
 
   it.each(['/', '/search', '/deals', '/mypage'])('%s では下部ナビを表示する', (path) => {
@@ -46,13 +92,18 @@ describe('routes', () => {
     expect(screen.getByRole('navigation', { name: 'メインメニュー' })).toBeInTheDocument()
   })
 
-  it.each(['/login', '/items/abc123', '/sell', '/deals/42', '/mypage/sales'])(
+  it.each(['/items/abc123', '/sell', '/deals/42', '/mypage/sales'])(
     '%s では下部ナビを表示しない',
     (path) => {
       renderAt(path)
       expect(screen.queryByRole('navigation', { name: 'メインメニュー' })).not.toBeInTheDocument()
     },
   )
+
+  it('ログイン画面では下部ナビを表示しない', () => {
+    renderAt('/login', { user: null })
+    expect(screen.queryByRole('navigation', { name: 'メインメニュー' })).not.toBeInTheDocument()
+  })
 
   it('管理画面のルートでは管理メニューを表示する', () => {
     renderAt('/admin/users')
@@ -66,7 +117,7 @@ describe('routes', () => {
   })
 
   it('知らないパスは「ページが見つかりません」を表示する', () => {
-    renderAt('/no-such-page')
+    renderAt('/no-such-page', { user: null })
     expect(
       screen.getByRole('heading', { level: 1, name: 'ページが見つかりません' }),
     ).toBeInTheDocument()
