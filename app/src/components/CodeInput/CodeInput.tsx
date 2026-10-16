@@ -7,8 +7,10 @@ type Props = {
   /** 入力中のコード（数字だけ、最大6桁） */
   value: string
   onChange: (code: string) => void
-  /** 6マスをまとめた名前（読み上げ用） */
+  /** 6マスをまとめた名前。既定は読み上げだけ */
   label?: string
+  /** label を見出しとして画面にも出す（再確認の「メールに届いた6桁のコード」） */
+  showLabel?: boolean
   /** 入力エラー（例 コードが違います。あと3回…）。role="alert" で読み上げる */
   error?: string
   /** 有効期限の残り（例 9:41）。カウントダウンは利用側で行う */
@@ -28,6 +30,7 @@ export function CodeInput({
   value,
   onChange,
   label = '認証コード',
+  showLabel,
   error,
   expiresIn,
   resend,
@@ -89,7 +92,7 @@ export function CodeInput({
 
   return (
     <fieldset className={[styles.root, error && styles.invalid].filter(Boolean).join(' ')}>
-      <legend className="visually-hidden">{label}</legend>
+      <legend className={showLabel ? styles.label : 'visually-hidden'}>{label}</legend>
       <div className={styles.boxes}>
         {digits.map((digit, i) => (
           <input

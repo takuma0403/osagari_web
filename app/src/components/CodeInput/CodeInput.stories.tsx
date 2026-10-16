@@ -29,3 +29,7 @@ export const WithError: Story = {
 export const CanResend: Story = {
   args: { value: '', resend: { label: 'コードを再送', onClick: () => {} } },
 }
+
+export const WithLabel: Story = {
+  args: { label: 'メールに届いた6桁のコード', showLabel: true, value: '' },
+}

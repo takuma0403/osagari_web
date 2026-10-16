@@ -7,6 +7,14 @@
   border: none;
 }
 
+/* legend は fieldset の flex の gap が効かないため、下の余白を自分で持つ */
+.label {
+  margin-bottom: 10px;
+  padding: 0;
+  font-size: var(--text-label);
+  font-weight: 700;
+}
+
 .boxes {
   display: grid;
   grid-template-columns: repeat(6, minmax(0, 1fr));
