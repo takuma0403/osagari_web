@@ -187,3 +187,31 @@ func Test自分の情報はセッションが必要(t *testing.T) {
 		t.Errorf("未ログインのログアウト: %d %s", rec.Code, rec.Body.String())
 	}
 }
+
+// 完了条件「上限を超えると 429 が返り、期限後に解除される」（AUTHN-6）。
+func Testパスワードの入力ミスが続くと429で期限後に解除される(t *testing.T) {
+	srv, mailer, clk := newServer(t)
+	signupAndLogout(t, srv, mailer, "device-1")
+	device := map[string]string{"X-Device-Id": "device-1"}
+	for i := range auth.MaxPasswordFailures {
+		rec := post(t, srv, "/auth/login", api.LoginInput{Email: email, Password: "wrong password!!"}, device)
+		if rec.Code != http.StatusUnauthorized {
+			t.Fatalf("%d回目: %d %s", i+1, rec.Code, rec.Body.String())
+		}
+	}
+	rec := post(t, srv, "/auth/login", api.LoginInput{Email: email, Password: password}, device)
+	if rec.Code != http.StatusTooManyRequests {
+		t.Fatalf("上限を超えても 429 にならない: %d %s", rec.Code, rec.Body.String())
+	}
+	if e := decode[api.Error](t, rec); e.Code != "too_many_requests" || e.Message == "" {
+		t.Errorf("error=%+v", e)
+	}
+	if len(rec.Result().Cookies()) != 0 {
+		t.Errorf("止めている間に Cookie が出た: %v", rec.Result().Cookies())
+	}
+
+	clk.Advance(auth.LoginLockDuration)
+	if rec := post(t, srv, "/auth/login", api.LoginInput{Email: email, Password: password}, device); rec.Code != http.StatusOK {
+		t.Errorf("期限後もログインできない: %d %s", rec.Code, rec.Body.String())
+	}
+}

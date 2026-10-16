@@ -31,6 +31,7 @@ func newResetFixture(t *testing.T) *resetFixture {
 		Users:    repository.NewUserRepository(f.gdb),
 		Codes:    repository.NewVerificationCodeRepository(f.gdb),
 		Tokens:   repository.NewPasswordSetupTokenRepository(f.gdb),
+		Failures: repository.NewLoginFailureRepository(f.gdb),
 		Sessions: repository.NewSessionRepository(f.gdb),
 		Devices:  repository.NewTrustedDeviceRepository(f.gdb),
 		Mailer:   f.mailer,

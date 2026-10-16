@@ -33,6 +33,9 @@ var (
 		"このアカウントは有効期限が切れたため、ログインできません")
 	errInvalidLoginChallenge = apperr.New(http.StatusBadRequest, CodeInvalidLoginChallenge,
 		"ログインの手続きの有効期限が切れました。もう一度ログインしてください")
+	// 未登録のアドレスでも同じように止めるので、登録の有無は分からない（AUTHN-6, ADR 0011）
+	errLoginLocked = apperr.TooManyRequests(
+		"ログインの失敗が続いたため、しばらくログインできません。15分ほどたってからもう一度お試しください")
 )
 
 // LoginDeps は LoginService の依存。
@@ -41,6 +44,7 @@ type LoginDeps struct {
 	Users      UserStore
 	Codes      VerificationCodeStore
 	Challenges LoginChallengeStore
+	Failures   LoginFailureStore
 	Sessions   SessionStore
 	Devices    TrustedDeviceStore
 	Mailer     mail.Mailer
@@ -82,6 +86,9 @@ type LoggedIn struct {
 
 // Login はメールアドレスとパスワードでログインする（AUTHN-3）。
 //
+// パスワードの入力は、アドレスごとに照合の前に数える。auth.MaxPasswordFailures 回続けて間違えたら auth.LoginLockDuration の間
+// 照合せずに 429 を返す（AUTHN-6, ADR 0011）。未登録・削除済みのアドレスも同じように数えて止める。
+//
 // パスワードが一致し、最後にコードで確認してから auth.RecheckInterval 未満で、端末（deviceID）が登録済みなら
 // そのままセッションを発行する。そうでなければメールにコードを送り、再確認用のチャレンジを返す。
 func (s *LoginService) Login(ctx context.Context, rawEmail, password, deviceID string) (LoginResult, error) {
@@ -90,11 +97,19 @@ func (s *LoginService) Login(ctx context.Context, rawEmail, password, deviceID s
 	if err != nil || auth.ValidatePassword(password) != nil {
 		return LoginResult{}, errInvalidCredentials
 	}
+	now := s.d.Clock.Now()
+	attempts, err := s.d.Failures.ReserveAttempt(ctx, email, auth.MaxPasswordFailures, now)
+	if errors.Is(err, repository.ErrRateLimited) {
+		return LoginResult{}, errLoginLocked
+	}
+	if err != nil {
+		return LoginResult{}, apperr.Internal(err)
+	}
 	u, err := s.d.Users.FindByEmail(ctx, email)
 	if errors.Is(err, repository.ErrNotFound) || (err == nil && u.Status == domain.UserStatusDeleted) {
 		// 未登録・削除済みでも同じだけ計算して、所要時間から判別させない
 		auth.VerifyDummyPassword(password)
-		return LoginResult{}, errInvalidCredentials
+		return LoginResult{}, s.wrongPassword(ctx, email, attempts, now)
 	}
 	if err != nil {
 		return LoginResult{}, apperr.Internal(err)
@@ -104,10 +119,13 @@ func (s *LoginService) Login(ctx context.Context, rawEmail, password, deviceID s
 		return LoginResult{}, apperr.Internal(err)
 	}
 	if !ok {
-		return LoginResult{}, errInvalidCredentials
+		return LoginResult{}, s.wrongPassword(ctx, email, attempts, now)
+	}
+	// パスワードが一致したら、この後に停止中・失効・再確認で止まっても入力ミスの回数は戻す
+	if err := s.d.Failures.Reset(ctx, email, now); err != nil {
+		return LoginResult{}, apperr.Internal(err)
 	}
 
-	now := s.d.Clock.Now()
 	if err := checkUsable(u, now); err != nil {
 		return LoginResult{}, err
 	}
@@ -136,6 +154,17 @@ func (s *LoginService) Login(ctx context.Context, rawEmail, password, deviceID s
 		return LoginResult{}, apperr.Internal(err)
 	}
 	return LoginResult{User: u, Session: &sess}, nil
+}
+
+// wrongPassword はパスワードが違ったときのエラーを返す。入力の回数が上限に達していたら、ここからログインを止める（AUTHN-6）。
+// この回の応答は止める前と同じ 401 で、次の入力から 429 になる。
+func (s *LoginService) wrongPassword(ctx context.Context, email string, attempts int, now time.Time) error {
+	if attempts >= auth.MaxPasswordFailures {
+		if err := s.d.Failures.Lock(ctx, email, now.Add(auth.LoginLockDuration), now); err != nil {
+			return apperr.Internal(err)
+		}
+	}
+	return errInvalidCredentials
 }
 
 // recheckReason は再確認が必要な理由を返す。要らなければ空。両方に当てはまるときは code_expired（ADR 0009）。

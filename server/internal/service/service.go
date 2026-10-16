@@ -51,6 +51,13 @@ type SessionStore interface {
 	RevokeAllByUser(ctx context.Context, userID string, now time.Time) error
 }
 
+// LoginFailureStore は login_failures の読み書き（repository.LoginFailureRepository）。
+type LoginFailureStore interface {
+	ReserveAttempt(ctx context.Context, email string, maxAttempts int, now time.Time) (int, error)
+	Lock(ctx context.Context, email string, until, now time.Time) error
+	Reset(ctx context.Context, email string, now time.Time) error
+}
+
 // TrustedDeviceStore は trusted_devices の読み書き（repository.TrustedDeviceRepository）。
 type TrustedDeviceStore interface {
 	Upsert(ctx context.Context, d *domain.TrustedDevice) error

@@ -32,6 +32,7 @@ func newLoginFixture(t *testing.T) *loginFixture {
 		Users:      repository.NewUserRepository(f.gdb),
 		Codes:      repository.NewVerificationCodeRepository(f.gdb),
 		Challenges: repository.NewLoginChallengeRepository(f.gdb),
+		Failures:   repository.NewLoginFailureRepository(f.gdb),
 		Sessions:   repository.NewSessionRepository(f.gdb),
 		Devices:    repository.NewTrustedDeviceRepository(f.gdb),
 		Mailer:     f.mailer,

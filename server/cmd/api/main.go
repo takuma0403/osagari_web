@@ -76,6 +76,7 @@ func wire(gdb *gorm.DB, clk clock.Clock, mailer mail.Mailer, logger *slog.Logger
 	sessions := repository.NewSessionRepository(gdb)
 	devices := repository.NewTrustedDeviceRepository(gdb)
 	tokens := repository.NewPasswordSetupTokenRepository(gdb)
+	failures := repository.NewLoginFailureRepository(gdb)
 
 	signup := service.NewSignupService(service.SignupDeps{
 		Tx:       tx,
@@ -93,6 +94,7 @@ func wire(gdb *gorm.DB, clk clock.Clock, mailer mail.Mailer, logger *slog.Logger
 		Users:      users,
 		Codes:      codes,
 		Challenges: repository.NewLoginChallengeRepository(gdb),
+		Failures:   failures,
 		Sessions:   sessions,
 		Devices:    devices,
 		Mailer:     mailer,
@@ -104,6 +106,7 @@ func wire(gdb *gorm.DB, clk clock.Clock, mailer mail.Mailer, logger *slog.Logger
 		Users:    users,
 		Codes:    codes,
 		Tokens:   tokens,
+		Failures: failures,
 		Sessions: sessions,
 		Devices:  devices,
 		Mailer:   mailer,
