@@ -1,3 +1,4 @@
+import { getDeviceId } from '../lib/deviceId'
 import type { components } from './schema.gen'
 
 export type ApiErrorBody = components['schemas']['Error']
@@ -83,7 +84,8 @@ export function isApiError(err: unknown): err is ApiError {
 }
 
 /**
- * /api 配下を呼ぶ fetch の薄いラッパー。Cookie は同一オリジンの __session だけを送る（AUTHN-3）。
+ * /api 配下を呼ぶ fetch の薄いラッパー。Cookie は同一オリジンの __session だけを送り、
+ * 端末識別子を X-Device-Id ヘッダーで付ける（AUTHN-3）。
  * 2xx 以外と通信の失敗は ApiError を投げる。204 など本文のない成功は undefined を返す。
  */
 export async function request<T>(path: string, init: RequestInit = {}): Promise<T> {
@@ -92,7 +94,7 @@ export async function request<T>(path: string, init: RequestInit = {}): Promise<
     res = await fetch(`/api${path}`, {
       ...init,
       credentials: 'same-origin',
-      headers: { Accept: 'application/json', ...init.headers },
+      headers: { Accept: 'application/json', 'X-Device-Id': getDeviceId(), ...init.headers },
     })
   } catch (err) {
     // 呼び出し側が中断したときは AbortError をそのまま返す

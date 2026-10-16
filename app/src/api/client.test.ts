@@ -1,3 +1,4 @@
+import { getDeviceId } from '../lib/deviceId'
 import { ApiError, isApiError, request } from './client'
 
 const json = (body: unknown, status = 200) =>
@@ -31,6 +32,17 @@ describe('request', () => {
       expect.objectContaining({
         credentials: 'same-origin',
         headers: expect.objectContaining({ Accept: 'application/json' }),
+      }),
+    )
+  })
+
+  it('端末識別子を X-Device-Id ヘッダーで送る（AUTHN-3）', async () => {
+    const fetchMock = mockFetch(async () => json({ status: 'ok' }))
+    await request('/health')
+    expect(fetchMock).toHaveBeenCalledWith(
+      '/api/health',
+      expect.objectContaining({
+        headers: expect.objectContaining({ 'X-Device-Id': getDeviceId() }),
       }),
     )
   })
