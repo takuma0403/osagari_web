@@ -3,15 +3,20 @@ import { Button } from '../../../components/Button/Button'
 import { CodeInput } from '../../../components/CodeInput/CodeInput'
 import { InfoBox } from '../../../components/InfoBox/InfoBox'
 import { toUniversityEmail } from '../../../lib/studentId'
-import { sendSignupCode, verifySignupCode } from '../api'
+import {
+  sendPasswordResetCode,
+  sendSignupCode,
+  verifyPasswordResetCode,
+  verifySignupCode,
+} from '../api'
 import { AuthFormLayout } from '../components/AuthFormLayout/AuthFormLayout'
 import { useCodeEntry } from '../hooks/useCodeEntry'
 import { isCodeSentState, type CodeSentState } from '../navigation'
 import styles from './CodePage.module.css'
 
 /**
- * コード入力の手続きごとの違い。パスワード再設定・再確認（#14）はここに足す。
- * 文言は Code.dc.html の mode ごとの表示と同じにする。
+ * コード入力の手続きごとの違い。文言は Code.dc.html の mode ごとの表示と同じにする。
+ * 再確認（Code.dc.html の「再確認」）は、デザインの Recheck.dc.html を使う RecheckPage で扱う。
  */
 const flows = {
   signup: {
@@ -31,6 +36,16 @@ const flows = {
       </>
     ),
   },
+  passwordReset: {
+    backTo: '/password-reset',
+    next: '/password-reset/password',
+    step: { current: 2, total: 3 },
+    title: '認証コードを入力',
+    send: sendPasswordResetCode,
+    /** 成功したら一時トークン（PasswordResetState）を次の画面へ渡す */
+    verify: verifyPasswordResetCode,
+    note: null,
+  },
 } as const
 
 type Props = {
@@ -38,7 +53,7 @@ type Props = {
 }
 
 /**
- * 認証コードの入力（AUTH-1, AUTHN-1, AUTHN-2, AUTHN-6）。デザインは Code.dc.html。
+ * 認証コードの入力（AUTH-1, AUTHN-1, AUTHN-2, AUTHN-4, AUTHN-6）。新規登録とパスワード再設定で使う。デザインは Code.dc.html。
  * 有効期限（10分）と再送の待ち時間（1分）は、前の画面でコードを送った時刻から数える。
  */
 export function CodePage({ flow }: Props) {

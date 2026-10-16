@@ -127,3 +127,59 @@ describe('CodePage（新規登録）', () => {
     expect(screen.getByRole('link', { name: '戻る' })).toHaveAttribute('href', '/signup')
   })
 })
+
+describe('CodePage（パスワード再設定）', () => {
+  beforeEach(() => {
+    vi.useFakeTimers({ shouldAdvanceTime: true })
+    vi.setSystemTime(new Date('2026-10-16T12:00:00+09:00'))
+  })
+  afterEach(() => {
+    vi.useRealTimers()
+    vi.unstubAllGlobals()
+  })
+
+  function setupReset(handler: (path: string) => Response, state: unknown = undefined) {
+    const fetchMock = vi.fn(async (input: RequestInfo | URL) => handler(String(input)))
+    vi.stubGlobal('fetch', fetchMock)
+    const user = userEvent.setup({ advanceTimers: vi.advanceTimersByTime })
+    const view = renderRoute('/password-reset/code', <CodePage flow="passwordReset" />, {
+      state: state === undefined ? { studentId: '26238001', sentAt: Date.now() } : state,
+      destinations: ['/password-reset', '/password-reset/password'],
+    })
+    return { ...view, user, fetchMock }
+  }
+
+  it('送った学籍番号がなければ /password-reset へ戻す', () => {
+    const { router } = setupReset(() => json({}), null)
+    expect(router.state.location.pathname).toBe('/password-reset')
+  })
+
+  it('登録済みの案内は出さず、戻るは /password-reset', () => {
+    setupReset(() => json({}))
+    expect(screen.getByText('STEP 2 / 3')).toBeInTheDocument()
+    expect(screen.queryByText(/「登録済みです」/)).not.toBeInTheDocument()
+    expect(screen.getByRole('link', { name: '戻る' })).toHaveAttribute('href', '/password-reset')
+  })
+
+  it('確認できたら、一時トークンを持って /password-reset/password へ進む', async () => {
+    const { user, fetchMock } = setupReset(() => json({ setupToken: 'reset-token' }))
+    await enterCode(user, '123456')
+    await user.click(screen.getByRole('button', { name: '確認する' }))
+    const heading = await screen.findByRole('heading', { name: '/password-reset/password' })
+    expect(JSON.parse(heading.dataset.state!)).toEqual({ setupToken: 'reset-token' })
+    expect(fetchMock).toHaveBeenCalledWith(
+      '/api/auth/password-reset/codes/verify',
+      expect.objectContaining({
+        body: JSON.stringify({ email: '26238001@edu.cc.saga-u.ac.jp', code: '123456' }),
+      }),
+    )
+  })
+
+  it('送り直しはパスワード再設定のコードを送る', async () => {
+    const { user, fetchMock } = setupReset(() => new Response(null, { status: 202 }))
+    act(() => vi.advanceTimersByTime(60_000))
+    await user.click(screen.getByRole('button', { name: 'コードを再送' }))
+    expect(await screen.findByRole('button', { name: 'コードを再送（1:00 後）' })).toBeDisabled()
+    expect(fetchMock).toHaveBeenCalledWith('/api/auth/password-reset/codes', expect.anything())
+  })
+})
