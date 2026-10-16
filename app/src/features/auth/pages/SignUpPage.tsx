@@ -8,7 +8,7 @@ import { formatDate } from '../../../lib/format'
 import { STUDENT_ID_LENGTH } from '../../../lib/studentId'
 import { estimateStudent, sendSignupCode, type StudentEstimate } from '../api'
 import { AuthFormLayout } from '../components/AuthFormLayout/AuthFormLayout'
-import type { SignupCodeState } from '../navigation'
+import type { CodeSentState } from '../navigation'
 import styles from './SignUpPage.module.css'
 
 /** 推定結果の文（AUTH-2, AUTH-4）。表にない学部コードは「学部不明」として登録される */
@@ -54,7 +54,7 @@ export function SignUpPage() {
     setError(undefined)
     try {
       await sendSignupCode(studentId)
-      const state: SignupCodeState = { studentId, sentAt: Date.now() }
+      const state: CodeSentState = { studentId, sentAt: Date.now() }
       navigate('/signup/code', { state })
     } catch (err) {
       if (!isApiError(err)) throw err
