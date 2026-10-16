@@ -8,6 +8,8 @@ type Props = {
   title?: string
   /** 戻るボタンの行き先。onBack と両方なければ戻るボタンを出さない */
   backTo?: To
+  /** 戻り先へ渡す location.state */
+  backState?: unknown
   /** 戻るボタンを押したときの処理（行き先が決まらないとき。例 navigate(-1)） */
   onBack?: () => void
   /** 右側に置くもの（バッジ・アイコンボタンなど） */
@@ -17,12 +19,12 @@ type Props = {
 }
 
 /** 画面上部のヘッダー（DS-3）。高さ56px、戻るボタンは 44px */
-export function AppHeader({ title, backTo, onBack, right, bordered = true }: Props) {
+export function AppHeader({ title, backTo, backState, onBack, right, bordered = true }: Props) {
   const back = <Icon name="back" />
   return (
     <header className={[styles.header, bordered && styles.bordered].filter(Boolean).join(' ')}>
       {backTo !== undefined ? (
-        <Link to={backTo} className={styles.back} aria-label="戻る">
+        <Link to={backTo} state={backState} className={styles.back} aria-label="戻る">
           {back}
         </Link>
       ) : (

@@ -124,4 +124,15 @@ describe('RecheckPage', () => {
     )
     expect(router.state.location.state).toMatchObject({ from: '/deals/42' })
   })
+
+  it('ログイン画面へ戻るときも、開こうとしていたページを引き継ぐ', async () => {
+    const { user, router } = setup(() => json({}), {
+      challenge: challenge(),
+      sentAt: Date.now(),
+      from: '/deals/42',
+    })
+    await user.click(screen.getByRole('link', { name: '別のアカウント' }))
+    expect(router.state.location.pathname).toBe('/login')
+    expect(router.state.location.state).toEqual({ from: '/deals/42' })
+  })
 })

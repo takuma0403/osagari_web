@@ -6,7 +6,7 @@ import { InfoBox } from '../../../components/InfoBox/InfoBox'
 import { resendRecheckCode, verifyRecheck, type LoginChallenge } from '../api'
 import { AuthFormLayout } from '../components/AuthFormLayout/AuthFormLayout'
 import { useCodeEntry } from '../hooks/useCodeEntry'
-import { isRecheckState, type RecheckState } from '../navigation'
+import { isRecheckState, type RecheckState, type RedirectState } from '../navigation'
 import { useSession } from '../session'
 import styles from './RecheckPage.module.css'
 
@@ -35,6 +35,8 @@ function RecheckForm({ recheck }: { recheck: RecheckState }) {
   const navigate = useNavigate()
   const { signIn } = useSession()
   const { challenge, sentAt } = recheck
+  // ログイン画面へ戻っても、開こうとしていたページを引き継ぐ（ADR 0013）
+  const loginState: RedirectState = { from: recheck.from }
   const { inputProps, canSubmit, submit, failure } = useCodeEntry({
     sentAt,
     verify: async (code) => signIn(await verifyRecheck(challenge.challengeToken, code)),
@@ -50,6 +52,7 @@ function RecheckForm({ recheck }: { recheck: RecheckState }) {
   return (
     <AuthFormLayout
       backTo="/login"
+      backState={loginState}
       icon={
         <span className={styles.badge}>
           <Icon name="shield" size={26} />
@@ -63,7 +66,7 @@ function RecheckForm({ recheck }: { recheck: RecheckState }) {
           <span className={styles.addressLabel}>コードの送信先</span>
           <span className={styles.email}>{challenge.email}</span>
         </div>
-        <Link to="/login" className={styles.switch}>
+        <Link to="/login" state={loginState} className={styles.switch}>
           別のアカウント
         </Link>
       </div>
@@ -71,7 +74,9 @@ function RecheckForm({ recheck }: { recheck: RecheckState }) {
         <CodeInput {...inputProps} label="メールに届いた6桁のコード" showLabel />
         {challengeExpired && (
           <p className={styles.restart}>
-            <Link to="/login">ログイン画面に戻る</Link>
+            <Link to="/login" state={loginState}>
+              ログイン画面に戻る
+            </Link>
           </p>
         )}
         <Button type="submit" fullWidth disabled={!canSubmit || challengeExpired}>
