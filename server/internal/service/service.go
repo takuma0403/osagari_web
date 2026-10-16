@@ -53,8 +53,8 @@ type SessionStore interface {
 
 // LoginFailureStore は login_failures の読み書き（repository.LoginFailureRepository）。
 type LoginFailureStore interface {
-	ReserveAttempt(ctx context.Context, email string, maxAttempts int, now time.Time) (int, error)
-	Lock(ctx context.Context, email string, until, now time.Time) error
+	ReserveAttempt(ctx context.Context, email string, maxAttempts int, lockFor time.Duration, now time.Time) error
+	Clear(ctx context.Context, email string, now time.Time) error
 	Reset(ctx context.Context, email string, now time.Time) error
 }
 

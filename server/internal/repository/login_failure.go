@@ -28,44 +28,46 @@ func NewLoginFailureRepository(db *gorm.DB) *LoginFailureRepository {
 	return &LoginFailureRepository{db: db}
 }
 
-// ReserveAttempt はパスワードを照合する前に入力の回数を1つ増やし、増やした後の回数を返す（AUTHN-6）。
+// ReserveAttempt はパスワードを照合する前に入力の回数を1つ増やす（AUTHN-6）。
 // 照合より先に数えることで、同時に大量の入力を送られても照合できるのは maxAttempts 回までになる。
-// 止めている期間が過ぎていれば、回数を0に戻してから数える。
-// 止めている間か、回数が上限に達していれば数えずに ErrRateLimited を返す。
-func (r *LoginFailureRepository) ReserveAttempt(ctx context.Context, email string, maxAttempts int, now time.Time) (int, error) {
+// maxAttempts 回目を数えるときは、同じ文で now+lockFor までログインを止める（照合の後に止めると、
+// その間にエラーや中断があったとき期限のないまま止まり続けるため）。その回の照合で一致したら Clear で解除する。
+// 止めている期間が過ぎていれば、回数を0に戻してから数える。止めている間は数えずに ErrRateLimited を返す。
+func (r *LoginFailureRepository) ReserveAttempt(ctx context.Context, email string, maxAttempts int, lockFor time.Duration, now time.Time) error {
 	db := conn(ctx, r.db)
 	ts := formatTime(now)
 	if err := db.Exec(`INSERT INTO login_failures (email, created_at, updated_at) VALUES (?, ?, ?)
 		ON CONFLICT (email) DO NOTHING`, email, ts, ts).Error; err != nil {
-		return 0, err
+		return err
 	}
 	err := db.Model(&loginFailureRow{}).
 		Where("email = ? AND locked_until IS NOT NULL AND locked_until <= ?", email, ts).
 		Updates(map[string]any{"failed_attempts": 0, "locked_until": nil, "updated_at": ts}).Error
 	if err != nil {
-		return 0, err
+		return err
 	}
 	res := db.Model(&loginFailureRow{}).
 		Where("email = ? AND locked_until IS NULL AND failed_attempts < ?", email, maxAttempts).
-		Updates(map[string]any{"failed_attempts": gorm.Expr("failed_attempts + 1"), "updated_at": ts})
+		Updates(map[string]any{
+			"failed_attempts": gorm.Expr("failed_attempts + 1"),
+			"locked_until":    gorm.Expr("CASE WHEN failed_attempts + 1 >= ? THEN ? ELSE NULL END", maxAttempts, formatTime(now.Add(lockFor))),
+			"updated_at":      ts,
+		})
 	if res.Error != nil {
-		return 0, res.Error
+		return res.Error
 	}
 	if res.RowsAffected == 0 {
-		return 0, ErrRateLimited
+		return ErrRateLimited
 	}
-	var attempts int
-	if err := db.Model(&loginFailureRow{}).Where("email = ?", email).Select("failed_attempts").Scan(&attempts).Error; err != nil {
-		return 0, err
-	}
-	return attempts, nil
+	return nil
 }
 
-// Lock は until までそのアドレスのログインを止める。すでに止めていれば何もしない。
-func (r *LoginFailureRepository) Lock(ctx context.Context, email string, until, now time.Time) error {
+// Clear はパスワードが一致したときに、入力の回数を0に戻し、止めていれば解除する。
+// 止めている間は照合しないので、解除するのは上限の回目の照合で一致したときだけ。
+func (r *LoginFailureRepository) Clear(ctx context.Context, email string, now time.Time) error {
 	return conn(ctx, r.db).Model(&loginFailureRow{}).
-		Where("email = ? AND locked_until IS NULL", email).
-		Updates(map[string]any{"locked_until": formatTime(until), "updated_at": formatTime(now)}).Error
+		Where("email = ? AND (failed_attempts > 0 OR locked_until IS NOT NULL)", email).
+		Updates(map[string]any{"failed_attempts": 0, "locked_until": nil, "updated_at": formatTime(now)}).Error
 }
 
 // Reset は入力の回数を0に戻す。止めている期間は変えない（パスワード再設定の後もロックは期限まで続く。ADR 0011）。

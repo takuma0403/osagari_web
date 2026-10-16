@@ -98,7 +98,7 @@ func (s *LoginService) Login(ctx context.Context, rawEmail, password, deviceID s
 		return LoginResult{}, errInvalidCredentials
 	}
 	now := s.d.Clock.Now()
-	attempts, err := s.d.Failures.ReserveAttempt(ctx, email, auth.MaxPasswordFailures, now)
+	err = s.d.Failures.ReserveAttempt(ctx, email, auth.MaxPasswordFailures, auth.LoginLockDuration, now)
 	if errors.Is(err, repository.ErrRateLimited) {
 		return LoginResult{}, errLoginLocked
 	}
@@ -109,7 +109,7 @@ func (s *LoginService) Login(ctx context.Context, rawEmail, password, deviceID s
 	if errors.Is(err, repository.ErrNotFound) || (err == nil && u.Status == domain.UserStatusDeleted) {
 		// 未登録・削除済みでも同じだけ計算して、所要時間から判別させない
 		auth.VerifyDummyPassword(password)
-		return LoginResult{}, s.wrongPassword(ctx, email, attempts, now)
+		return LoginResult{}, errInvalidCredentials
 	}
 	if err != nil {
 		return LoginResult{}, apperr.Internal(err)
@@ -119,10 +119,10 @@ func (s *LoginService) Login(ctx context.Context, rawEmail, password, deviceID s
 		return LoginResult{}, apperr.Internal(err)
 	}
 	if !ok {
-		return LoginResult{}, s.wrongPassword(ctx, email, attempts, now)
+		return LoginResult{}, errInvalidCredentials
 	}
 	// パスワードが一致したら、この後に停止中・失効・再確認で止まっても入力ミスの回数は戻す
-	if err := s.d.Failures.Reset(ctx, email, now); err != nil {
+	if err := s.d.Failures.Clear(ctx, email, now); err != nil {
 		return LoginResult{}, apperr.Internal(err)
 	}
 
@@ -156,17 +156,6 @@ func (s *LoginService) Login(ctx context.Context, rawEmail, password, deviceID s
 	return LoginResult{User: u, Session: &sess}, nil
 }
 
-// wrongPassword はパスワードが違ったときのエラーを返す。入力の回数が上限に達していたら、ここからログインを止める（AUTHN-6）。
-// この回の応答は止める前と同じ 401 で、次の入力から 429 になる。
-func (s *LoginService) wrongPassword(ctx context.Context, email string, attempts int, now time.Time) error {
-	if attempts >= auth.MaxPasswordFailures {
-		if err := s.d.Failures.Lock(ctx, email, now.Add(auth.LoginLockDuration), now); err != nil {
-			return apperr.Internal(err)
-		}
-	}
-	return errInvalidCredentials
-}
-
 // recheckReason は再確認が必要な理由を返す。要らなければ空。両方に当てはまるときは code_expired（ADR 0009）。
 func (s *LoginService) recheckReason(ctx context.Context, u *domain.User, deviceHash string, now time.Time) (domain.LoginRecheckReason, error) {
 	if now.Sub(u.CodeVerifiedAt) >= auth.RecheckInterval {
@@ -186,7 +175,12 @@ func (s *LoginService) recheckReason(ctx context.Context, u *domain.User, device
 }
 
 // startChallenge はチャレンジを発行し、コードをメールで送る。ログイン時の端末はチャレンジに保存し、確認に成功したら登録する。
+// コード送信の回数制限（AUTHN-6）で断るときに使われないチャレンジを残さないように、コードを先に作る。
 func (s *LoginService) startChallenge(ctx context.Context, u *domain.User, reason domain.LoginRecheckReason, deviceHash string, now time.Time) (IssuedLoginChallenge, error) {
+	code, err := issueCode(ctx, s.d.Codes, s.d.Logger, u.Email, domain.VerificationPurposeLoginRecheck, now)
+	if err != nil {
+		return IssuedLoginChallenge{}, err
+	}
 	token, err := auth.GenerateToken()
 	if err != nil {
 		return IssuedLoginChallenge{}, apperr.Internal(err)
@@ -203,7 +197,7 @@ func (s *LoginService) startChallenge(ctx context.Context, u *domain.User, reaso
 	if err != nil {
 		return IssuedLoginChallenge{}, apperr.Internal(err)
 	}
-	if err := s.sendRecheckCode(ctx, u.Email, now); err != nil {
+	if err := s.mailRecheckCode(ctx, u.Email, code); err != nil {
 		return IssuedLoginChallenge{}, err
 	}
 	return IssuedLoginChallenge{Token: token, Reason: reason, Email: u.Email}, nil
@@ -215,6 +209,11 @@ func (s *LoginService) sendRecheckCode(ctx context.Context, email string, now ti
 	if err != nil {
 		return err
 	}
+	return s.mailRecheckCode(ctx, email, code)
+}
+
+// mailRecheckCode は再確認のコードをメールで送る。
+func (s *LoginService) mailRecheckCode(ctx context.Context, email, code string) error {
 	if err := s.d.Mailer.Send(ctx, loginRecheckCodeMail(email, code)); err != nil {
 		return apperr.Internal(err)
 	}

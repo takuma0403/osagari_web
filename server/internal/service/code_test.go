@@ -94,6 +94,10 @@ func Testコード送信の回数制限(t *testing.T) {
 		wantCode(t, f.svc.SendCode(ctx, email), apperr.CodeTooManyRequests)
 		_, err := f.login.Login(ctx, email, password, "new-device")
 		wantCode(t, err, apperr.CodeTooManyRequests)
+		// 断ったときに使われないログインチャレンジを残さない
+		if n := f.count(t, "login_challenges"); n != 0 {
+			t.Errorf("ログインチャレンジが%d件残った", n)
+		}
 	})
 
 	t.Run("ログインの再確認のコードの再送も数える", func(t *testing.T) {

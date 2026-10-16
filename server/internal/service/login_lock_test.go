@@ -56,6 +56,15 @@ func TestLogin_入力ミスでのロック(t *testing.T) {
 		}
 	})
 
+	t.Run("10回目に正しいパスワードならログインでき、止めない", func(t *testing.T) {
+		f := newLoginFixture(t)
+		failLogin(t, f, email, auth.MaxPasswordFailures-1)
+		if _, err := f.login.Login(ctx, email, password, knownDevice); err != nil {
+			t.Fatalf("10回目の正しいパスワードでログインできない: %v", err)
+		}
+		failLogin(t, f, email, auth.MaxPasswordFailures-1)
+	})
+
 	t.Run("9回間違えても、一致したら回数を戻す", func(t *testing.T) {
 		f := newLoginFixture(t)
 		failLogin(t, f, email, auth.MaxPasswordFailures-1)

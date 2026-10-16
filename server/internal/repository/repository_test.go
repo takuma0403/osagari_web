@@ -275,53 +275,70 @@ func TestVerificationCodeRepository_送信の上限(t *testing.T) {
 
 func TestLoginFailureRepository(t *testing.T) {
 	ctx := context.Background()
-	const max = 10
-
-	t.Run("上限まで数え、止めている間は数えず、期限が過ぎたら0から数える", func(t *testing.T) {
-		failures := repository.NewLoginFailureRepository(testdb.New(t))
-		for want := 1; want <= max; want++ {
-			got, err := failures.ReserveAttempt(ctx, email, max, t0)
-			if err != nil || got != want {
-				t.Fatalf("%d回目: got=%d err=%v", want, got, err)
+	const (
+		max     = 10
+		lockFor = 15 * time.Minute
+	)
+	reserve := func(r *repository.LoginFailureRepository, email string, at time.Time) error {
+		return r.ReserveAttempt(ctx, email, max, lockFor, at)
+	}
+	reserveN := func(t *testing.T, r *repository.LoginFailureRepository, n int) {
+		t.Helper()
+		for i := range n {
+			if err := reserve(r, email, t0); err != nil {
+				t.Fatalf("%d回目: %v", i+1, err)
 			}
 		}
-		if _, err := failures.ReserveAttempt(ctx, email, max, t0); !errors.Is(err, repository.ErrRateLimited) {
-			t.Errorf("上限を超えて数えられる: %v", err)
-		}
-		until := t0.Add(15 * time.Minute)
-		if err := failures.Lock(ctx, email, until, t0); err != nil {
-			t.Fatal(err)
-		}
-		// 止めている間は回数を戻しても数えない
-		if err := failures.Reset(ctx, email, t0); err != nil {
-			t.Fatal(err)
-		}
-		if _, err := failures.ReserveAttempt(ctx, email, max, until.Add(-time.Second)); !errors.Is(err, repository.ErrRateLimited) {
+	}
+
+	t.Run("上限の回目を数えたら同じ文で止め、期限が過ぎたら0から数える", func(t *testing.T) {
+		failures := repository.NewLoginFailureRepository(testdb.New(t))
+		reserveN(t, failures, max)
+		until := t0.Add(lockFor)
+		if err := reserve(failures, email, until.Add(-time.Second)); !errors.Is(err, repository.ErrRateLimited) {
 			t.Errorf("止めている間に数えられる: %v", err)
 		}
-		if got, err := failures.ReserveAttempt(ctx, email, max, until); err != nil || got != 1 {
-			t.Errorf("期限が過ぎても0から数えない: got=%d err=%v", got, err)
+		if err := reserve(failures, email, until); err != nil {
+			t.Fatalf("期限が過ぎても数えられない: %v", err)
 		}
-		if got, err := failures.ReserveAttempt(ctx, "26238002@edu.cc.saga-u.ac.jp", max, t0); err != nil || got != 1 {
-			t.Errorf("別のアドレスの回数が混ざる: got=%d err=%v", got, err)
+		// 期限が過ぎたら0から数えるので、あと9回は止まらない
+		for i := range max - 2 {
+			if err := reserve(failures, email, until); err != nil {
+				t.Fatalf("解除後の%d回目: %v", i+2, err)
+			}
+		}
+		if err := reserve(failures, "26238002@edu.cc.saga-u.ac.jp", t0); err != nil {
+			t.Errorf("別のアドレスまで止まる: %v", err)
 		}
 	})
 
-	t.Run("回数を戻したら1から数える", func(t *testing.T) {
+	t.Run("Clear は回数を戻してロックも解除する", func(t *testing.T) {
 		failures := repository.NewLoginFailureRepository(testdb.New(t))
-		for range 3 {
-			if _, err := failures.ReserveAttempt(ctx, email, max, t0); err != nil {
-				t.Fatal(err)
-			}
+		reserveN(t, failures, max)
+		if err := failures.Clear(ctx, email, t0); err != nil {
+			t.Fatal(err)
 		}
+		reserveN(t, failures, max-1)
+	})
+
+	t.Run("Reset は回数だけ戻し、ロックは期限まで続く", func(t *testing.T) {
+		failures := repository.NewLoginFailureRepository(testdb.New(t))
+		reserveN(t, failures, max)
 		if err := failures.Reset(ctx, email, t0); err != nil {
 			t.Fatal(err)
 		}
-		if got, err := failures.ReserveAttempt(ctx, email, max, t0); err != nil || got != 1 {
-			t.Errorf("got=%d err=%v", got, err)
+		if err := reserve(failures, email, t0.Add(lockFor-time.Second)); !errors.Is(err, repository.ErrRateLimited) {
+			t.Errorf("回数を戻したらロックも解けた: %v", err)
 		}
+
+		other := repository.NewLoginFailureRepository(testdb.New(t))
+		reserveN(t, other, 3)
+		if err := other.Reset(ctx, email, t0); err != nil {
+			t.Fatal(err)
+		}
+		reserveN(t, other, max-1)
 		// 記録のないアドレスを戻してもエラーにしない
-		if err := failures.Reset(ctx, "26238009@edu.cc.saga-u.ac.jp", t0); err != nil {
+		if err := other.Reset(ctx, "26238009@edu.cc.saga-u.ac.jp", t0); err != nil {
 			t.Error(err)
 		}
 	})
@@ -332,7 +349,7 @@ func TestLoginFailureRepository(t *testing.T) {
 		var wg sync.WaitGroup
 		for range 30 {
 			wg.Go(func() {
-				if _, err := failures.ReserveAttempt(ctx, email, max, t0); err == nil {
+				if err := reserve(failures, email, t0); err == nil {
 					ok.Add(1)
 				}
 			})
