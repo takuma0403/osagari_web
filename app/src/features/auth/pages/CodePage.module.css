@@ -1,0 +1,11 @@
+.email {
+  color: var(--color-text);
+  font-family: var(--font-num);
+  font-weight: 700;
+}
+
+.form {
+  display: flex;
+  flex-direction: column;
+  gap: 22px;
+}
