@@ -1,4 +1,4 @@
-import type { SignupCodeVerified } from './api'
+import type { PasswordResetCodeVerified, SignupCodeVerified } from './api'
 
 /**
  * 新規登録・パスワード再設定・再確認の画面間で location.state に入れて渡す値。
@@ -11,13 +11,26 @@ import type { SignupCodeVerified } from './api'
  */
 export type CodeSentState = { studentId: string; sentAt: number }
 
-/** /signup/code → /signup/password：パスワード設定用の一時トークンと推定結果（#14 で受け取る） */
+/** /signup/code → /signup/password：パスワード設定用の一時トークンと推定結果 */
 export type SignupPasswordState = SignupCodeVerified
 
+/** /password-reset/code → /password-reset/password：パスワード設定用の一時トークン */
+export type PasswordResetState = PasswordResetCodeVerified
+
+const asRecord = (state: unknown): Record<string, unknown> | null =>
+  typeof state === 'object' && state !== null ? (state as Record<string, unknown>) : null
+
 export function isCodeSentState(state: unknown): state is CodeSentState {
-  if (typeof state !== 'object' || state === null) return false
-  const s = state as Record<string, unknown>
-  return typeof s.studentId === 'string' && typeof s.sentAt === 'number'
+  const s = asRecord(state)
+  return typeof s?.studentId === 'string' && typeof s.sentAt === 'number'
+}
+
+export function isPasswordResetState(state: unknown): state is PasswordResetState {
+  return typeof asRecord(state)?.setupToken === 'string'
+}
+
+export function isSignupPasswordState(state: unknown): state is SignupPasswordState {
+  return isPasswordResetState(state) && asRecord(asRecord(state)?.estimate) !== null
 }
 
 /**
@@ -28,8 +41,7 @@ export type RedirectState = { from?: string }
 
 /** ログインできたときの行き先。開こうとしていたページがなければ商品一覧 */
 export function redirectTarget(state: unknown): string {
-  if (typeof state !== 'object' || state === null) return '/'
-  const from = (state as Record<string, unknown>).from
+  const from = asRecord(state)?.from
   // 外部のURLへは送らない（パスだけを受け付ける）
   return typeof from === 'string' && from.startsWith('/') && !from.startsWith('//') ? from : '/'
 }

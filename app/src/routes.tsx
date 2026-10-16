@@ -3,6 +3,7 @@ import { BottomNav } from './components/BottomNav/BottomNav'
 import { GuestOnly, RequireAuth } from './features/auth/guards'
 import { CodePage } from './features/auth/pages/CodePage'
 import { LoginPage } from './features/auth/pages/LoginPage'
+import { PasswordPage } from './features/auth/pages/PasswordPage'
 import { SignUpPage } from './features/auth/pages/SignUpPage'
 import { PlaceholderPage } from './components/PlaceholderPage/PlaceholderPage'
 import { AdminLayout } from './layouts/AdminLayout/AdminLayout'
@@ -29,10 +30,10 @@ export const routes: RouteObject[] = [
           { path: '/login', element: <LoginPage /> },
           { path: '/signup', element: <SignUpPage /> },
           { path: '/signup/code', element: <CodePage flow="signup" /> },
-          placeholder('/signup/password', 'パスワード設定'),
+          { path: '/signup/password', element: <PasswordPage flow="signup" /> },
           { path: '/password-reset', element: <SignUpPage flow="passwordReset" /> },
           { path: '/password-reset/code', element: <CodePage flow="passwordReset" /> },
-          placeholder('/password-reset/password', '新しいパスワードの設定'),
+          { path: '/password-reset/password', element: <PasswordPage flow="passwordReset" /> },
           placeholder('/recheck', 'ログインの確認'),
         ],
       },

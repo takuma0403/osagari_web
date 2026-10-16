@@ -48,6 +48,8 @@ describe('routes', () => {
     ['/login', '佐賀大生どうしで、お下がりを回そう。'],
     ['/signup', '新規登録'],
     ['/password-reset', 'パスワードの再設定'],
+    ['/signup/password', '新規登録'],
+    ['/password-reset/password', 'パスワードの再設定'],
     ['/terms', '利用規約'],
     ['/privacy', 'プライバシーポリシー'],
   ])('未ログインでも %s で「%s」を表示する', (path, title) => {
