@@ -20,6 +20,7 @@
 GORM と golang-migrate の libSQL での動作は検証済み（`internal/db/libsql_integration_test.go`）。注意点：
 
 - go-libsql は **1回の Exec に複数の文を渡すと2文目以降を黙って捨てる**。アプリのコードでは1回に1文だけを実行する（マイグレーションは `internal/migration` が分割する）。
+- リモート接続はプールに残さない（`db.Open` で `SetMaxIdleConns(0)`）。sqld・Turso が約10秒使われなかったストリームを捨て、go-libsql はそれを壊れた接続として報告しないため（[ADR 0012](../docs/decisions/0012-libsql-idle-connections.md)）。
 - 一意制約違反は `gorm.ErrDuplicatedKey` に変換されない。判定が必要なら repository 層でエラー文字列（`UNIQUE constraint failed`）を見る。
 
 ## ディレクトリ構成
