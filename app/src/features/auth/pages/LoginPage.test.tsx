@@ -57,7 +57,7 @@ describe('LoginPage', () => {
     const { user } = setup(() => json(challenge, 202))
     await fillAndSubmit(user)
     const heading = await screen.findByRole('heading', { name: '/recheck' })
-    expect(JSON.parse(heading.dataset.state!)).toEqual({ challenge })
+    expect(JSON.parse(heading.dataset.state!)).toEqual({ challenge, sentAt: expect.any(Number) })
   })
 
   it('開こうとしていたページがあれば、再確認へも引き継ぐ', async () => {
@@ -69,7 +69,11 @@ describe('LoginPage', () => {
     const { user } = setup(() => json(challenge, 202), { from: '/deals/42' })
     await fillAndSubmit(user)
     const heading = await screen.findByRole('heading', { name: '/recheck' })
-    expect(JSON.parse(heading.dataset.state!)).toEqual({ challenge, from: '/deals/42' })
+    expect(JSON.parse(heading.dataset.state!)).toEqual({
+      challenge,
+      sentAt: expect.any(Number),
+      from: '/deals/42',
+    })
   })
 
   it('失敗したらサーバーの文言を出し、入力を直すと消す', async () => {

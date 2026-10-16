@@ -1,4 +1,4 @@
-import type { PasswordResetCodeVerified, SignupCodeVerified } from './api'
+import type { LoginChallenge, PasswordResetCodeVerified, SignupCodeVerified } from './api'
 
 /**
  * 新規登録・パスワード再設定・再確認の画面間で location.state に入れて渡す値。
@@ -17,6 +17,9 @@ export type SignupPasswordState = SignupCodeVerified
 /** /password-reset/code → /password-reset/password：パスワード設定用の一時トークン */
 export type PasswordResetState = PasswordResetCodeVerified
 
+/** /login → /recheck：再確認のチャレンジ、コードを送った時刻（ミリ秒）、開こうとしていたページ（RedirectState） */
+export type RecheckState = { challenge: LoginChallenge; sentAt: number; from?: string }
+
 const asRecord = (state: unknown): Record<string, unknown> | null =>
   typeof state === 'object' && state !== null ? (state as Record<string, unknown>) : null
 
@@ -27,6 +30,11 @@ export function isCodeSentState(state: unknown): state is CodeSentState {
 
 export function isPasswordResetState(state: unknown): state is PasswordResetState {
   return typeof asRecord(state)?.setupToken === 'string'
+}
+
+export function isRecheckState(state: unknown): state is RecheckState {
+  const s = asRecord(state)
+  return typeof asRecord(s?.challenge)?.challengeToken === 'string' && typeof s?.sentAt === 'number'
 }
 
 export function isSignupPasswordState(state: unknown): state is SignupPasswordState {

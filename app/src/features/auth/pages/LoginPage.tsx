@@ -8,7 +8,7 @@ import { InfoBox } from '../../../components/InfoBox/InfoBox'
 import { TextField } from '../../../components/TextField/TextField'
 import { STUDENT_ID_LENGTH } from '../../../lib/studentId'
 import { login } from '../api'
-import type { RedirectState } from '../navigation'
+import type { RecheckState, RedirectState } from '../navigation'
 import { useSession } from '../session'
 import styles from './LoginPage.module.css'
 
@@ -51,7 +51,8 @@ export function LoginPage() {
         signIn(result.user)
       } else {
         const { from } = (location.state ?? {}) as RedirectState
-        navigate('/recheck', { state: { challenge: result.challenge, from } })
+        const state: RecheckState = { challenge: result.challenge, sentAt: Date.now(), from }
+        navigate('/recheck', { state })
       }
     } catch (err) {
       if (!isApiError(err)) throw err

@@ -4,6 +4,7 @@ import { GuestOnly, RequireAuth } from './features/auth/guards'
 import { CodePage } from './features/auth/pages/CodePage'
 import { LoginPage } from './features/auth/pages/LoginPage'
 import { PasswordPage } from './features/auth/pages/PasswordPage'
+import { RecheckPage } from './features/auth/pages/RecheckPage'
 import { SignUpPage } from './features/auth/pages/SignUpPage'
 import { PlaceholderPage } from './components/PlaceholderPage/PlaceholderPage'
 import { AdminLayout } from './layouts/AdminLayout/AdminLayout'
@@ -34,7 +35,7 @@ export const routes: RouteObject[] = [
           { path: '/password-reset', element: <SignUpPage flow="passwordReset" /> },
           { path: '/password-reset/code', element: <CodePage flow="passwordReset" /> },
           { path: '/password-reset/password', element: <PasswordPage flow="passwordReset" /> },
-          placeholder('/recheck', 'ログインの確認'),
+          { path: '/recheck', element: <RecheckPage /> },
         ],
       },
     ],
