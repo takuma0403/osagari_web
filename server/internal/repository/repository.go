@@ -20,6 +20,8 @@ var (
 	ErrConflict = errors.New("repository: 状態が変わったため更新できません")
 	// ErrDuplicate は一意制約に違反したときに返す。
 	ErrDuplicate = errors.New("repository: すでに存在します")
+	// ErrRateLimited は回数の上限に達したため保存しなかったときに返す（AUTHN-6）。
+	ErrRateLimited = errors.New("repository: 回数の上限に達しました")
 )
 
 // timeLayout は日時の列（TEXT）の形式。UTC・マイクロ秒までの固定幅にして、文字列の大小で期限を比べられるようにする。

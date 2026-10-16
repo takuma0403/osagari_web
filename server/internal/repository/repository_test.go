@@ -110,11 +110,11 @@ func TestVerificationCodeRepository(t *testing.T) {
 		if err := codes.Create(ctx, old); err != nil {
 			t.Fatal(err)
 		}
-		if err := codes.InvalidateActive(ctx, email, domain.VerificationPurposeSignup, t0.Add(time.Minute)); err != nil {
-			t.Fatal(err)
-		}
 		latest := newCode(t0.Add(time.Minute))
 		if err := codes.Create(ctx, latest); err != nil {
+			t.Fatal(err)
+		}
+		if err := codes.InvalidateOthers(ctx, email, domain.VerificationPurposeSignup, latest.ID, t0.Add(time.Minute)); err != nil {
 			t.Fatal(err)
 		}
 		got, err := codes.FindLatestActive(ctx, email, domain.VerificationPurposeSignup, maxAttempts, t0.Add(2*time.Minute))
@@ -197,6 +197,149 @@ func TestVerificationCodeRepository(t *testing.T) {
 		wg.Wait()
 		if ok.Load() != maxAttempts {
 			t.Errorf("数えた回数=%d want=%d", ok.Load(), maxAttempts)
+		}
+	})
+}
+
+func TestVerificationCodeRepository_送信の上限(t *testing.T) {
+	ctx := context.Background()
+	const (
+		interval = time.Minute
+		window   = time.Hour
+		max      = 5
+	)
+	create := func(codes *repository.VerificationCodeRepository, email string, purpose domain.VerificationPurpose, at time.Time) error {
+		c := newCode(at)
+		c.Email, c.Purpose = email, purpose
+		return codes.CreateWithinLimit(ctx, c, interval, window, max)
+	}
+
+	t.Run("1分以内の2回目は保存せず、1分たてば保存する", func(t *testing.T) {
+		codes := repository.NewVerificationCodeRepository(testdb.New(t))
+		if err := create(codes, email, domain.VerificationPurposeSignup, t0); err != nil {
+			t.Fatal(err)
+		}
+		// 用途が違っても同じアドレスなら数える
+		if err := create(codes, email, domain.VerificationPurposePasswordReset, t0.Add(59*time.Second)); !errors.Is(err, repository.ErrRateLimited) {
+			t.Errorf("1分以内に保存できてしまう: %v", err)
+		}
+		if err := create(codes, "26238002@edu.cc.saga-u.ac.jp", domain.VerificationPurposeSignup, t0.Add(time.Second)); err != nil {
+			t.Errorf("別のアドレスまで止まる: %v", err)
+		}
+		if err := create(codes, email, domain.VerificationPurposeSignup, t0.Add(time.Minute)); err != nil {
+			t.Errorf("1分たっても保存できない: %v", err)
+		}
+		if n, err := codes.CountByEmailSince(ctx, email, t0.Add(-time.Hour)); err != nil || n != 2 {
+			t.Errorf("アドレスの件数: n=%d err=%v", n, err)
+		}
+		if n, err := codes.CountSince(ctx, t0.Add(-time.Hour)); err != nil || n != 3 {
+			t.Errorf("全体の件数: n=%d err=%v", n, err)
+		}
+		if n, err := codes.CountSince(ctx, t0); err != nil || n != 2 {
+			t.Errorf("since より後だけを数えない: n=%d err=%v", n, err)
+		}
+	})
+
+	t.Run("1時間に5回まで、最初の送信から1時間たてば保存する", func(t *testing.T) {
+		codes := repository.NewVerificationCodeRepository(testdb.New(t))
+		for i := range max {
+			if err := create(codes, email, domain.VerificationPurposeSignup, t0.Add(time.Duration(i)*10*time.Minute)); err != nil {
+				t.Fatalf("%d回目: %v", i+1, err)
+			}
+		}
+		if err := create(codes, email, domain.VerificationPurposeSignup, t0.Add(59*time.Minute)); !errors.Is(err, repository.ErrRateLimited) {
+			t.Errorf("6回目を保存できてしまう: %v", err)
+		}
+		if err := create(codes, email, domain.VerificationPurposeSignup, t0.Add(time.Hour)); err != nil {
+			t.Errorf("1時間たっても保存できない: %v", err)
+		}
+	})
+
+	t.Run("同時に送っても1件しか保存しない", func(t *testing.T) {
+		codes := repository.NewVerificationCodeRepository(testdb.New(t))
+		var ok atomic.Int32
+		var wg sync.WaitGroup
+		for range 20 {
+			wg.Go(func() {
+				if err := create(codes, email, domain.VerificationPurposeSignup, t0); err == nil {
+					ok.Add(1)
+				}
+			})
+		}
+		wg.Wait()
+		if ok.Load() != 1 {
+			t.Errorf("保存した件数=%d want=1", ok.Load())
+		}
+	})
+}
+
+func TestLoginFailureRepository(t *testing.T) {
+	ctx := context.Background()
+	const max = 10
+
+	t.Run("上限まで数え、止めている間は数えず、期限が過ぎたら0から数える", func(t *testing.T) {
+		failures := repository.NewLoginFailureRepository(testdb.New(t))
+		for want := 1; want <= max; want++ {
+			got, err := failures.ReserveAttempt(ctx, email, max, t0)
+			if err != nil || got != want {
+				t.Fatalf("%d回目: got=%d err=%v", want, got, err)
+			}
+		}
+		if _, err := failures.ReserveAttempt(ctx, email, max, t0); !errors.Is(err, repository.ErrRateLimited) {
+			t.Errorf("上限を超えて数えられる: %v", err)
+		}
+		until := t0.Add(15 * time.Minute)
+		if err := failures.Lock(ctx, email, until, t0); err != nil {
+			t.Fatal(err)
+		}
+		// 止めている間は回数を戻しても数えない
+		if err := failures.Reset(ctx, email, t0); err != nil {
+			t.Fatal(err)
+		}
+		if _, err := failures.ReserveAttempt(ctx, email, max, until.Add(-time.Second)); !errors.Is(err, repository.ErrRateLimited) {
+			t.Errorf("止めている間に数えられる: %v", err)
+		}
+		if got, err := failures.ReserveAttempt(ctx, email, max, until); err != nil || got != 1 {
+			t.Errorf("期限が過ぎても0から数えない: got=%d err=%v", got, err)
+		}
+		if got, err := failures.ReserveAttempt(ctx, "26238002@edu.cc.saga-u.ac.jp", max, t0); err != nil || got != 1 {
+			t.Errorf("別のアドレスの回数が混ざる: got=%d err=%v", got, err)
+		}
+	})
+
+	t.Run("回数を戻したら1から数える", func(t *testing.T) {
+		failures := repository.NewLoginFailureRepository(testdb.New(t))
+		for range 3 {
+			if _, err := failures.ReserveAttempt(ctx, email, max, t0); err != nil {
+				t.Fatal(err)
+			}
+		}
+		if err := failures.Reset(ctx, email, t0); err != nil {
+			t.Fatal(err)
+		}
+		if got, err := failures.ReserveAttempt(ctx, email, max, t0); err != nil || got != 1 {
+			t.Errorf("got=%d err=%v", got, err)
+		}
+		// 記録のないアドレスを戻してもエラーにしない
+		if err := failures.Reset(ctx, "26238009@edu.cc.saga-u.ac.jp", t0); err != nil {
+			t.Error(err)
+		}
+	})
+
+	t.Run("同時に入力しても上限の回数しか数えない", func(t *testing.T) {
+		failures := repository.NewLoginFailureRepository(testdb.New(t))
+		var ok atomic.Int32
+		var wg sync.WaitGroup
+		for range 30 {
+			wg.Go(func() {
+				if _, err := failures.ReserveAttempt(ctx, email, max, t0); err == nil {
+					ok.Add(1)
+				}
+			})
+		}
+		wg.Wait()
+		if ok.Load() != max {
+			t.Errorf("数えた回数=%d want=%d", ok.Load(), max)
 		}
 	})
 }
