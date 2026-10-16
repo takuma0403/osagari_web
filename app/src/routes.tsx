@@ -1,6 +1,7 @@
 import { Link, Navigate, type RouteObject } from 'react-router'
 import { BottomNav } from './components/BottomNav/BottomNav'
 import { LoginPage } from './features/auth/pages/LoginPage'
+import { SignUpPage } from './features/auth/pages/SignUpPage'
 import { PlaceholderPage } from './components/PlaceholderPage/PlaceholderPage'
 import { AdminLayout } from './layouts/AdminLayout/AdminLayout'
 import { MobileLayout } from './layouts/MobileLayout/MobileLayout'
@@ -21,7 +22,7 @@ export const routes: RouteObject[] = [
     element: <MobileLayout />,
     children: [
       { path: '/login', element: <LoginPage /> },
-      placeholder('/signup', '新規登録'),
+      { path: '/signup', element: <SignUpPage /> },
       placeholder('/signup/code', '認証コード入力（新規登録）'),
       placeholder('/signup/password', 'パスワード設定'),
       placeholder('/password-reset', 'パスワード再設定'),

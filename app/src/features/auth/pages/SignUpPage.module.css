@@ -1,0 +1,30 @@
+.form {
+  display: flex;
+  flex-direction: column;
+  gap: 24px;
+}
+
+.hint {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.estimate {
+  display: flex;
+  align-items: flex-start;
+  gap: 6px;
+  color: var(--color-primary-hover);
+  line-height: 1.5;
+}
+
+.estimateIcon {
+  flex-shrink: 0;
+  margin-top: 1px;
+}
+
+.footer {
+  color: var(--color-text-muted);
+  font-size: var(--text-label);
+  text-align: center;
+}
