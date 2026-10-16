@@ -45,3 +45,9 @@ Vite + React のSPAを Firebase Hosting に置きます。ログイン必須の�
   | `/mypage` | マイページ | スマホ＋下部ナビ |
   | `/mypage/student-card`、`/mypage/sales` | 学生証登録、売上管理 | スマホ |
   | `/admin`（→ `/admin/student-cards`）、`/admin/users`、`/admin/items`、`/admin/settings` | 管理：学生証審査、ユーザー、出品・取引、設定 | PC |
+
+- **ログインのガード**（[ADR 0013](../decisions/0013-frontend-auth-guard.md)）：起動時に `GET /me` でログイン状態を確かめ、どの API でも `401 unauthorized` が返ったら未ログインに戻す。
+  - ログイン前だけの画面（`/login`、`/signup*`、`/password-reset*`、`/recheck`）は、ログイン済みなら商品一覧へ送る。`/terms`・`/privacy` は誰でも見られる。それ以外の画面はすべてログインを求め、未ログインならログイン画面へ送る。
+  - ログイン画面へ送るときは開こうとしていたページ（パス）を location.state に残し、ログイン（再確認を含む）に成功したらそこへ戻す。なければ商品一覧。
+  - 共有リンク（`/items/:shareId`）も、[未決事項](../product/open-questions.md)が決まるまではログインを求める。
+  - 管理画面（`/admin/**`）の管理者かどうかの判定は、管理者権限の実装で足す。
