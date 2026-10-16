@@ -1,5 +1,4 @@
-/* 8桁が収まる幅にして、固定のドメインを続けて表示する（Login・SignUp） */
+/* 学籍番号の入力欄を残りの幅いっぱいに広げ、固定のドメインを枠の右端に寄せる（Login・SignUp） */
 .studentId {
-  flex-grow: 0;
-  width: 110px;
+  flex-grow: 1;
 }

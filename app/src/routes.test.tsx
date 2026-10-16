@@ -10,14 +10,15 @@ function renderAt(path: string) {
 
 describe('routes', () => {
   it.each([
-    ['/login', 'ログイン'],
+    ['/login', '佐賀大生どうしで、お下がりを回そう。'],
     ['/signup', '新規登録'],
-    ['/signup/code', '認証コード入力（新規登録）'],
     ['/signup/password', 'パスワード設定'],
     ['/password-reset', 'パスワード再設定'],
     ['/password-reset/code', '認証コード入力（パスワード再設定）'],
     ['/password-reset/password', '新しいパスワードの設定'],
     ['/recheck', 'ログインの確認'],
+    ['/terms', '利用規約'],
+    ['/privacy', 'プライバシーポリシー'],
     ['/', '商品一覧'],
     ['/search', '検索結果'],
     ['/items/abc123', '商品詳細'],

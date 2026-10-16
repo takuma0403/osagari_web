@@ -10,3 +10,8 @@ export const STUDENT_ID_LENGTH = 8
 export function normalizeStudentId(input: string): string {
   return input.normalize('NFKC').split('@')[0].replace(/\D/g, '').slice(0, STUDENT_ID_LENGTH)
 }
+
+/** 学籍番号から大学のメールアドレスを作る（例 26238001@edu.cc.saga-u.ac.jp） */
+export function toUniversityEmail(studentId: string): string {
+  return `${studentId}${UNIVERSITY_EMAIL_DOMAIN}`
+}

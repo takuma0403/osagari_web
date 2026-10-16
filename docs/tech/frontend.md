@@ -32,6 +32,7 @@ Vite + React のSPAを Firebase Hosting に置きます。ログイン必須の�
   | `/signup`、`/signup/code`、`/signup/password` | 新規登録（メール入力 → 認証コード → パスワード設定） | スマホ |
   | `/password-reset`、`/password-reset/code`、`/password-reset/password` | パスワード再設定（同上） | スマホ |
   | `/recheck` | ログイン時の本人確認（AUTHN-3） | スマホ |
+  | `/terms`、`/privacy` | 利用規約、プライバシーポリシー（ログイン画面からリンク。内容は [未決](../product/open-questions.md) で、決まるまでは仮ページ） | スマホ |
   | `/` | 商品一覧 | スマホ＋下部ナビ |
   | `/search` | 検索結果 | スマホ＋下部ナビ |
   | `/items/:shareId` | 商品詳細（共有リンク） | スマホ |

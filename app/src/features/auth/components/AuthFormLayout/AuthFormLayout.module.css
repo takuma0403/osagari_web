@@ -1,0 +1,30 @@
+.page {
+  display: flex;
+  flex-direction: column;
+  flex-grow: 1;
+  background: var(--color-surface);
+}
+
+.body {
+  display: flex;
+  flex-direction: column;
+  flex-grow: 1;
+  gap: 24px;
+  padding: 8px var(--space-page-form) 32px;
+}
+
+.intro {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.title {
+  font-size: var(--text-title);
+  font-weight: 700;
+}
+
+.lead {
+  color: var(--color-text-muted);
+  font-size: var(--text-body);
+}

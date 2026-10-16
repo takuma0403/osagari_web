@@ -1,5 +1,8 @@
 import { Link, Navigate, type RouteObject } from 'react-router'
 import { BottomNav } from './components/BottomNav/BottomNav'
+import { CodePage } from './features/auth/pages/CodePage'
+import { LoginPage } from './features/auth/pages/LoginPage'
+import { SignUpPage } from './features/auth/pages/SignUpPage'
 import { PlaceholderPage } from './components/PlaceholderPage/PlaceholderPage'
 import { AdminLayout } from './layouts/AdminLayout/AdminLayout'
 import { MobileLayout } from './layouts/MobileLayout/MobileLayout'
@@ -19,14 +22,17 @@ export const routes: RouteObject[] = [
     // ログイン・登録（AUTH-1）。下部ナビなし
     element: <MobileLayout />,
     children: [
-      placeholder('/login', 'ログイン'),
-      placeholder('/signup', '新規登録'),
-      placeholder('/signup/code', '認証コード入力（新規登録）'),
+      { path: '/login', element: <LoginPage /> },
+      { path: '/signup', element: <SignUpPage /> },
+      { path: '/signup/code', element: <CodePage flow="signup" /> },
       placeholder('/signup/password', 'パスワード設定'),
       placeholder('/password-reset', 'パスワード再設定'),
       placeholder('/password-reset/code', '認証コード入力（パスワード再設定）'),
       placeholder('/password-reset/password', '新しいパスワードの設定'),
       placeholder('/recheck', 'ログインの確認'),
+      // 利用規約・プライバシーポリシー（内容は未決。product/open-questions）
+      placeholder('/terms', '利用規約'),
+      placeholder('/privacy', 'プライバシーポリシー'),
     ],
   },
   {
