@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"log/slog"
 	"net/http"
 	"regexp"
 	"time"
@@ -33,32 +34,73 @@ func errWrongCode(remaining int) *apperr.Error {
 
 var sixDigits = regexp.MustCompile(`^[0-9]{6}$`)
 
+// errCodeSentRecently・errTooManyCodeSends は同じアドレスへのコード送信が上限に達したときのエラー（AUTHN-6）。
+// 登録済みかどうかにかかわらず同じように数えるので、この応答から登録の有無は分からない。
+var (
+	errCodeSentRecently = apperr.TooManyRequests("コードを送ったばかりです。1分ほどたってからもう一度お試しください")
+	errTooManyCodeSends = apperr.TooManyRequests("コードの送信が続いたため、しばらく送れません。1時間ほどたってからもう一度お試しください")
+)
+
 // issueCode は6桁のコードを生成し、argon2id のハッシュを保存して、平文のコードを返す（有効期限は auth.CodeTTL）。
-// 同じアドレス・用途の古いコードは使えなくする（使えるコードは常に1つ）。メールは呼び出し側が送る。
-func issueCode(ctx context.Context, codes VerificationCodeStore, email string, purpose domain.VerificationPurpose, now time.Time) (string, error) {
+// 同じアドレスへの送信は用途をまとめて auth.CodeSendInterval に1回・auth.CodeSendWindow に auth.MaxCodeSends 回までで、
+// 超えたら保存せずに 429 を返す（AUTHN-6, ADR 0011）。上限で断ったときは、それまでのコードはそのまま使える。
+// 保存できたら同じアドレス・用途の古いコードは使えなくする（使えるコードは常に1つ）。メールは呼び出し側が送る。
+// エラーは apperr で返す。
+func issueCode(ctx context.Context, codes VerificationCodeStore, logger *slog.Logger, email string, purpose domain.VerificationPurpose, now time.Time) (string, error) {
 	code, err := auth.GenerateCode()
 	if err != nil {
-		return "", err
+		return "", apperr.Internal(err)
 	}
 	codeHash, err := auth.HashCode(code)
 	if err != nil {
-		return "", err
+		return "", apperr.Internal(err)
 	}
-	if err := codes.InvalidateActive(ctx, email, purpose, now); err != nil {
-		return "", err
-	}
-	err = codes.Create(ctx, &domain.VerificationCode{
+	vc := &domain.VerificationCode{
 		Email:     email,
 		Purpose:   purpose,
 		CodeHash:  codeHash,
 		ExpiresAt: now.Add(auth.CodeTTL),
 		CreatedAt: now,
 		UpdatedAt: now,
-	})
-	if err != nil {
-		return "", err
 	}
+	err = codes.CreateWithinLimit(ctx, vc, auth.CodeSendInterval, auth.CodeSendWindow, auth.MaxCodeSends)
+	if errors.Is(err, repository.ErrRateLimited) {
+		return "", codeSendLimitError(ctx, codes, email, now)
+	}
+	if err != nil {
+		return "", apperr.Internal(err)
+	}
+	if err := codes.InvalidateOthers(ctx, email, purpose, vc.ID, now); err != nil {
+		return "", apperr.Internal(err)
+	}
+	warnIfManyMails(ctx, codes, logger, now)
 	return code, nil
+}
+
+// codeSendLimitError は、送信を断った理由（間隔が短い・回数が多い）に合わせたエラーを返す。
+func codeSendLimitError(ctx context.Context, codes VerificationCodeStore, email string, now time.Time) error {
+	recent, err := codes.CountByEmailSince(ctx, email, now.Add(-auth.CodeSendInterval))
+	if err != nil {
+		return apperr.Internal(err)
+	}
+	if recent > 0 {
+		return errCodeSentRecently
+	}
+	return errTooManyCodeSends
+}
+
+// warnIfManyMails は全体で送ったコードのメールの数を数え、Gmail の上限に近づいていたら警告のログを出す（AUTHN-6）。
+// 数えられなくても送信は止めない。
+func warnIfManyMails(ctx context.Context, codes VerificationCodeStore, logger *slog.Logger, now time.Time) {
+	n, err := codes.CountSince(ctx, now.Add(-auth.MailWarnWindow))
+	if err != nil {
+		logger.ErrorContext(ctx, "コードのメールの送信数を数えられませんでした", "error", err)
+		return
+	}
+	if n >= auth.MailWarnThreshold {
+		logger.WarnContext(ctx, "コードのメールの送信数が1日の上限に近づいています",
+			"count", n, "threshold", auth.MailWarnThreshold, "window_hours", int(auth.MailWarnWindow.Hours()))
+	}
 }
 
 // verifyCode は同じアドレス・用途のいちばん新しい使えるコードと照合し、一致したら使用済みにする（AUTHN-6）。

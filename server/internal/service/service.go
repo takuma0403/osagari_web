@@ -4,6 +4,7 @@ package service
 
 import (
 	"context"
+	"log/slog"
 	"time"
 
 	"github.com/takuma0403/osagari_web/server/internal/domain"
@@ -27,8 +28,10 @@ type UserStore interface {
 
 // VerificationCodeStore は verification_codes の読み書き（repository.VerificationCodeRepository）。
 type VerificationCodeStore interface {
-	Create(ctx context.Context, c *domain.VerificationCode) error
-	InvalidateActive(ctx context.Context, email string, purpose domain.VerificationPurpose, now time.Time) error
+	CreateWithinLimit(ctx context.Context, c *domain.VerificationCode, minInterval, window time.Duration, maxInWindow int) error
+	CountByEmailSince(ctx context.Context, email string, since time.Time) (int, error)
+	CountSince(ctx context.Context, since time.Time) (int, error)
+	InvalidateOthers(ctx context.Context, email string, purpose domain.VerificationPurpose, keepID string, now time.Time) error
 	FindLatestActive(ctx context.Context, email string, purpose domain.VerificationPurpose, maxAttempts int, now time.Time) (*domain.VerificationCode, error)
 	ReserveAttempt(ctx context.Context, id string, maxAttempts int, now time.Time) (int, error)
 	Consume(ctx context.Context, id string, now time.Time) error
@@ -48,6 +51,13 @@ type SessionStore interface {
 	RevokeAllByUser(ctx context.Context, userID string, now time.Time) error
 }
 
+// LoginFailureStore は login_failures の読み書き（repository.LoginFailureRepository）。
+type LoginFailureStore interface {
+	ReserveAttempt(ctx context.Context, email string, maxAttempts int, lockFor time.Duration, now time.Time) error
+	Clear(ctx context.Context, email string, now time.Time) error
+	Reset(ctx context.Context, email string, now time.Time) error
+}
+
 // TrustedDeviceStore は trusted_devices の読み書き（repository.TrustedDeviceRepository）。
 type TrustedDeviceStore interface {
 	Upsert(ctx context.Context, d *domain.TrustedDevice) error
@@ -59,4 +69,12 @@ type LoginChallengeStore interface {
 	Create(ctx context.Context, c *domain.LoginChallenge) error
 	FindActive(ctx context.Context, tokenHash string, now time.Time) (*domain.LoginChallenge, error)
 	Consume(ctx context.Context, id string, now time.Time) error
+}
+
+// loggerOrDefault は l が nil なら slog.Default() を返す。
+func loggerOrDefault(l *slog.Logger) *slog.Logger {
+	if l == nil {
+		return slog.Default()
+	}
+	return l
 }

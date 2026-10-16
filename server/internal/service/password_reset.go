@@ -3,6 +3,7 @@ package service
 import (
 	"context"
 	"errors"
+	"log/slog"
 
 	"github.com/takuma0403/osagari_web/server/internal/apperr"
 	"github.com/takuma0403/osagari_web/server/internal/auth"
@@ -18,10 +19,13 @@ type PasswordResetDeps struct {
 	Users    UserStore
 	Codes    VerificationCodeStore
 	Tokens   PasswordSetupTokenStore
+	Failures LoginFailureStore
 	Sessions SessionStore
 	Devices  TrustedDeviceStore
 	Mailer   mail.Mailer
 	Clock    clock.Clock
+	// Logger は送信数の警告に使う。nil なら slog.Default()
+	Logger *slog.Logger
 }
 
 // PasswordResetService はメールのコードによるパスワードの再設定（コード送信 → コード確認 → 新しいパスワードの設定）を行う（AUTHN-4, ADR 0010）。
@@ -30,6 +34,7 @@ type PasswordResetService struct {
 }
 
 func NewPasswordResetService(d PasswordResetDeps) *PasswordResetService {
+	d.Logger = loggerOrDefault(d.Logger)
 	return &PasswordResetService{d: d}
 }
 
@@ -48,9 +53,9 @@ func (s *PasswordResetService) SendCode(ctx context.Context, rawEmail string) er
 		return apperr.Internal(err)
 	}
 	registered := err == nil && u.Status != domain.UserStatusDeleted
-	code, err := issueCode(ctx, s.d.Codes, email, domain.VerificationPurposePasswordReset, s.d.Clock.Now())
+	code, err := issueCode(ctx, s.d.Codes, s.d.Logger, email, domain.VerificationPurposePasswordReset, s.d.Clock.Now())
 	if err != nil {
-		return apperr.Internal(err)
+		return err
 	}
 
 	msg := passwordResetNotRegisteredMail(email)
@@ -82,6 +87,7 @@ func (s *PasswordResetService) VerifyCode(ctx context.Context, rawEmail, code st
 }
 
 // Complete は一時トークンを使って新しいパスワードを設定し、そのユーザーの既存のセッションをすべて無効にする（AUTHN-4, AUTHN-5）。
+// パスワードの入力ミスの回数も0に戻す（ログインを止めている期間は変えない。AUTHN-6）。
 // コードで本人確認をしたので最後の確認日時を更新し、deviceID があれば登録済みの端末にして、この端末用のセッションを発行する。
 // 停止中・失効なら理由が分かるエラーを返し、パスワードは変えない（トークンも消費しない）。
 // トークンの消費・パスワードの更新・セッションの失効と発行・端末の登録は1つのトランザクションで行う。
@@ -120,6 +126,10 @@ func (s *PasswordResetService) Complete(ctx context.Context, setupToken, passwor
 			return err
 		}
 		if err := s.d.Sessions.RevokeAllByUser(ctx, u.ID, now); err != nil {
+			return err
+		}
+		// パスワードの入力ミスの回数は戻すが、ログインを止めている間は期限まで止めたままにする（AUTHN-6, ADR 0011）
+		if err := s.d.Failures.Reset(ctx, u.Email, now); err != nil {
 			return err
 		}
 		if err := trustDevice(ctx, s.d.Devices, u.ID, deviceHashOf(deviceID), now); err != nil {

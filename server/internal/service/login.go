@@ -3,6 +3,7 @@ package service
 import (
 	"context"
 	"errors"
+	"log/slog"
 	"net/http"
 	"time"
 
@@ -32,6 +33,9 @@ var (
 		"このアカウントは有効期限が切れたため、ログインできません")
 	errInvalidLoginChallenge = apperr.New(http.StatusBadRequest, CodeInvalidLoginChallenge,
 		"ログインの手続きの有効期限が切れました。もう一度ログインしてください")
+	// 未登録のアドレスでも同じように止めるので、登録の有無は分からない（AUTHN-6, ADR 0011）
+	errLoginLocked = apperr.TooManyRequests(
+		"ログインの失敗が続いたため、しばらくログインできません。15分ほどたってからもう一度お試しください")
 )
 
 // LoginDeps は LoginService の依存。
@@ -40,10 +44,13 @@ type LoginDeps struct {
 	Users      UserStore
 	Codes      VerificationCodeStore
 	Challenges LoginChallengeStore
+	Failures   LoginFailureStore
 	Sessions   SessionStore
 	Devices    TrustedDeviceStore
 	Mailer     mail.Mailer
 	Clock      clock.Clock
+	// Logger は送信数の警告に使う。nil なら slog.Default()
+	Logger *slog.Logger
 }
 
 // LoginService はパスワードでのログインと、メールのコードによる再確認を行う（AUTH-1, AUTHN-3, AUTHN-5, ADR 0009）。
@@ -52,6 +59,7 @@ type LoginService struct {
 }
 
 func NewLoginService(d LoginDeps) *LoginService {
+	d.Logger = loggerOrDefault(d.Logger)
 	return &LoginService{d: d}
 }
 
@@ -78,6 +86,9 @@ type LoggedIn struct {
 
 // Login はメールアドレスとパスワードでログインする（AUTHN-3）。
 //
+// パスワードの入力は、アドレスごとに照合の前に数える。auth.MaxPasswordFailures 回続けて間違えたら auth.LoginLockDuration の間
+// 照合せずに 429 を返す（AUTHN-6, ADR 0011）。未登録・削除済みのアドレスも同じように数えて止める。
+//
 // パスワードが一致し、最後にコードで確認してから auth.RecheckInterval 未満で、端末（deviceID）が登録済みなら
 // そのままセッションを発行する。そうでなければメールにコードを送り、再確認用のチャレンジを返す。
 func (s *LoginService) Login(ctx context.Context, rawEmail, password, deviceID string) (LoginResult, error) {
@@ -85,6 +96,14 @@ func (s *LoginService) Login(ctx context.Context, rawEmail, password, deviceID s
 	email, _, err := domain.NormalizeStudentEmail(rawEmail)
 	if err != nil || auth.ValidatePassword(password) != nil {
 		return LoginResult{}, errInvalidCredentials
+	}
+	now := s.d.Clock.Now()
+	err = s.d.Failures.ReserveAttempt(ctx, email, auth.MaxPasswordFailures, auth.LoginLockDuration, now)
+	if errors.Is(err, repository.ErrRateLimited) {
+		return LoginResult{}, errLoginLocked
+	}
+	if err != nil {
+		return LoginResult{}, apperr.Internal(err)
 	}
 	u, err := s.d.Users.FindByEmail(ctx, email)
 	if errors.Is(err, repository.ErrNotFound) || (err == nil && u.Status == domain.UserStatusDeleted) {
@@ -102,8 +121,11 @@ func (s *LoginService) Login(ctx context.Context, rawEmail, password, deviceID s
 	if !ok {
 		return LoginResult{}, errInvalidCredentials
 	}
+	// パスワードが一致したら、この後に停止中・失効・再確認で止まっても入力ミスの回数は戻す
+	if err := s.d.Failures.Clear(ctx, email, now); err != nil {
+		return LoginResult{}, apperr.Internal(err)
+	}
 
-	now := s.d.Clock.Now()
 	if err := checkUsable(u, now); err != nil {
 		return LoginResult{}, err
 	}
@@ -153,7 +175,12 @@ func (s *LoginService) recheckReason(ctx context.Context, u *domain.User, device
 }
 
 // startChallenge はチャレンジを発行し、コードをメールで送る。ログイン時の端末はチャレンジに保存し、確認に成功したら登録する。
+// コード送信の回数制限（AUTHN-6）で断るときに使われないチャレンジを残さないように、コードを先に作る。
 func (s *LoginService) startChallenge(ctx context.Context, u *domain.User, reason domain.LoginRecheckReason, deviceHash string, now time.Time) (IssuedLoginChallenge, error) {
+	code, err := issueCode(ctx, s.d.Codes, s.d.Logger, u.Email, domain.VerificationPurposeLoginRecheck, now)
+	if err != nil {
+		return IssuedLoginChallenge{}, err
+	}
 	token, err := auth.GenerateToken()
 	if err != nil {
 		return IssuedLoginChallenge{}, apperr.Internal(err)
@@ -170,7 +197,7 @@ func (s *LoginService) startChallenge(ctx context.Context, u *domain.User, reaso
 	if err != nil {
 		return IssuedLoginChallenge{}, apperr.Internal(err)
 	}
-	if err := s.sendRecheckCode(ctx, u.Email, now); err != nil {
+	if err := s.mailRecheckCode(ctx, u.Email, code); err != nil {
 		return IssuedLoginChallenge{}, err
 	}
 	return IssuedLoginChallenge{Token: token, Reason: reason, Email: u.Email}, nil
@@ -178,17 +205,22 @@ func (s *LoginService) startChallenge(ctx context.Context, u *domain.User, reaso
 
 // sendRecheckCode は再確認のコードを作り直してメールで送る。古いコードは使えなくなる。
 func (s *LoginService) sendRecheckCode(ctx context.Context, email string, now time.Time) error {
-	code, err := issueCode(ctx, s.d.Codes, email, domain.VerificationPurposeLoginRecheck, now)
+	code, err := issueCode(ctx, s.d.Codes, s.d.Logger, email, domain.VerificationPurposeLoginRecheck, now)
 	if err != nil {
-		return apperr.Internal(err)
+		return err
 	}
+	return s.mailRecheckCode(ctx, email, code)
+}
+
+// mailRecheckCode は再確認のコードをメールで送る。
+func (s *LoginService) mailRecheckCode(ctx context.Context, email, code string) error {
 	if err := s.d.Mailer.Send(ctx, loginRecheckCodeMail(email, code)); err != nil {
 		return apperr.Internal(err)
 	}
 	return nil
 }
 
-// ResendRecheckCode はチャレンジが使えるなら、再確認のコードを送り直す（AUTHN-3）。送信回数の制限は #12（AUTHN-6）。
+// ResendRecheckCode はチャレンジが使えるなら、再確認のコードを送り直す（AUTHN-3）。送信回数の制限は issueCode（AUTHN-6）。
 func (s *LoginService) ResendRecheckCode(ctx context.Context, challengeToken string) error {
 	now := s.d.Clock.Now()
 	_, u, err := s.activeChallenge(ctx, challengeToken, now)

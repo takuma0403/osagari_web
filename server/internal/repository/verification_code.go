@@ -78,11 +78,52 @@ func (r *VerificationCodeRepository) Create(ctx context.Context, c *domain.Verif
 	return conn(ctx, r.db).Create(&row).Error
 }
 
-// InvalidateActive は同じアドレス・用途の未使用のコードをすべて無効にする（再送したら古いコードは使えなくする）。
-func (r *VerificationCodeRepository) InvalidateActive(ctx context.Context, email string, purpose domain.VerificationPurpose, now time.Time) error {
+// CreateWithinLimit は、同じアドレスへの送信が上限の内側のときだけコードを保存する（AUTHN-6）。ID が空なら採番する。
+// 用途をまとめて数え、直近 minInterval 以内に1件でもあるか、直近 window 以内に maxInWindow 件あれば保存せずに ErrRateLimited を返す。
+// 判定と保存を1つの文で行うので、同時に送られても上限を超えない。c.CreatedAt を現在時刻として使う。
+func (r *VerificationCodeRepository) CreateWithinLimit(ctx context.Context, c *domain.VerificationCode, minInterval, window time.Duration, maxInWindow int) error {
+	if c.ID == "" {
+		c.ID = newID()
+	}
+	res := conn(ctx, r.db).Exec(`INSERT INTO verification_codes
+		(id, email, purpose, code_hash, failed_attempts, expires_at, consumed_at, created_at, updated_at)
+		SELECT ?, ?, ?, ?, ?, ?, ?, ?, ?
+		WHERE NOT EXISTS (SELECT 1 FROM verification_codes WHERE email = ? AND created_at > ?)
+		AND (SELECT COUNT(*) FROM verification_codes WHERE email = ? AND created_at > ?) < ?`,
+		c.ID, c.Email, string(c.Purpose), c.CodeHash, c.FailedAttempts, formatTime(c.ExpiresAt),
+		formatTimePtr(c.ConsumedAt), formatTime(c.CreatedAt), formatTime(c.UpdatedAt),
+		c.Email, formatTime(c.CreatedAt.Add(-minInterval)),
+		c.Email, formatTime(c.CreatedAt.Add(-window)), maxInWindow)
+	if res.Error != nil {
+		return res.Error
+	}
+	if res.RowsAffected == 0 {
+		return ErrRateLimited
+	}
+	return nil
+}
+
+// CountByEmailSince は、そのアドレスに since より後に保存したコードの数を用途をまとめて返す（AUTHN-6）。
+func (r *VerificationCodeRepository) CountByEmailSince(ctx context.Context, email string, since time.Time) (int, error) {
+	var n int64
+	err := conn(ctx, r.db).Model(&verificationCodeRow{}).
+		Where("email = ? AND created_at > ?", email, formatTime(since)).Count(&n).Error
+	return int(n), err
+}
+
+// CountSince は、全アドレスに since より後に保存したコードの数（＝送ったコードのメールの数）を返す（AUTHN-6）。
+func (r *VerificationCodeRepository) CountSince(ctx context.Context, since time.Time) (int, error) {
+	var n int64
+	err := conn(ctx, r.db).Model(&verificationCodeRow{}).
+		Where("created_at > ?", formatTime(since)).Count(&n).Error
+	return int(n), err
+}
+
+// InvalidateOthers は同じアドレス・用途の未使用のコードのうち、keepID 以外をすべて無効にする（再送したら古いコードは使えなくする）。
+func (r *VerificationCodeRepository) InvalidateOthers(ctx context.Context, email string, purpose domain.VerificationPurpose, keepID string, now time.Time) error {
 	ts := formatTime(now)
 	return conn(ctx, r.db).Model(&verificationCodeRow{}).
-		Where("email = ? AND purpose = ? AND consumed_at IS NULL", email, string(purpose)).
+		Where("email = ? AND purpose = ? AND consumed_at IS NULL AND id <> ?", email, string(purpose), keepID).
 		Updates(map[string]any{"consumed_at": ts, "updated_at": ts}).Error
 }
 

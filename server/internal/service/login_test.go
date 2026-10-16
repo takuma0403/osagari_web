@@ -32,6 +32,7 @@ func newLoginFixture(t *testing.T) *loginFixture {
 		Users:      repository.NewUserRepository(f.gdb),
 		Codes:      repository.NewVerificationCodeRepository(f.gdb),
 		Challenges: repository.NewLoginChallengeRepository(f.gdb),
+		Failures:   repository.NewLoginFailureRepository(f.gdb),
 		Sessions:   repository.NewSessionRepository(f.gdb),
 		Devices:    repository.NewTrustedDeviceRepository(f.gdb),
 		Mailer:     f.mailer,
@@ -43,6 +44,10 @@ func newLoginFixture(t *testing.T) *loginFixture {
 		Clock:    f.clock,
 	})
 	f.user = f.signup(t, email, knownDevice).User
+	// 準備の登録で送ったコードは、コード送信の回数制限（AUTHN-6）に数えないように消す
+	if err := f.gdb.Exec("DELETE FROM verification_codes").Error; err != nil {
+		t.Fatal(err)
+	}
 	return f
 }
 
@@ -235,6 +240,7 @@ func TestVerifyRecheck(t *testing.T) {
 		f := newLoginFixture(t)
 		c := f.challenge(t, "new-device")
 		old := f.lastCode(t)
+		f.clock.Advance(auth.CodeSendInterval)
 		if err := f.login.ResendRecheckCode(ctx, c.Token); err != nil {
 			t.Fatal(err)
 		}

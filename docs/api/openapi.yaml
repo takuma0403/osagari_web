@@ -67,6 +67,7 @@ paths:
         AUTHN-2: 大学のメールアドレス（^\d{8}@edu\.cc\.saga-u\.ac\.jp$）に6桁のコード（10分有効）を送る。
         登録済みのアドレスにはコードの代わりに「登録済みです」の案内を送り、応答は未登録のときと同じにする（登録の有無を判別させない）。
         形式が違うアドレスには送らず 400 invalid_email を返す。
+        同じアドレスへのコード送信は、用途（新規登録・パスワード再設定・ログインの再確認）をまとめて1分に1回・1時間に5回までで、超えたら送らずに 429 too_many_requests（AUTHN-6）。登録の有無にかかわらず同じように数える。
       security: []
       requestBody:
         required: true
@@ -145,6 +146,8 @@ paths:
         30日以上たっているか初めての端末なら、メールに6桁のコード（10分有効）を送り、再確認用のログインチャレンジ（15分有効・一度だけ使える）を返す（202）。
         メールアドレスの形式違い・未登録・削除済み・パスワード違いは、区別せず 401 invalid_credentials（登録の有無を判別させない）。
         パスワードが一致しても、停止中なら 403 account_suspended、失効（有効期限切れを含む）なら 403 account_expired。
+        AUTHN-6: パスワードの入力ミスが同じアドレスで10回続いたら、15分間は照合せずに 429 too_many_requests（未登録・削除済みのアドレスも同じように数えて止める）。パスワードが一致したら回数は0に戻る。
+        202 でコードを送るときは、コード送信の回数制限（/auth/signup/codes を参照）に当たると 429 too_many_requests。
       security: []
       parameters:
         - $ref: '#/components/parameters/DeviceId'
@@ -182,6 +185,7 @@ paths:
       description: |
         AUTHN-3: ログインチャレンジが有効なら、新しいコード（10分有効）を送る。古いコードは使えなくなる。
         チャレンジが無効・期限切れ・使用済みなら 400 invalid_login_challenge。
+        AUTHN-6: コード送信の回数制限（/auth/signup/codes を参照）に当たったら 429 too_many_requests。断ったときは前のコードがそのまま使える。
       security: []
       requestBody:
         required: true
@@ -251,6 +255,7 @@ paths:
         AUTHN-4: 登録済みのアドレスに6桁のコード（10分有効）を送る。
         未登録・削除済みのアドレスにはコードの代わりに「登録されていません」の案内を送り、応答は登録済みのときと同じにする（登録の有無を判別させない。AUTHN-2）。
         形式が違うアドレスには送らず 400 invalid_email を返す。
+        同じアドレスへのコード送信は、用途（新規登録・パスワード再設定・ログインの再確認）をまとめて1分に1回・1時間に5回までで、超えたら送らずに 429 too_many_requests（AUTHN-6）。登録の有無にかかわらず同じように数える。
       security: []
       requestBody:
         required: true
@@ -297,6 +302,7 @@ paths:
         コードで本人確認をしたので、最後の確認日時を更新し、そのままこの端末でログイン状態にして `__session` Cookie を返す。`X-Device-Id` があれば、その端末を登録済みの端末にする（AUTHN-3）。
         トークンが無効・期限切れ・使用済みなら 400 invalid_setup_token、パスワードの長さが範囲外なら 400 invalid_password_length。
         停止中なら 403 account_suspended、失効なら 403 account_expired を返し、パスワードは変えない。
+        AUTHN-6: 設定したらパスワードの入力ミスの回数を0に戻す。ただしログインを止めている間（429）は期限まで止めたまま。
       security: []
       parameters:
         - $ref: '#/components/parameters/DeviceId'

@@ -138,6 +138,7 @@ func TestSendCode(t *testing.T) {
 	t.Run("未登録と登録済みで応答と処理が同じで、本文だけが違う（AUTHN-2）", func(t *testing.T) {
 		f := newFixture(t)
 		f.signup(t, email, "")
+		f.clock.Advance(auth.CodeSendInterval) // 登録のときのコード送信から間隔をあける（AUTHN-6）
 		before := f.count(t, "verification_codes")
 		sentBefore := len(f.mailer.Messages())
 
@@ -172,6 +173,7 @@ func TestSendCode(t *testing.T) {
 	t.Run("登録済みのアドレスに保存したコードでは登録できない", func(t *testing.T) {
 		f := newFixture(t)
 		f.signup(t, email, "")
+		f.clock.Advance(auth.CodeSendInterval)
 		if err := f.svc.SendCode(ctx, email); err != nil {
 			t.Fatal(err)
 		}
@@ -240,6 +242,7 @@ func TestVerifyCode(t *testing.T) {
 			return err
 		}, ""},
 		{"再送したら古いコードは使えない", func(t *testing.T, f *fixture, code string) error {
+			f.clock.Advance(auth.CodeSendInterval)
 			if err := f.svc.SendCode(ctx, email); err != nil {
 				t.Fatal(err)
 			}

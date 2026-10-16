@@ -31,6 +31,7 @@ func newResetFixture(t *testing.T) *resetFixture {
 		Users:    repository.NewUserRepository(f.gdb),
 		Codes:    repository.NewVerificationCodeRepository(f.gdb),
 		Tokens:   repository.NewPasswordSetupTokenRepository(f.gdb),
+		Failures: repository.NewLoginFailureRepository(f.gdb),
 		Sessions: repository.NewSessionRepository(f.gdb),
 		Devices:  repository.NewTrustedDeviceRepository(f.gdb),
 		Mailer:   f.mailer,
@@ -84,6 +85,7 @@ func TestPasswordReset_SendCode(t *testing.T) {
 		if err := f.gdb.Exec("UPDATE users SET status = ? WHERE email = ?", string(domain.UserStatusDeleted), deleted).Error; err != nil {
 			t.Fatal(err)
 		}
+		f.clock.Advance(auth.CodeSendInterval) // 登録のときのコード送信から間隔をあける（AUTHN-6）
 		before := f.count(t, "verification_codes")
 		sent := len(f.mailer.Messages())
 
