@@ -70,6 +70,15 @@ func (r *LoginFailureRepository) Clear(ctx context.Context, email string, now ti
 		Updates(map[string]any{"failed_attempts": 0, "locked_until": nil, "updated_at": formatTime(now)}).Error
 }
 
+// DeleteStale は、止めていない（期限が過ぎた場合を含む）行のうち before 以前から更新のないものを消し、消した件数を返す（AUTHN-6, ADR 0011）。
+// 止めている間の行は消さない（消すとロックが外れるため）。消した行の回数は0から数え直しになる。
+func (r *LoginFailureRepository) DeleteStale(ctx context.Context, before, now time.Time) (int, error) {
+	res := conn(ctx, r.db).
+		Where("(locked_until IS NULL OR locked_until <= ?) AND updated_at <= ?", formatTime(now), formatTime(before)).
+		Delete(&loginFailureRow{})
+	return int(res.RowsAffected), res.Error
+}
+
 // Reset は入力の回数を0に戻す。止めている期間は変えない（パスワード再設定の後もロックは期限まで続く。ADR 0011）。
 func (r *LoginFailureRepository) Reset(ctx context.Context, email string, now time.Time) error {
 	return conn(ctx, r.db).Model(&loginFailureRow{}).

@@ -30,4 +30,6 @@ const (
 	// MaxPasswordFailures 回続けてパスワードを間違えたら、LoginLockDuration の間ログインを止める（AUTHN-6）
 	MaxPasswordFailures = 10
 	LoginLockDuration   = 15 * time.Minute
+	// LoginFailureRetention の間入力ミスがなければ記録を消し、回数を0に戻す（止めている間は消さない。AUTHN-6, ADR 0011）
+	LoginFailureRetention = 24 * time.Hour
 )
