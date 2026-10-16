@@ -105,6 +105,17 @@ func Test認証テーブルの制約(t *testing.T) {
 			}
 			return exec(q, "l2", now, now, now)
 		}},
+		{"パスワードの入力ミスの記録のアドレスの重複", func() error {
+			q := `INSERT INTO login_failures (email, created_at, updated_at) VALUES ('a@example.com', ?, ?)`
+			if err := exec(q, now, now); err != nil {
+				t.Fatalf("1件目の入力ミスの記録: %v", err)
+			}
+			return exec(q, now, now)
+		}},
+		{"パスワードの入力ミスの回数が負", func() error {
+			return exec(`INSERT INTO login_failures (email, failed_attempts, created_at, updated_at)
+				VALUES ('b@example.com', -1, ?, ?)`, now, now)
+		}},
 	}
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {
