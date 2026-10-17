@@ -6,6 +6,7 @@ export type StudentEstimate = components['schemas']['StudentEstimate']
 export type SignupCodeVerified = components['schemas']['SignupCodeVerified']
 export type LoginChallenge = components['schemas']['LoginChallenge']
 export type CurrentUser = components['schemas']['CurrentUser']
+export type PasswordResetCodeVerified = components['schemas']['PasswordResetCodeVerified']
 
 /** 認証コードの有効期限（AUTHN-2） */
 export const CODE_TTL_SECONDS = 10 * 60
@@ -41,6 +42,44 @@ export function verifySignupCode(studentId: string, code: string) {
     email: toUniversityEmail(studentId),
     code,
   })
+}
+
+/** パスワードを設定してアカウントを作り、そのままログインする（AUTHN-2, AUTHN-5） */
+export function completeSignup(setupToken: string, password: string) {
+  return post<CurrentUser>('/auth/signup/complete', { setupToken, password })
+}
+
+/** パスワード再設定の認証コードを送る（AUTHN-4）。未登録でも同じ応答になる */
+export function sendPasswordResetCode(studentId: string) {
+  return post<void>('/auth/password-reset/codes', { email: toUniversityEmail(studentId) })
+}
+
+/** パスワード再設定の認証コードを確認し、パスワード設定用の一時トークンを受け取る（AUTHN-4） */
+export function verifyPasswordResetCode(studentId: string, code: string) {
+  return post<PasswordResetCodeVerified>('/auth/password-reset/codes/verify', {
+    email: toUniversityEmail(studentId),
+    code,
+  })
+}
+
+/** 新しいパスワードを設定し、ほかのセッションを無効にしてこの端末でログインする（AUTHN-4） */
+export function completePasswordReset(setupToken: string, password: string) {
+  return post<CurrentUser>('/auth/password-reset/complete', { setupToken, password })
+}
+
+/** ログインの再確認のコードを送り直す（AUTHN-3）。古いコードは使えなくなる */
+export function resendRecheckCode(challengeToken: string) {
+  return post<void>('/auth/login/recheck/codes', { challengeToken })
+}
+
+/** ログインの再確認のコードを確認してログインする（AUTHN-3） */
+export function verifyRecheck(challengeToken: string, code: string) {
+  return post<CurrentUser>('/auth/login/recheck/verify', { challengeToken, code })
+}
+
+/** ログイン中の本人の情報（AUTHN-5）。ログインしていなければ 401 unauthorized */
+export function getMe(signal?: AbortSignal) {
+  return request<CurrentUser>('/me', { signal })
 }
 
 export type LoginResult =

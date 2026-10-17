@@ -1,0 +1,65 @@
+.badge {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: var(--btn-h);
+  height: var(--btn-h);
+  border-radius: var(--radius-pill);
+  background: var(--color-primary-soft);
+  color: var(--color-primary);
+}
+
+.destination {
+  display: flex;
+  align-items: center;
+  gap: var(--space-gap);
+  padding: 12px 14px;
+  border-radius: var(--radius-card);
+  background: var(--color-bg);
+}
+
+.address {
+  display: flex;
+  flex-direction: column;
+  flex-grow: 1;
+  gap: 2px;
+  min-width: 0;
+}
+
+.addressLabel {
+  color: var(--color-text-muted);
+  font-size: var(--text-note);
+}
+
+.email {
+  overflow: hidden;
+  font-family: var(--font-num);
+  font-size: var(--text-button-md);
+  font-weight: 700;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* タップ領域を 44px にする（DS-1） */
+.switch {
+  display: flex;
+  flex-shrink: 0;
+  align-items: center;
+  min-height: var(--tap-min);
+  font-size: var(--text-label);
+}
+
+.form {
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+}
+
+.restart {
+  font-size: var(--text-label);
+}
+
+.note {
+  margin-top: auto;
+  font-size: var(--text-note);
+}

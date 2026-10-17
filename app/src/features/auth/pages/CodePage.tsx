@@ -1,27 +1,22 @@
-import { useState, type FormEvent } from 'react'
 import { Link, Navigate, useLocation, useNavigate } from 'react-router'
-import { isApiError } from '../../../api/client'
 import { Button } from '../../../components/Button/Button'
 import { CodeInput } from '../../../components/CodeInput/CodeInput'
 import { InfoBox } from '../../../components/InfoBox/InfoBox'
-import { formatCountdown } from '../../../lib/format'
 import { toUniversityEmail } from '../../../lib/studentId'
 import {
-  CODE_RESEND_INTERVAL_SECONDS,
-  CODE_TTL_SECONDS,
+  sendPasswordResetCode,
   sendSignupCode,
+  verifyPasswordResetCode,
   verifySignupCode,
 } from '../api'
 import { AuthFormLayout } from '../components/AuthFormLayout/AuthFormLayout'
-import { useCountdown } from '../hooks/useCountdown'
-import { isSignupCodeState, type SignupCodeState } from '../navigation'
+import { useCodeEntry } from '../hooks/useCodeEntry'
+import { isCodeSentState, type CodeSentState } from '../navigation'
 import styles from './CodePage.module.css'
 
-const CODE_LENGTH = 6
-
 /**
- * コード入力の手続きごとの違い。パスワード再設定・再確認（#14）はここに足す。
- * 文言は Code.dc.html の mode ごとの表示と同じにする。
+ * コード入力の手続きごとの違い。文言は Code.dc.html の mode ごとの表示と同じにする。
+ * 再確認（Code.dc.html の「再確認」）は、デザインの Recheck.dc.html を使う RecheckPage で扱う。
  */
 const flows = {
   signup: {
@@ -41,6 +36,16 @@ const flows = {
       </>
     ),
   },
+  passwordReset: {
+    backTo: '/password-reset',
+    next: '/password-reset/password',
+    step: { current: 2, total: 3 },
+    title: '認証コードを入力',
+    send: sendPasswordResetCode,
+    /** 成功したら一時トークン（PasswordResetState）を次の画面へ渡す */
+    verify: verifyPasswordResetCode,
+    note: null,
+  },
 } as const
 
 type Props = {
@@ -48,67 +53,34 @@ type Props = {
 }
 
 /**
- * 認証コードの入力（AUTH-1, AUTHN-1, AUTHN-2, AUTHN-6）。デザインは Code.dc.html。
+ * 認証コードの入力（AUTH-1, AUTHN-1, AUTHN-2, AUTHN-4, AUTHN-6）。新規登録とパスワード再設定で使う。デザインは Code.dc.html。
  * 有効期限（10分）と再送の待ち時間（1分）は、前の画面でコードを送った時刻から数える。
  */
 export function CodePage({ flow }: Props) {
   const { state } = useLocation()
   const config = flows[flow]
-  if (!isSignupCodeState(state)) return <Navigate to={config.backTo} replace />
+  if (!isCodeSentState(state)) return <Navigate to={config.backTo} replace />
   // 送り直したら作り直し、入力と残り時間を新しいコードの分から始める
   return <CodeForm key={state.sentAt} flow={flow} sent={state} />
 }
 
-function CodeForm({ flow, sent }: Props & { sent: SignupCodeState }) {
+function CodeForm({ flow, sent }: Props & { sent: CodeSentState }) {
   const config = flows[flow]
   const navigate = useNavigate()
   const { studentId, sentAt } = sent
-  const [code, setCode] = useState('')
-  const [error, setError] = useState<string>()
-  const [verifying, setVerifying] = useState(false)
-  const [resending, setResending] = useState(false)
-
-  const expiresIn = useCountdown(sentAt + CODE_TTL_SECONDS * 1000)
-  const resendIn = useCountdown(sentAt + CODE_RESEND_INTERVAL_SECONDS * 1000)
-
-  const handleChange = (value: string) => {
-    setCode(value)
-    setError(undefined)
-  }
-
-  const handleSubmit = async (e: FormEvent) => {
-    e.preventDefault()
-    if (code.length !== CODE_LENGTH || verifying) return
-    setVerifying(true)
-    setError(undefined)
-    try {
+  const { inputProps, canSubmit, submit } = useCodeEntry({
+    sentAt,
+    verify: async (code) => {
       const next = await config.verify(studentId, code)
       navigate(config.next, { state: next, replace: true })
-    } catch (err) {
-      if (!isApiError(err)) throw err
-      // 違うコード（残り回数入り）・期限切れ・使えなくなったコードは、サーバーの文言をそのまま出す（AUTHN-6）
-      setError(err.message)
-      setCode('')
-      setVerifying(false)
-    }
-  }
-
-  const handleResend = async () => {
-    setResending(true)
-    setError(undefined)
-    try {
+    },
+    resend: async () => {
       await config.send(studentId)
       // 送った時刻を state に残し、再読み込みしても有効期限と待ち時間が続くようにする
-      const next: SignupCodeState = { studentId, sentAt: Date.now() }
+      const next: CodeSentState = { studentId, sentAt: Date.now() }
       navigate('.', { state: next, replace: true })
-    } catch (err) {
-      if (!isApiError(err)) throw err
-      // 送信数の制限（429）など。断られたときは前のコードがそのまま使える（AUTHN-6）
-      setError(err.message)
-    } finally {
-      setResending(false)
-    }
-  }
+    },
+  })
 
   return (
     <AuthFormLayout
@@ -122,21 +94,9 @@ function CodeForm({ flow, sent }: Props & { sent: SignupCodeState }) {
         </>
       }
     >
-      <form className={styles.form} onSubmit={handleSubmit} noValidate>
-        <CodeInput
-          value={code}
-          onChange={handleChange}
-          error={error}
-          expiresIn={formatCountdown(expiresIn)}
-          resend={{
-            label:
-              resendIn > 0 ? `コードを再送（${formatCountdown(resendIn)} 後）` : 'コードを再送',
-            onClick: handleResend,
-            disabled: resendIn > 0 || resending,
-          }}
-          disabled={verifying}
-        />
-        <Button type="submit" fullWidth disabled={code.length !== CODE_LENGTH || verifying}>
+      <form className={styles.form} onSubmit={submit} noValidate>
+        <CodeInput {...inputProps} />
+        <Button type="submit" fullWidth disabled={!canSubmit}>
           確認する
         </Button>
       </form>

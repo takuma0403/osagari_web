@@ -104,3 +104,42 @@ describe('SignUpPage', () => {
     expect(screen.getByRole('link', { name: 'ログイン' })).toHaveAttribute('href', '/login')
   })
 })
+
+describe('SignUpPage（パスワード再設定）', () => {
+  afterEach(() => {
+    vi.unstubAllGlobals()
+  })
+
+  function setupReset() {
+    const fetchMock = vi.fn(async () => new Response(null, { status: 202 }))
+    vi.stubGlobal('fetch', fetchMock)
+    const user = userEvent.setup()
+    const view = renderRoute('/password-reset', <SignUpPage flow="passwordReset" />, {
+      destinations: ['/password-reset/code'],
+    })
+    return { ...view, user, fetchMock }
+  }
+
+  it('再設定の見出しと説明を出し、推定と「登録済みの方は」は出さない', async () => {
+    const { user, fetchMock } = setupReset()
+    expect(
+      screen.getByRole('heading', { level: 1, name: 'パスワードの再設定' }),
+    ).toBeInTheDocument()
+    expect(screen.getByText(/新しいパスワードを決めます/)).toBeInTheDocument()
+    await user.type(screen.getByLabelText('大学のメールアドレス'), '26238001')
+    expect(screen.queryByText(/登録済みの方は/)).not.toBeInTheDocument()
+    expect(fetchMock).not.toHaveBeenCalled()
+  })
+
+  it('コードを送ったら、学籍番号と送った時刻を持って /password-reset/code へ進む', async () => {
+    const { user, fetchMock } = setupReset()
+    await user.type(screen.getByLabelText('大学のメールアドレス'), '26238001')
+    await user.click(screen.getByRole('button', { name: '認証コードを送る' }))
+    const heading = await screen.findByRole('heading', { name: '/password-reset/code' })
+    expect(JSON.parse(heading.dataset.state!)).toMatchObject({ studentId: '26238001' })
+    expect(fetchMock).toHaveBeenCalledWith(
+      '/api/auth/password-reset/codes',
+      expect.objectContaining({ body: JSON.stringify({ email: '26238001@edu.cc.saga-u.ac.jp' }) }),
+    )
+  })
+})

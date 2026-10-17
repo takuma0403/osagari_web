@@ -1,5 +1,5 @@
 import { getDeviceId } from '../lib/deviceId'
-import { ApiError, isApiError, request } from './client'
+import { ApiError, isApiError, onUnauthorized, request } from './client'
 
 const json = (body: unknown, status = 200) =>
   new Response(JSON.stringify(body), {
@@ -91,5 +91,27 @@ describe('request', () => {
       throw new DOMException('aborted', 'AbortError')
     })
     await expect(request('/x')).rejects.toMatchObject({ name: 'AbortError' })
+  })
+
+  it('401 unauthorized では onUnauthorized の処理を呼び、解除したら呼ばない', async () => {
+    mockFetch(async () => json({ code: 'unauthorized', message: 'ログインが必要です' }, 401))
+    const listener = vi.fn()
+    const off = onUnauthorized(listener)
+    await catchError(request('/me'))
+    expect(listener).toHaveBeenCalledTimes(1)
+    off()
+    await catchError(request('/me'))
+    expect(listener).toHaveBeenCalledTimes(1)
+  })
+
+  it('ログインのパスワード違い（401 invalid_credentials）では onUnauthorized を呼ばない', async () => {
+    mockFetch(async () =>
+      json({ code: 'invalid_credentials', message: 'メールアドレスかパスワードが違います' }, 401),
+    )
+    const listener = vi.fn()
+    const off = onUnauthorized(listener)
+    await catchError(request('/auth/login'))
+    expect(listener).not.toHaveBeenCalled()
+    off()
   })
 })

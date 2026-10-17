@@ -83,10 +83,26 @@ export function isApiError(err: unknown): err is ApiError {
   return err instanceof ApiError
 }
 
+type UnauthorizedListener = () => void
+
+const unauthorizedListeners = new Set<UnauthorizedListener>()
+
+/**
+ * セッションが無効（401 unauthorized）の応答を受けたときに呼ぶ処理を登録する。戻り値で登録を解除する。
+ * ログイン状態（features/auth/session）が未ログインに戻すために使う。
+ * ログインのパスワード違い（401 invalid_credentials）は code が違うので呼ばない（AUTHN-3）。
+ */
+export function onUnauthorized(listener: UnauthorizedListener): () => void {
+  unauthorizedListeners.add(listener)
+  return () => {
+    unauthorizedListeners.delete(listener)
+  }
+}
+
 /**
  * /api 配下を呼ぶ fetch の薄いラッパー。Cookie は同一オリジンの __session だけを送り、
  * 端末識別子を X-Device-Id ヘッダーで付ける（AUTHN-3）。
- * 2xx 以外と通信の失敗は ApiError を投げる。204 など本文のない成功は undefined を返す。
+ * 2xx 以外と通信の失敗は ApiError を投げる。401 unauthorized なら onUnauthorized の処理を呼んでから投げる。204 など本文のない成功は undefined を返す。
  */
 export async function request<T>(path: string, init: RequestInit = {}): Promise<T> {
   let res: Response
@@ -113,7 +129,9 @@ export async function request<T>(path: string, init: RequestInit = {}): Promise<
   }
 
   if (!res.ok) {
-    throw ApiError.fromResponse(res.status, body)
+    const err = ApiError.fromResponse(res.status, body)
+    if (err.code === 'unauthorized') unauthorizedListeners.forEach((listener) => listener())
+    throw err
   }
   return body as T
 }

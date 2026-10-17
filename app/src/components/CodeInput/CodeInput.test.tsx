@@ -20,6 +20,13 @@ describe('CodeInput', () => {
     expect(box(1)).toHaveAttribute('inputmode', 'numeric')
   })
 
+  it('showLabel ならまとまりの名前を画面にも出す', () => {
+    render(<Controlled label="メールに届いた6桁のコード" showLabel />)
+    const legend = screen.getByText('メールに届いた6桁のコード')
+    expect(legend.tagName).toBe('LEGEND')
+    expect(legend).not.toHaveClass('visually-hidden')
+  })
+
   it('入力すると次のマスへ進み、数字以外は受け付けない', async () => {
     render(<Controlled />)
     await userEvent.click(box(1))
