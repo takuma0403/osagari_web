@@ -24,6 +24,7 @@ type UserStore interface {
 	FindByEmail(ctx context.Context, email string) (*domain.User, error)
 	UpdateCodeVerifiedAt(ctx context.Context, id string, at time.Time) error
 	UpdatePassword(ctx context.Context, id, passwordHash string, at time.Time) error
+	UpdateSellerStatus(ctx context.Context, id string, from []domain.SellerStatus, to domain.SellerStatus, at time.Time) error
 }
 
 // VerificationCodeStore は verification_codes の読み書き（repository.VerificationCodeRepository）。
@@ -69,6 +70,14 @@ type LoginChallengeStore interface {
 	Create(ctx context.Context, c *domain.LoginChallenge) error
 	FindActive(ctx context.Context, tokenHash string, now time.Time) (*domain.LoginChallenge, error)
 	Consume(ctx context.Context, id string, now time.Time) error
+}
+
+// StudentCardStore は student_cards の読み書き（repository.StudentCardRepository）。
+type StudentCardStore interface {
+	Create(ctx context.Context, c *domain.StudentCard) error
+	FindCurrentByUser(ctx context.Context, userID string) (*domain.StudentCard, error)
+	ExistsByObjectKey(ctx context.Context, objectKey string) (bool, error)
+	SupersedeCurrent(ctx context.Context, userID string, now time.Time) (bool, error)
 }
 
 // loggerOrDefault は l が nil なら slog.Default() を返す。
