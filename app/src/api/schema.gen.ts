@@ -285,6 +285,70 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/student-cards/uploads": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * 学生証画像のアップロード用の署名付きURLを発行する
+         * @description CARD, STORAGE: 非公開バケットに直接 PUT するための署名付きURL（15分有効）を発行する。ブラウザは返った `headers` を付けて `uploadUrl` に画像を PUT し、
+         *     そのあと `objectKey` を `submitStudentCard` に送る。オブジェクト名は `{ユーザーID}/{UUID}`。
+         *     すでに承認済みなら 409 invalid_status_transition。
+         */
+        post: operations["createStudentCardUpload"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/student-cards": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * アップロードした学生証画像を登録して審査待ちにする
+         * @description CARD, STORAGE: オブジェクトが本人のもので、アップロード済み・JPEG か WebP・5MB 以下なら学生証として登録し、出品者の承認状態を審査中（pending）にする。
+         *     そうでなければ 400 invalid_student_card_upload。審査中・差し戻しのときの再提出は前の学生証を置き換える（前の画像も残す。ADR 0014）。
+         *     すでに承認済みなら 409 invalid_status_transition。
+         */
+        post: operations["submitStudentCard"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/student-cards/current": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * 本人の学生証の審査状況を取得する
+         * @description CARD: 最後に提出した学生証の審査状況を返す。未登録なら status は none。画像の閲覧URLは返さない（管理者APIだけが発行する。STORAGE）。
+         */
+        get: operations["getCurrentStudentCard"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
 }
 export type webhooks = Record<string, never>;
 export interface components {
@@ -424,6 +488,52 @@ export interface components {
          * @enum {string}
          */
         SellerStatus: "none" | "pending" | "approved" | "rejected";
+        StudentCardUploadInput: {
+            /**
+             * @description アップロードする画像の形式（ブラウザで縮小・圧縮したもの。STORAGE）
+             * @enum {string}
+             */
+            contentType: "image/jpeg" | "image/webp";
+        };
+        /** @description STORAGE 学生証画像のアップロード先 */
+        StudentCardUpload: {
+            /**
+             * @description 登録（submitStudentCard）で送るオブジェクト名
+             * @example 0b6c1f7e-1d2a-4c55-9a51-2f0f6f3d9c10/7d7f5a2e-3c1b-4f0e-8a0c-6c1e9b2d4f11
+             */
+            objectKey: string;
+            /** @description 署名付きURL */
+            uploadUrl: string;
+            /** @enum {string} */
+            method: "PUT";
+            /** @description PUT に付けるヘッダー（署名に含まれる。Content-Type など） */
+            headers: {
+                [key: string]: string;
+            };
+            /**
+             * Format: date-time
+             * @description 署名付きURLの有効期限
+             */
+            expiresAt: string;
+        };
+        StudentCardSubmission: {
+            /** @description createStudentCardUpload で受け取ったオブジェクト名 */
+            objectKey: string;
+        };
+        /** @description CARD 本人の学生証の審査状況 */
+        StudentCardState: {
+            status: components["schemas"]["SellerStatus"];
+            /**
+             * Format: date-time
+             * @description 最後に提出した日時。未登録なら null
+             */
+            submittedAt: string | null;
+            /**
+             * Format: date-time
+             * @description 審査した日時。審査前・未登録なら null
+             */
+            reviewedAt: string | null;
+        };
         Health: {
             /** @enum {string} */
             status: "ok";
@@ -791,6 +901,77 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["CurrentUser"];
+                };
+            };
+            default: components["responses"]["Error"];
+        };
+    };
+    createStudentCardUpload: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["StudentCardUploadInput"];
+            };
+        };
+        responses: {
+            /** @description 発行した署名付きURL */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["StudentCardUpload"];
+                };
+            };
+            default: components["responses"]["Error"];
+        };
+    };
+    submitStudentCard: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["StudentCardSubmission"];
+            };
+        };
+        responses: {
+            /** @description 登録後の審査状況 */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["StudentCardState"];
+                };
+            };
+            default: components["responses"]["Error"];
+        };
+    };
+    getCurrentStudentCard: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description 審査状況 */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["StudentCardState"];
                 };
             };
             default: components["responses"]["Error"];

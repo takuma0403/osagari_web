@@ -2,6 +2,7 @@
 package main
 
 import (
+	"context"
 	"fmt"
 	"log/slog"
 	"os"
@@ -18,6 +19,7 @@ import (
 	"github.com/takuma0403/osagari_web/server/internal/repository"
 	"github.com/takuma0403/osagari_web/server/internal/server"
 	"github.com/takuma0403/osagari_web/server/internal/service"
+	"github.com/takuma0403/osagari_web/server/internal/storage"
 )
 
 // config は環境変数から読む設定。一覧は .env.example。
@@ -25,6 +27,9 @@ type config struct {
 	Port        string
 	DatabaseURL string
 	SMTP        mail.SMTPConfig
+	Storage     storage.GCSConfig
+	// StudentCardBucket は学生証の非公開バケット（STORAGE）
+	StudentCardBucket string
 }
 
 func main() {
@@ -57,7 +62,12 @@ func run(logger *slog.Logger) error {
 	if err != nil {
 		return err
 	}
-	h, sessions := wire(gdb, clk, mailer, logger)
+	store, err := storage.NewGCS(context.Background(), cfg.Storage)
+	if err != nil {
+		return err
+	}
+	defer store.Close()
+	h, sessions := wire(cfg, gdb, clk, mailer, store, logger)
 	e := server.New(server.Deps{
 		Logger:   logger,
 		Clock:    clk,
@@ -69,7 +79,7 @@ func run(logger *slog.Logger) error {
 
 // wire は repository → service → handler の順に依存を組み立てる。機能を足すときはここに追加する。
 // セッションの検証（server のミドルウェアが使う）も返す。
-func wire(gdb *gorm.DB, clk clock.Clock, mailer mail.Mailer, logger *slog.Logger) (api.StrictServerInterface, server.Authenticator) {
+func wire(cfg config, gdb *gorm.DB, clk clock.Clock, mailer mail.Mailer, store storage.Storage, logger *slog.Logger) (api.StrictServerInterface, server.Authenticator) {
 	tx := repository.NewTransactor(gdb)
 	users := repository.NewUserRepository(gdb)
 	codes := repository.NewVerificationCodeRepository(gdb)
@@ -118,7 +128,21 @@ func wire(gdb *gorm.DB, clk clock.Clock, mailer mail.Mailer, logger *slog.Logger
 		Users:    users,
 		Clock:    clk,
 	})
-	return handler.New(handler.Deps{Signup: signup, Login: login, Session: session, PasswordReset: reset}), session
+	studentCard := service.NewStudentCardService(service.StudentCardDeps{
+		Tx:      tx,
+		Users:   users,
+		Cards:   repository.NewStudentCardRepository(gdb),
+		Storage: store,
+		Bucket:  cfg.StudentCardBucket,
+		Clock:   clk,
+	})
+	return handler.New(handler.Deps{
+		Signup:        signup,
+		Login:         login,
+		Session:       session,
+		PasswordReset: reset,
+		StudentCard:   studentCard,
+	}), session
 }
 
 func loadConfig() (config, error) {
@@ -135,6 +159,14 @@ func loadConfig() (config, error) {
 	}
 	if cfg.DatabaseURL == "" {
 		return config{}, fmt.Errorf("環境変数 DATABASE_URL が設定されていません")
+	}
+	cfg.StudentCardBucket = os.Getenv("STORAGE_BUCKET_STUDENT_CARDS")
+	if cfg.StudentCardBucket == "" {
+		return config{}, fmt.Errorf("環境変数 STORAGE_BUCKET_STUDENT_CARDS が設定されていません")
+	}
+	// エミュレータ（fake-gcs-server）を使うときは、署名付きURLにブラウザから届くホストを入れる（STORAGE）
+	if host := os.Getenv("STORAGE_EMULATOR_HOST"); host != "" {
+		cfg.Storage.EmulatorPublicHost = envOr("STORAGE_PUBLIC_HOST", host)
 	}
 	// 本番（Gmail SMTP）は STARTTLS を必須にする。無効にするのはローカルの Mailpit だけ（AUTHN-7）
 	startTLS, err := strconv.ParseBool(envOr("SMTP_STARTTLS", "true"))

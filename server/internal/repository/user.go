@@ -148,6 +148,24 @@ func (r *UserRepository) UpdatePassword(ctx context.Context, id, passwordHash st
 	return nil
 }
 
+// UpdateSellerStatus は出品者の承認状態が from のどれかのときだけ to に更新する（条件付きUPDATE。DB）。
+// ユーザーがいない、または状態が from のどれでもないなら ErrConflict。
+func (r *UserRepository) UpdateSellerStatus(ctx context.Context, id string, from []domain.SellerStatus, to domain.SellerStatus, at time.Time) error {
+	froms := make([]string, len(from))
+	for i, s := range from {
+		froms[i] = string(s)
+	}
+	res := conn(ctx, r.db).Model(&userRow{}).Where("id = ? AND seller_status IN ?", id, froms).
+		Updates(map[string]any{"seller_status": string(to), "updated_at": formatTime(at)})
+	if res.Error != nil {
+		return res.Error
+	}
+	if res.RowsAffected == 0 {
+		return ErrConflict
+	}
+	return nil
+}
+
 // ExistsByEmail はメールアドレスのユーザーがいるかを返す。状態（停止・失効・削除）にかかわらず、行があれば true。
 func (r *UserRepository) ExistsByEmail(ctx context.Context, email string) (bool, error) {
 	var n int64

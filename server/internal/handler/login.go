@@ -6,6 +6,7 @@ import (
 	"github.com/takuma0403/osagari_web/server/internal/api"
 	"github.com/takuma0403/osagari_web/server/internal/apperr"
 	"github.com/takuma0403/osagari_web/server/internal/auth"
+	"github.com/takuma0403/osagari_web/server/internal/domain"
 	"github.com/takuma0403/osagari_web/server/internal/service"
 )
 
@@ -81,11 +82,20 @@ func (h *Handler) Logout(ctx context.Context, _ api.LogoutRequestObject) (api.Lo
 
 // GetMe はログイン中の本人の情報を返す（GET /api/me。AUTH-1, AUTHN-5）。セッションの検証は internal/server のミドルウェアが行う。
 func (h *Handler) GetMe(ctx context.Context, _ api.GetMeRequestObject) (api.GetMeResponseObject, error) {
+	u, err := currentUser(ctx)
+	if err != nil {
+		return nil, err
+	}
+	return api.GetMe200JSONResponse(toCurrentUser(u)), nil
+}
+
+// currentUser はセッションで確かめたログイン中の本人を返す。セッション必須の操作でだけ使う。
+func currentUser(ctx context.Context) (*domain.User, error) {
 	u, ok := auth.UserFrom(ctx)
 	if !ok {
 		return nil, apperr.Unauthorized("ログインしてください")
 	}
-	return api.GetMe200JSONResponse(toCurrentUser(u)), nil
+	return u, nil
 }
 
 // sessionCookie は発行したセッションの `__session` Cookie を Set-Cookie の値にする。
