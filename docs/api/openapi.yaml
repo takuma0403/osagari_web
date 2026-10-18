@@ -18,6 +18,8 @@ tags:
     description: 稼働確認など
   - name: auth
     description: 新規登録・ログイン・パスワード再設定（AUTH-1, AUTHN）
+  - name: student-cards
+    description: 学生証の登録と審査状況（CARD, STORAGE）
 paths:
   /health:
     get:
@@ -342,6 +344,70 @@ paths:
                 $ref: '#/components/schemas/CurrentUser'
         default:
           $ref: '#/components/responses/Error'
+  /student-cards/uploads:
+    post:
+      tags: [student-cards]
+      operationId: createStudentCardUpload
+      summary: 学生証画像のアップロード用の署名付きURLを発行する
+      description: |
+        CARD, STORAGE: 非公開バケットに直接 PUT するための署名付きURL（15分有効）を発行する。ブラウザは返った `headers` を付けて `uploadUrl` に画像を PUT し、
+        そのあと `objectKey` を `submitStudentCard` に送る。オブジェクト名は `{ユーザーID}/{UUID}`。
+        すでに承認済みなら 409 invalid_status_transition。
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/StudentCardUploadInput'
+      responses:
+        '201':
+          description: 発行した署名付きURL
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/StudentCardUpload'
+        default:
+          $ref: '#/components/responses/Error'
+  /student-cards:
+    post:
+      tags: [student-cards]
+      operationId: submitStudentCard
+      summary: アップロードした学生証画像を登録して審査待ちにする
+      description: |
+        CARD, STORAGE: オブジェクトが本人のもので、アップロード済み・JPEG か WebP・5MB 以下なら学生証として登録し、出品者の承認状態を審査中（pending）にする。
+        そうでなければ 400 invalid_student_card_upload。審査中・差し戻しのときの再提出は前の学生証を置き換える（前の画像も残す。ADR 0014）。
+        すでに承認済みなら 409 invalid_status_transition。
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/StudentCardSubmission'
+      responses:
+        '201':
+          description: 登録後の審査状況
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/StudentCardState'
+        default:
+          $ref: '#/components/responses/Error'
+  /student-cards/current:
+    get:
+      tags: [student-cards]
+      operationId: getCurrentStudentCard
+      summary: 本人の学生証の審査状況を取得する
+      description: |
+        CARD: 最後に提出した学生証の審査状況を返す。未登録なら status は none。画像の閲覧URLは返さない（管理者APIだけが発行する。STORAGE）。
+      responses:
+        '200':
+          description: 審査状況
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/StudentCardState'
+        default:
+          $ref: '#/components/responses/Error'
 components:
   securitySchemes:
     sessionCookie:
@@ -545,6 +611,62 @@ components:
       type: string
       description: 出品者の承認状態
       enum: [none, pending, approved, rejected]
+    StudentCardUploadInput:
+      type: object
+      required: [contentType]
+      properties:
+        contentType:
+          type: string
+          description: アップロードする画像の形式（ブラウザで縮小・圧縮したもの。STORAGE）
+          enum: [image/jpeg, image/webp]
+    StudentCardUpload:
+      type: object
+      description: STORAGE 学生証画像のアップロード先
+      required: [objectKey, uploadUrl, method, headers, expiresAt]
+      properties:
+        objectKey:
+          type: string
+          description: 登録（submitStudentCard）で送るオブジェクト名
+          example: 0b6c1f7e-1d2a-4c55-9a51-2f0f6f3d9c10/7d7f5a2e-3c1b-4f0e-8a0c-6c1e9b2d4f11
+        uploadUrl:
+          type: string
+          description: 署名付きURL
+        method:
+          type: string
+          enum: [PUT]
+        headers:
+          type: object
+          description: PUT に付けるヘッダー（署名に含まれる。Content-Type など）
+          additionalProperties:
+            type: string
+        expiresAt:
+          type: string
+          format: date-time
+          description: 署名付きURLの有効期限
+    StudentCardSubmission:
+      type: object
+      required: [objectKey]
+      properties:
+        objectKey:
+          type: string
+          description: createStudentCardUpload で受け取ったオブジェクト名
+    StudentCardState:
+      type: object
+      description: CARD 本人の学生証の審査状況
+      required: [status, submittedAt, reviewedAt]
+      properties:
+        status:
+          $ref: '#/components/schemas/SellerStatus'
+        submittedAt:
+          type: string
+          format: date-time
+          nullable: true
+          description: 最後に提出した日時。未登録なら null
+        reviewedAt:
+          type: string
+          format: date-time
+          nullable: true
+          description: 審査した日時。審査前・未登録なら null
     Health:
       type: object
       required: [status]

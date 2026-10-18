@@ -14,6 +14,7 @@ import (
 	"net/url"
 	"path"
 	"strings"
+	"time"
 
 	"github.com/getkin/kin-openapi/openapi3"
 	"github.com/labstack/echo/v5"
@@ -72,6 +73,39 @@ func (e SellerStatus) Valid() bool {
 	case Pending:
 		return true
 	case Rejected:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for StudentCardUploadMethod.
+const (
+	PUT StudentCardUploadMethod = "PUT"
+)
+
+// Valid indicates whether the value is a known member of the StudentCardUploadMethod enum.
+func (e StudentCardUploadMethod) Valid() bool {
+	switch e {
+	case PUT:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for StudentCardUploadInputContentType.
+const (
+	Imagejpeg StudentCardUploadInputContentType = "image/jpeg"
+	Imagewebp StudentCardUploadInputContentType = "image/webp"
+)
+
+// Valid indicates whether the value is a known member of the StudentCardUploadInputContentType enum.
+func (e StudentCardUploadInputContentType) Valid() bool {
+	switch e {
+	case Imagejpeg:
+		return true
+	case Imagewebp:
 		return true
 	default:
 		return false
@@ -246,6 +280,54 @@ type SignupCompletion struct {
 	SetupToken string `json:"setupToken"`
 }
 
+// StudentCardState CARD 本人の学生証の審査状況
+type StudentCardState struct {
+	// ReviewedAt 審査した日時。審査前・未登録なら null
+	ReviewedAt *time.Time `json:"reviewedAt"`
+
+	// Status 出品者の承認状態
+	Status SellerStatus `json:"status"`
+
+	// SubmittedAt 最後に提出した日時。未登録なら null
+	SubmittedAt *time.Time `json:"submittedAt"`
+}
+
+// StudentCardSubmission defines model for StudentCardSubmission.
+type StudentCardSubmission struct {
+	// ObjectKey createStudentCardUpload で受け取ったオブジェクト名
+	ObjectKey string `json:"objectKey"`
+}
+
+// StudentCardUpload STORAGE 学生証画像のアップロード先
+type StudentCardUpload struct {
+	// ExpiresAt 署名付きURLの有効期限
+	ExpiresAt time.Time `json:"expiresAt"`
+
+	// Headers PUT に付けるヘッダー（署名に含まれる。Content-Type など）
+	Headers map[string]string       `json:"headers"`
+	Method  StudentCardUploadMethod `json:"method"`
+
+	// ObjectKey 登録（submitStudentCard）で送るオブジェクト名
+	//
+	// Example: 0b6c1f7e-1d2a-4c55-9a51-2f0f6f3d9c10/7d7f5a2e-3c1b-4f0e-8a0c-6c1e9b2d4f11
+	ObjectKey string `json:"objectKey"`
+
+	// UploadUrl 署名付きURL
+	UploadUrl string `json:"uploadUrl"`
+}
+
+// StudentCardUploadMethod defines model for StudentCardUpload.Method.
+type StudentCardUploadMethod string
+
+// StudentCardUploadInput defines model for StudentCardUploadInput.
+type StudentCardUploadInput struct {
+	// ContentType アップロードする画像の形式（ブラウザで縮小・圧縮したもの。STORAGE）
+	ContentType StudentCardUploadInputContentType `json:"contentType"`
+}
+
+// StudentCardUploadInputContentType アップロードする画像の形式（ブラウザで縮小・圧縮したもの。STORAGE）
+type StudentCardUploadInputContentType string
+
 // StudentEstimate AUTH-2, AUTH-4 学籍番号から推定した情報
 type StudentEstimate struct {
 	// AdmissionYear 入学年度（学籍番号の上2桁 + 2000）
@@ -331,6 +413,12 @@ type CompleteSignupJSONRequestBody = SignupCompletion
 // EstimateStudentJSONRequestBody defines body for EstimateStudent for application/json ContentType.
 type EstimateStudentJSONRequestBody = EmailInput
 
+// SubmitStudentCardJSONRequestBody defines body for SubmitStudentCard for application/json ContentType.
+type SubmitStudentCardJSONRequestBody = StudentCardSubmission
+
+// CreateStudentCardUploadJSONRequestBody defines body for CreateStudentCardUpload for application/json ContentType.
+type CreateStudentCardUploadJSONRequestBody = StudentCardUploadInput
+
 // ServerInterface represents all server handlers.
 type ServerInterface interface {
 	// Login メールアドレスとパスワードでログインする
@@ -372,6 +460,15 @@ type ServerInterface interface {
 	// GetMe ログイン中の本人の情報を取得する
 	// (GET /me)
 	GetMe(ctx *echo.Context) error
+	// SubmitStudentCard アップロードした学生証画像を登録して審査待ちにする
+	// (POST /student-cards)
+	SubmitStudentCard(ctx *echo.Context) error
+	// GetCurrentStudentCard 本人の学生証の審査状況を取得する
+	// (GET /student-cards/current)
+	GetCurrentStudentCard(ctx *echo.Context) error
+	// CreateStudentCardUpload 学生証画像のアップロード用の署名付きURLを発行する
+	// (POST /student-cards/uploads)
+	CreateStudentCardUpload(ctx *echo.Context) error
 }
 
 // ServerInterfaceWrapper converts echo contexts to parameters.
@@ -556,6 +653,33 @@ func (w *ServerInterfaceWrapper) GetMe(ctx *echo.Context) error {
 	return err
 }
 
+// SubmitStudentCard converts echo context to params.
+func (w *ServerInterfaceWrapper) SubmitStudentCard(ctx *echo.Context) error {
+	var err error
+
+	// Invoke the callback with all the unmarshaled arguments
+	err = w.Handler.SubmitStudentCard(ctx)
+	return err
+}
+
+// GetCurrentStudentCard converts echo context to params.
+func (w *ServerInterfaceWrapper) GetCurrentStudentCard(ctx *echo.Context) error {
+	var err error
+
+	// Invoke the callback with all the unmarshaled arguments
+	err = w.Handler.GetCurrentStudentCard(ctx)
+	return err
+}
+
+// CreateStudentCardUpload converts echo context to params.
+func (w *ServerInterfaceWrapper) CreateStudentCardUpload(ctx *echo.Context) error {
+	var err error
+
+	// Invoke the callback with all the unmarshaled arguments
+	err = w.Handler.CreateStudentCardUpload(ctx)
+	return err
+}
+
 // This is a simple interface which specifies echo.Route addition functions which
 // are present on both echo.Echo and echo.Group, since we want to allow using
 // either of them for path registration
@@ -616,6 +740,9 @@ func RegisterHandlersWithOptions(router EchoRouter, si ServerInterface, options 
 	router.POST(options.BaseURL+"/auth/password-reset/codes/verify", wrapper.VerifyPasswordResetCode, options.OperationMiddlewares["verifyPasswordResetCode"]...)
 	router.POST(options.BaseURL+"/auth/password-reset/complete", wrapper.CompletePasswordReset, options.OperationMiddlewares["completePasswordReset"]...)
 	router.GET(options.BaseURL+"/me", wrapper.GetMe, options.OperationMiddlewares["getMe"]...)
+	router.POST(options.BaseURL+"/student-cards/uploads", wrapper.CreateStudentCardUpload, options.OperationMiddlewares["createStudentCardUpload"]...)
+	router.POST(options.BaseURL+"/student-cards", wrapper.SubmitStudentCard, options.OperationMiddlewares["submitStudentCard"]...)
+	router.GET(options.BaseURL+"/student-cards/current", wrapper.GetCurrentStudentCard, options.OperationMiddlewares["getCurrentStudentCard"]...)
 
 }
 
@@ -1166,6 +1293,122 @@ func (response GetMedefaultJSONResponse) VisitGetMeResponse(w http.ResponseWrite
 	return err
 }
 
+type SubmitStudentCardRequestObject struct {
+	Body *SubmitStudentCardJSONRequestBody
+}
+
+type SubmitStudentCardResponseObject interface {
+	VisitSubmitStudentCardResponse(w http.ResponseWriter) error
+}
+
+type SubmitStudentCard201JSONResponse StudentCardState
+
+func (response SubmitStudentCard201JSONResponse) VisitSubmitStudentCardResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(201)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type SubmitStudentCarddefaultJSONResponse struct {
+	Body       Error
+	StatusCode int
+}
+
+func (response SubmitStudentCarddefaultJSONResponse) VisitSubmitStudentCardResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response.Body); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(response.StatusCode)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type GetCurrentStudentCardRequestObject struct {
+}
+
+type GetCurrentStudentCardResponseObject interface {
+	VisitGetCurrentStudentCardResponse(w http.ResponseWriter) error
+}
+
+type GetCurrentStudentCard200JSONResponse StudentCardState
+
+func (response GetCurrentStudentCard200JSONResponse) VisitGetCurrentStudentCardResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(200)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type GetCurrentStudentCarddefaultJSONResponse struct {
+	Body       Error
+	StatusCode int
+}
+
+func (response GetCurrentStudentCarddefaultJSONResponse) VisitGetCurrentStudentCardResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response.Body); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(response.StatusCode)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type CreateStudentCardUploadRequestObject struct {
+	Body *CreateStudentCardUploadJSONRequestBody
+}
+
+type CreateStudentCardUploadResponseObject interface {
+	VisitCreateStudentCardUploadResponse(w http.ResponseWriter) error
+}
+
+type CreateStudentCardUpload201JSONResponse StudentCardUpload
+
+func (response CreateStudentCardUpload201JSONResponse) VisitCreateStudentCardUploadResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(201)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type CreateStudentCardUploaddefaultJSONResponse struct {
+	Body       Error
+	StatusCode int
+}
+
+func (response CreateStudentCardUploaddefaultJSONResponse) VisitCreateStudentCardUploadResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response.Body); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(response.StatusCode)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
 // StrictServerInterface represents all server handlers.
 type StrictServerInterface interface {
 	// Login メールアドレスとパスワードでログインする
@@ -1207,6 +1450,15 @@ type StrictServerInterface interface {
 	// GetMe ログイン中の本人の情報を取得する
 	// (GET /me)
 	GetMe(ctx context.Context, request GetMeRequestObject) (GetMeResponseObject, error)
+	// SubmitStudentCard アップロードした学生証画像を登録して審査待ちにする
+	// (POST /student-cards)
+	SubmitStudentCard(ctx context.Context, request SubmitStudentCardRequestObject) (SubmitStudentCardResponseObject, error)
+	// GetCurrentStudentCard 本人の学生証の審査状況を取得する
+	// (GET /student-cards/current)
+	GetCurrentStudentCard(ctx context.Context, request GetCurrentStudentCardRequestObject) (GetCurrentStudentCardResponseObject, error)
+	// CreateStudentCardUpload 学生証画像のアップロード用の署名付きURLを発行する
+	// (POST /student-cards/uploads)
+	CreateStudentCardUpload(ctx context.Context, request CreateStudentCardUploadRequestObject) (CreateStudentCardUploadResponseObject, error)
 }
 
 type StrictHandlerFunc func(ctx *echo.Context, request any) (any, error)
@@ -1686,85 +1938,204 @@ func (sh *strictHandler) GetMe(ctx *echo.Context) error {
 	return nil
 }
 
+// SubmitStudentCard operation middleware
+func (sh *strictHandler) SubmitStudentCard(ctx *echo.Context) error {
+	var request SubmitStudentCardRequestObject
+
+	var body SubmitStudentCardJSONRequestBody
+	var err error
+	if _, ok := ctx.Echo().Binder.(*echo.DefaultBinder); ok {
+		// Bind only the request body, so that path and query parameters
+		// are not also bound into the body struct.
+		err = echo.BindBody(ctx, &body)
+	} else {
+		// A custom binder is installed on the Echo instance; defer to it
+		// entirely, since echo.Binder does not expose body-only binding.
+		err = ctx.Bind(&body)
+	}
+	if err != nil {
+		return err
+	}
+	request.Body = &body
+
+	handler := func(ctx *echo.Context, request interface{}) (interface{}, error) {
+		return sh.ssi.SubmitStudentCard(ctx.Request().Context(), request.(SubmitStudentCardRequestObject))
+	}
+	for _, middleware := range sh.middlewares {
+		handler = middleware(handler, "SubmitStudentCard")
+	}
+
+	response, err := handler(ctx, request)
+
+	if err != nil {
+		return err
+	} else if validResponse, ok := response.(SubmitStudentCardResponseObject); ok {
+		return validResponse.VisitSubmitStudentCardResponse(ctx.Response())
+	} else if response != nil {
+		return fmt.Errorf("unexpected response type: %T", response)
+	}
+	return nil
+}
+
+// GetCurrentStudentCard operation middleware
+func (sh *strictHandler) GetCurrentStudentCard(ctx *echo.Context) error {
+	var request GetCurrentStudentCardRequestObject
+
+	handler := func(ctx *echo.Context, request interface{}) (interface{}, error) {
+		return sh.ssi.GetCurrentStudentCard(ctx.Request().Context(), request.(GetCurrentStudentCardRequestObject))
+	}
+	for _, middleware := range sh.middlewares {
+		handler = middleware(handler, "GetCurrentStudentCard")
+	}
+
+	response, err := handler(ctx, request)
+
+	if err != nil {
+		return err
+	} else if validResponse, ok := response.(GetCurrentStudentCardResponseObject); ok {
+		return validResponse.VisitGetCurrentStudentCardResponse(ctx.Response())
+	} else if response != nil {
+		return fmt.Errorf("unexpected response type: %T", response)
+	}
+	return nil
+}
+
+// CreateStudentCardUpload operation middleware
+func (sh *strictHandler) CreateStudentCardUpload(ctx *echo.Context) error {
+	var request CreateStudentCardUploadRequestObject
+
+	var body CreateStudentCardUploadJSONRequestBody
+	var err error
+	if _, ok := ctx.Echo().Binder.(*echo.DefaultBinder); ok {
+		// Bind only the request body, so that path and query parameters
+		// are not also bound into the body struct.
+		err = echo.BindBody(ctx, &body)
+	} else {
+		// A custom binder is installed on the Echo instance; defer to it
+		// entirely, since echo.Binder does not expose body-only binding.
+		err = ctx.Bind(&body)
+	}
+	if err != nil {
+		return err
+	}
+	request.Body = &body
+
+	handler := func(ctx *echo.Context, request interface{}) (interface{}, error) {
+		return sh.ssi.CreateStudentCardUpload(ctx.Request().Context(), request.(CreateStudentCardUploadRequestObject))
+	}
+	for _, middleware := range sh.middlewares {
+		handler = middleware(handler, "CreateStudentCardUpload")
+	}
+
+	response, err := handler(ctx, request)
+
+	if err != nil {
+		return err
+	} else if validResponse, ok := response.(CreateStudentCardUploadResponseObject); ok {
+		return validResponse.VisitCreateStudentCardUploadResponse(ctx.Response())
+	} else if response != nil {
+		return fmt.Errorf("unexpected response type: %T", response)
+	}
+	return nil
+}
+
 // Base64 encoded, compressed with deflate, json marshaled OpenAPI spec.
 // Stored as a slice of fixed-width chunks rather than one concatenated
 // const string: with thousands of chunks the chained `+` fold is several
 // times slower for the Go compiler than parsing a slice literal.
 var swaggerSpec = []string{
-	"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",
+	"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",
+	"ojq8j2NQpxAHrg78/wA=",
 }
 
 // decodeSpec returns the embedded OpenAPI spec as raw JSON bytes,
