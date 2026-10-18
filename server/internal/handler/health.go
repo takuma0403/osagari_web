@@ -13,6 +13,7 @@ type Deps struct {
 	Login         LoginService
 	Session       SessionService
 	PasswordReset PasswordResetService
+	StudentCard   StudentCardService
 }
 
 // Handler は api.StrictServerInterface の実装。

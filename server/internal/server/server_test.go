@@ -234,3 +234,21 @@ func Testセッションの検証はAPI契約に従う(t *testing.T) {
 		t.Errorf("確かめたトークン=%q want=%q", authn.tokens, want)
 	}
 }
+
+// 学生証の操作はすべてセッション必須（CARD）。ログインしていなければ service を呼ばずに 401 を返す。
+func Test学生証の操作はログインが必要(t *testing.T) {
+	srv, _ := newServerWithSessions(t, handler.New(handler.Deps{}), &stubAuthenticator{})
+	for _, tt := range []struct{ method, target string }{
+		{http.MethodPost, "/api/student-cards/uploads"},
+		{http.MethodPost, "/api/student-cards"},
+		{http.MethodGet, "/api/student-cards/current"},
+	} {
+		req := httptest.NewRequest(tt.method, tt.target, strings.NewReader(`{}`))
+		req.Header.Set("Content-Type", "application/json")
+		rec := httptest.NewRecorder()
+		srv.ServeHTTP(rec, req)
+		if rec.Code != http.StatusUnauthorized || decodeError(t, rec).Code != "unauthorized" {
+			t.Errorf("%s %s: %d %s", tt.method, tt.target, rec.Code, rec.Body.String())
+		}
+	}
+}
