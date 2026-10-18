@@ -83,6 +83,7 @@ services:
       <<: *go-env
       PORT: "8080"
       STORAGE_EMULATOR_HOST: storage:4443
+      STORAGE_PUBLIC_HOST: localhost:4443
       STORAGE_BUCKET_ITEM_IMAGES: item-images
       STORAGE_BUCKET_STUDENT_CARDS: student-cards
       SMTP_HOST: mail

@@ -87,6 +87,7 @@ server/
 | 停止 / データも消す | `docker compose down` / `docker compose down -v` |
 | テスト | `docker compose run --rm api go test ./...` |
 | libSQL の統合テスト | `docker compose run --rm -e TEST_DATABASE_URL=http://db:8080 api go test ./internal/db/...`（未設定ならスキップ） |
+| ストレージの統合テスト | `docker compose run --rm -e TEST_STORAGE_EMULATOR_HOST=storage:4443 api go test ./internal/storage/...`（未設定ならスキップ） |
 | Lint | `docker compose run --rm api go vet ./...` |
 | フォーマット | `gofmt -w .`（Hook で自動実行） |
 | APIコード生成 | `docker compose run --rm api go generate ./internal/api` |
