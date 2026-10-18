@@ -101,7 +101,8 @@ func TestStudentCardCreateUpload(t *testing.T) {
 		t.Fatal(err)
 	}
 	if !strings.HasPrefix(up.ObjectKey, f.user.ID+"/") || up.Method != "PUT" ||
-		up.Headers["Content-Type"] != "image/webp" || !up.ExpiresAt.Equal(t0.Add(15*time.Minute)) ||
+		up.Headers["Content-Type"] != "image/webp" || up.Headers["x-goog-content-length-range"] != "0,5242880" ||
+		up.Headers["x-goog-if-generation-match"] != "0" || !up.ExpiresAt.Equal(t0.Add(15*time.Minute)) ||
 		!strings.Contains(up.URL, "/"+cardBucket+"/"+up.ObjectKey) {
 		t.Errorf("upload = %+v", up)
 	}

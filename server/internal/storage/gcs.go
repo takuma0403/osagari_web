@@ -36,14 +36,21 @@ func NewGCS(ctx context.Context, cfg GCSConfig) (*GCS, error) {
 // Close はクライアントを閉じる。
 func (g *GCS) Close() error { return g.client.Close() }
 
-// SignedPutURL は V4 署名の PUT 用URLを発行する。Content-Type は署名に含めるので、ほかの形式では PUT できない。
+// SignedPutURL は V4 署名の PUT 用URLを発行する。Content-Type と条件のヘッダー（putHeaders）は署名に含めるので、
+// ほかの形式・上書き・上限を超える大きさでは PUT できない。
 // 本番は鍵ファイルを持たず、SDK がサービスアカウントの IAM signBlob で署名する。
-func (g *GCS) SignedPutURL(_ context.Context, bucket, object, contentType string, expiresAt time.Time) (SignedURL, error) {
+func (g *GCS) SignedPutURL(_ context.Context, bucket, object, contentType string, maxBytes int64, expiresAt time.Time) (SignedURL, error) {
+	headers := putHeaders(contentType, maxBytes)
 	opts := &gcs.SignedURLOptions{
 		Scheme:      gcs.SigningSchemeV4,
 		Method:      "PUT",
 		Expires:     expiresAt,
 		ContentType: contentType,
+	}
+	for k, v := range headers {
+		if k != "Content-Type" {
+			opts.Headers = append(opts.Headers, k+":"+v)
+		}
 	}
 	if g.cfg.EmulatorPublicHost != "" {
 		// fake-gcs-server は署名を検証しないので、ダミーの署名で URL の形だけを作る
@@ -56,7 +63,7 @@ func (g *GCS) SignedPutURL(_ context.Context, bucket, object, contentType string
 	if err != nil {
 		return SignedURL{}, fmt.Errorf("storage: 署名付きURLを発行できません: %w", err)
 	}
-	return putURL(url, contentType, expiresAt), nil
+	return putURL(url, headers, expiresAt), nil
 }
 
 // Stat はオブジェクトの属性を読む。

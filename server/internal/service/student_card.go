@@ -82,7 +82,7 @@ func (s *StudentCardService) CreateUpload(ctx context.Context, u *domain.User, c
 		return StudentCardUpload{}, errStudentCardApproved
 	}
 	objectKey := u.ID + "/" + uuid.NewString()
-	signed, err := s.d.Storage.SignedPutURL(ctx, s.d.Bucket, objectKey, contentType, s.d.Clock.Now().Add(studentCardUploadTTL))
+	signed, err := s.d.Storage.SignedPutURL(ctx, s.d.Bucket, objectKey, contentType, studentCardMaxBytes, s.d.Clock.Now().Add(studentCardUploadTTL))
 	if err != nil {
 		return StudentCardUpload{}, apperr.Internal(err)
 	}

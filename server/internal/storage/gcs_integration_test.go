@@ -46,14 +46,16 @@ func TestGCSEmulator(t *testing.T) {
 		t.Fatalf("アップロード前の Stat: err = %v, want ErrNotFound", err)
 	}
 
-	u, err := g.SignedPutURL(ctx, bucket, object, "image/jpeg", time.Now().Add(15*time.Minute))
+	u, err := g.SignedPutURL(ctx, bucket, object, "image/jpeg", 5<<20, time.Now().Add(15*time.Minute))
 	if err != nil {
 		t.Fatal(err)
 	}
-	if u.Method != http.MethodPut || u.Headers["Content-Type"] != "image/jpeg" {
+	if u.Method != http.MethodPut || u.Headers["Content-Type"] != "image/jpeg" ||
+		u.Headers["x-goog-if-generation-match"] != "0" || u.Headers["x-goog-content-length-range"] != "0,5242880" {
 		t.Fatalf("SignedURL = %+v", u)
 	}
-	if !strings.HasPrefix(u.URL, "http://"+publicHost+"/"+bucket+"/") || !strings.Contains(u.URL, "X-Goog-Signature=") {
+	if !strings.HasPrefix(u.URL, "http://"+publicHost+"/"+bucket+"/") || !strings.Contains(u.URL, "X-Goog-Signature=") ||
+		!strings.Contains(u.URL, "x-goog-content-length-range%3Bx-goog-if-generation-match") {
 		t.Fatalf("URL = %s", u.URL)
 	}
 

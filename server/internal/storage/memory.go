@@ -21,14 +21,14 @@ func NewMemory() *Memory {
 	return &Memory{objects: map[string]ObjectInfo{}}
 }
 
-func (m *Memory) SignedPutURL(_ context.Context, bucket, object, contentType string, expiresAt time.Time) (SignedURL, error) {
+func (m *Memory) SignedPutURL(_ context.Context, bucket, object, contentType string, maxBytes int64, expiresAt time.Time) (SignedURL, error) {
 	m.mu.Lock()
 	defer m.mu.Unlock()
 	if m.Err != nil {
 		return SignedURL{}, m.Err
 	}
 	u := url.URL{Scheme: "https", Host: "storage.test", Path: "/" + bucket + "/" + object}
-	return putURL(u.String(), contentType, expiresAt), nil
+	return putURL(u.String(), putHeaders(contentType, maxBytes), expiresAt), nil
 }
 
 func (m *Memory) Stat(_ context.Context, bucket, object string) (ObjectInfo, error) {
