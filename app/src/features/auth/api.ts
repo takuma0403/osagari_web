@@ -1,4 +1,4 @@
-import { request } from '../../api/client'
+import { postJson as post, request } from '../../api/client'
 import type { components } from '../../api/schema.gen'
 import { toUniversityEmail } from '../../lib/studentId'
 
@@ -12,15 +12,6 @@ export type PasswordResetCodeVerified = components['schemas']['PasswordResetCode
 export const CODE_TTL_SECONDS = 10 * 60
 /** 同じアドレスへのコード送信の間隔（AUTHN-6） */
 export const CODE_RESEND_INTERVAL_SECONDS = 60
-
-function post<T>(path: string, body: unknown, signal?: AbortSignal): Promise<T> {
-  return request<T>(path, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify(body),
-    signal,
-  })
-}
 
 /** 学籍番号から学部・入学年度・有効期限を推定する（AUTH-2, AUTH-4）。登録済みかどうかには触れない */
 export function estimateStudent(studentId: string, signal?: AbortSignal) {
