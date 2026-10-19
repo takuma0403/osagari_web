@@ -1,4 +1,4 @@
-import { formatCountdown, formatDate, formatPrice } from './format'
+import { formatCountdown, formatDate, formatPrice, formatShortDateTime } from './format'
 
 describe('formatPrice', () => {
   it.each([
@@ -18,6 +18,16 @@ describe('formatDate', () => {
     ['2032-12-01', '2032年12月1日'],
   ])('%s を %s と表示する', (date, expected) => {
     expect(formatDate(date)).toBe(expected)
+  })
+})
+
+describe('formatShortDateTime', () => {
+  // 端末のタイムゾーンによらず確かめられるよう、ローカル時刻で作った日時を渡す
+  it.each([
+    [new Date(2026, 9, 8, 14, 2), '10/8 14:02'],
+    [new Date(2026, 0, 1, 9, 0), '1/1 09:00'],
+  ])('%s を %s と表示する', (date, expected) => {
+    expect(formatShortDateTime(date.toISOString())).toBe(expected)
   })
 })
 

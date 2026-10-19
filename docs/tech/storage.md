@@ -16,7 +16,7 @@
   2. ブラウザがその URL に画像を直接 PUT する。
   3. ブラウザがオブジェクト名を API に送って登録する。API はオブジェクトが本人のものか、存在するか、形式が JPEG か WebP か、5MB 以下かを確かめてから審査待ちにする。
   4. 再提出したときは、前の学生証の行に置き換えた日時を入れて残し、画像も消さない（[ADR 0014](../decisions/0014-student-card-retention.md)）。本人にも画像の閲覧URLは出さない。
-- **ローカル**：fake-gcs-server は署名を検証せずに署名付きURL形式の PUT を受け付け、CORS も許可する。API はダミーの署名で URL を作り、ブラウザから届くホスト（`STORAGE_PUBLIC_HOST`）を URL に入れる。
+- **ローカル**：fake-gcs-server は署名を検証せずに署名付きURL形式の PUT を受け付け、CORS も許可する（署名に含まれる `x-goog-content-length-range`・`x-goog-if-generation-match` は `-cors-headers` で許可ヘッダーに加える）。API はダミーの署名で URL を作り、ブラウザから届くホスト（`STORAGE_PUBLIC_HOST`）を URL に入れる。
 - **画像の縮小**：アップロード前にブラウザで縮小・圧縮し、保存容量と転送量を抑えます（例：長辺1600px、JPEGまたはWebP）。
 - **学生証の削除**：アカウントの失効・削除から3年たった画像を、定期処理でDBの削除予定日に従って削除します。
 - **暗号化**：Cloud Storage は保存データを標準で暗号化しています。学生証のバケットには公開アクセス防止を設定し、誤って公開されないようにします。

@@ -135,3 +135,13 @@ export async function request<T>(path: string, init: RequestInit = {}): Promise<
   }
   return body as T
 }
+
+/** 本文を JSON にして POST する（request の薄いラッパー） */
+export function postJson<T>(path: string, body: unknown, signal?: AbortSignal): Promise<T> {
+  return request<T>(path, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(body),
+    signal,
+  })
+}
