@@ -10,6 +10,7 @@ import (
 
 	"github.com/takuma0403/osagari_web/server/internal/api"
 	"github.com/takuma0403/osagari_web/server/internal/clock"
+	"github.com/takuma0403/osagari_web/server/internal/domain"
 )
 
 // BasePath は API のパス接頭辞。Firebase Hosting の rewrites で /api/** を転送する（API）。
@@ -22,6 +23,8 @@ type Deps struct {
 	Handler api.StrictServerInterface
 	// Sessions は `__session` の検証に使う（AUTHN-5）
 	Sessions Authenticator
+	// Admins は管理者の学籍番号の許可リスト（ADMIN, ADR 0015）
+	Admins domain.AdminList
 }
 
 // New はミドルウェアとエラーハンドラーを設定し、生成したルートを登録した Echo を返す。
@@ -41,7 +44,7 @@ func New(d Deps) *echo.Echo {
 	e.Use(accessLog(d.Logger, d.Clock))
 	e.Use(middleware.Recover())
 
-	strict := api.NewStrictHandler(d.Handler, []api.StrictMiddlewareFunc{sessionMiddleware(d.Sessions, public)})
+	strict := api.NewStrictHandler(d.Handler, []api.StrictMiddlewareFunc{sessionMiddleware(d.Sessions, d.Admins, public)})
 	api.RegisterHandlersWithBaseURL(e, strict, BasePath)
 	return e
 }
