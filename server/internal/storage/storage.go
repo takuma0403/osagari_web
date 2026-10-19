@@ -15,11 +15,13 @@ type Storage interface {
 	// SignedPutURL は object に contentType の画像を PUT するための、expiresAt まで有効な署名付きURLを発行する。
 	// 新しいオブジェクトを作るときだけ使え（上書き不可）、maxBytes を超える大きさは受け付けない。
 	SignedPutURL(ctx context.Context, bucket, object, contentType string, maxBytes int64, expiresAt time.Time) (SignedURL, error)
+	// SignedGetURL は object を expiresAt まで読める署名付きURLを発行する（学生証は管理者APIだけが使う。ADR 0015）。
+	SignedGetURL(ctx context.Context, bucket, object string, expiresAt time.Time) (SignedURL, error)
 	// Stat はオブジェクトの大きさと形式を返す。なければ ErrNotFound。
 	Stat(ctx context.Context, bucket, object string) (ObjectInfo, error)
 }
 
-// SignedURL はブラウザに渡すアップロード先。Headers は署名に含まれるので、PUT にそのまま付ける。
+// SignedURL はブラウザに渡す署名付きURL。Headers は署名に含まれるので、リクエストにそのまま付ける（GET では空）。
 type SignedURL struct {
 	URL       string
 	Method    string
@@ -49,4 +51,8 @@ func putHeaders(contentType string, maxBytes int64) map[string]string {
 
 func putURL(url string, headers map[string]string, expiresAt time.Time) SignedURL {
 	return SignedURL{URL: url, Method: "PUT", Headers: headers, ExpiresAt: expiresAt}
+}
+
+func getURL(url string, expiresAt time.Time) SignedURL {
+	return SignedURL{URL: url, Method: "GET", Headers: map[string]string{}, ExpiresAt: expiresAt}
 }
