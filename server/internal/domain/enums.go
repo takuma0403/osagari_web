@@ -147,6 +147,34 @@ var PaymentMethods = []PaymentMethod{PaymentMethodCard, PaymentMethodPayPay}
 
 func (v PaymentMethod) Valid() bool { return enumValid(v, PaymentMethods) }
 
+// ItemCategory は商品のカテゴリ（ITEM）。
+type ItemCategory string
+
+const (
+	ItemCategoryTextbook           ItemCategory = "textbook"            // 教科書・参考書
+	ItemCategoryFurnitureAppliance ItemCategory = "furniture_appliance" // 家具・家電
+	ItemCategoryGameOther          ItemCategory = "game_other"          // ゲーム・その他
+)
+
+// ItemCategories は ItemCategory のすべての値。
+var ItemCategories = []ItemCategory{ItemCategoryTextbook, ItemCategoryFurnitureAppliance, ItemCategoryGameOther}
+
+func (v ItemCategory) Valid() bool { return enumValid(v, ItemCategories) }
+
+// ItemCondition は商品の状態（ITEM）。ステータスと紛らわしいので condition と呼ぶ。
+type ItemCondition string
+
+const (
+	ItemConditionNewLike ItemCondition = "new_like" // 新品同様
+	ItemConditionGood    ItemCondition = "good"     // 目立った傷なし
+	ItemConditionFair    ItemCondition = "fair"     // やや傷あり
+)
+
+// ItemConditions は ItemCondition のすべての値。
+var ItemConditions = []ItemCondition{ItemConditionNewLike, ItemConditionGood, ItemConditionFair}
+
+func (v ItemCondition) Valid() bool { return enumValid(v, ItemConditions) }
+
 // Campus はキャンパス。
 type Campus string
 
