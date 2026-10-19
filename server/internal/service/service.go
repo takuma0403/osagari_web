@@ -21,6 +21,7 @@ type UserStore interface {
 	Create(ctx context.Context, u *domain.User) error
 	ExistsByEmail(ctx context.Context, email string) (bool, error)
 	FindByID(ctx context.Context, id string) (*domain.User, error)
+	FindByIDs(ctx context.Context, ids []string) (map[string]*domain.User, error)
 	FindByEmail(ctx context.Context, email string) (*domain.User, error)
 	UpdateCodeVerifiedAt(ctx context.Context, id string, at time.Time) error
 	UpdatePassword(ctx context.Context, id, passwordHash string, at time.Time) error
@@ -78,6 +79,15 @@ type StudentCardStore interface {
 	FindCurrentByUser(ctx context.Context, userID string) (*domain.StudentCard, error)
 	ExistsByObjectKey(ctx context.Context, objectKey string) (bool, error)
 	SupersedeCurrent(ctx context.Context, userID string, now time.Time) (bool, error)
+	FindByID(ctx context.Context, id string) (*domain.StudentCard, error)
+	ListPending(ctx context.Context) ([]*domain.StudentCard, error)
+	Review(ctx context.Context, id string, to domain.StudentCardStatus, adminUserID string, now time.Time) error
+}
+
+// StudentCardViewStore は student_card_views の読み書き（repository.StudentCardViewRepository）。
+type StudentCardViewStore interface {
+	Create(ctx context.Context, v *domain.StudentCardView) error
+	ListByCard(ctx context.Context, studentCardID string) ([]*domain.StudentCardView, error)
 }
 
 // loggerOrDefault は l が nil なら slog.Default() を返す。
