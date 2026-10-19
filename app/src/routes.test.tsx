@@ -19,11 +19,16 @@ function renderAt(path: string, options: { user?: Session['user']; state?: unkno
 }
 
 describe('routes', () => {
-  // 画面が読み込みで呼ぶ API は応答を返さずに待たせる（ここではルートと見出しだけを確かめる）
+  // 管理者の確認（GET /api/admin/session）は管理者として 204 を返す。
+  // ほかに画面が読み込みで呼ぶ API は応答を返さずに待たせる（ここではルートと見出しだけを確かめる）
   beforeEach(() => {
     vi.stubGlobal(
       'fetch',
-      vi.fn(() => new Promise<Response>(() => {})),
+      vi.fn((url: string) =>
+        url === '/api/admin/session'
+          ? Promise.resolve(new Response(null, { status: 204 }))
+          : new Promise<Response>(() => {}),
+      ),
     )
   })
 
@@ -51,9 +56,9 @@ describe('routes', () => {
     ['/admin/settings', '設定（手数料率）'],
     ['/terms', '利用規約'],
     ['/privacy', 'プライバシーポリシー'],
-  ])('ログイン中は %s で「%s」を表示する', (path, title) => {
+  ])('ログイン中は %s で「%s」を表示する', async (path, title) => {
     renderAt(path)
-    expect(screen.getByRole('heading', { level: 1, name: title })).toBeInTheDocument()
+    expect(await screen.findByRole('heading', { level: 1, name: title })).toBeInTheDocument()
   })
 
   it.each([
@@ -120,15 +125,29 @@ describe('routes', () => {
     expect(screen.queryByRole('navigation', { name: 'メインメニュー' })).not.toBeInTheDocument()
   })
 
-  it('管理画面のルートでは管理メニューを表示する', () => {
+  it('管理画面のルートでは管理メニューを表示する', async () => {
     renderAt('/admin/users')
-    expect(screen.getByRole('navigation', { name: '管理メニュー' })).toBeInTheDocument()
+    expect(await screen.findByRole('navigation', { name: '管理メニュー' })).toBeInTheDocument()
   })
 
-  it('/admin は学生証審査に移る', () => {
+  it('/admin は学生証審査に移る', async () => {
     const router = renderAt('/admin')
+    expect(await screen.findByRole('heading', { level: 1, name: '学生証審査' })).toBeInTheDocument()
     expect(router.state.location.pathname).toBe('/admin/student-cards')
-    expect(screen.getByRole('heading', { level: 1, name: '学生証審査' })).toBeInTheDocument()
+  })
+
+  it('管理者でなければ管理画面のルートでも「ページが見つかりません」を表示する', async () => {
+    vi.stubGlobal(
+      'fetch',
+      vi.fn(async () =>
+        Response.json({ code: 'not_found', message: '見つかりません' }, { status: 404 }),
+      ),
+    )
+    renderAt('/admin/student-cards')
+    expect(
+      await screen.findByRole('heading', { level: 1, name: 'ページが見つかりません' }),
+    ).toBeInTheDocument()
+    expect(screen.queryByRole('navigation', { name: '管理メニュー' })).not.toBeInTheDocument()
   })
 
   it('知らないパスは「ページが見つかりません」を表示する', () => {

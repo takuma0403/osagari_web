@@ -28,6 +28,8 @@
 .link {
   display: flex;
   align-items: center;
+  justify-content: space-between;
+  gap: 8px;
   min-height: var(--tap-min);
   padding: 0 12px;
   border-radius: var(--radius-sm);
@@ -43,6 +45,16 @@
 .active {
   background: var(--color-admin-nav-active);
   color: var(--color-surface);
+  font-weight: 700;
+}
+
+.badge {
+  padding: 2px 8px;
+  border-radius: var(--radius-pill);
+  background: var(--color-warning-badge);
+  color: var(--color-text);
+  font-family: var(--font-num);
+  font-size: var(--text-note);
   font-weight: 700;
 }
 
