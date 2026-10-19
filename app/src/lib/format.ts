@@ -17,6 +17,14 @@ export function formatDate(isoDate: string): string {
   return `${year}年${month}月${day}日`
 }
 
+/** 日時（ISO 8601）を端末の時刻で `10/8 14:02` の形にする。提出・審査した日時など、年を省いてよい表示に使う */
+export function formatShortDateTime(isoDateTime: string): string {
+  const d = new Date(isoDateTime)
+  const hh = String(d.getHours()).padStart(2, '0')
+  const mm = String(d.getMinutes()).padStart(2, '0')
+  return `${d.getMonth() + 1}/${d.getDate()} ${hh}:${mm}`
+}
+
 /** 残り秒数を `9:41` の形（分:秒）にする。認証コードの有効期限や再送までの待ち時間に使う */
 export function formatCountdown(seconds: number): string {
   const s = Math.max(0, Math.ceil(seconds))
