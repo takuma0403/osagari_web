@@ -38,14 +38,14 @@
 | 受け渡しトークンの種類 | `HandoverTokenKind` | `qr` / `link` / `code` |
 | 決済の種別 | `PaymentKind` | `authorize` 枠の確保 / `capture` 預かり / `release` 枠の解放 / `refund` 返金 / `settle` 売上の確定 / `payout` 出金 |
 | 支払い方法 | `PaymentMethod` | `card` / `paypay` |
+| 商品の状態 | `ItemCondition` | `new_like` 新品同様 / `good` 目立った傷なし / `fair` やや傷あり |
 | カテゴリ | `ItemCategory` | `textbook` 教科書・参考書 / `furniture_appliance` 家具・家電 / `game_other` ゲーム・その他 |
 | キャンパス | `Campus` | `honjo` 本庄 / `nabeshima` 鍋島 |
 | 認証コードの用途 | `VerificationPurpose` | `signup` / `password_reset` / `login_recheck` |
 | 一時トークンの用途 | `PasswordSetupPurpose` | `signup` 新規登録 / `password_reset` パスワードの再設定 |
 | ログインの再確認の理由 | `LoginRecheckReason` | `code_expired` 最後のコード確認から30日以上 / `new_device` 初めての端末 |
 
-- 商品の「状態」（目立った傷なし 等）はステータスと紛らわしいため、コードでは `condition`（`ItemCondition`）と呼ぶ。値の一覧はデザイン（[Sell](design/screens/Sell.dc.html)）と合わせて実装時に決める。
-- デザインのカテゴリチップは「教科書・参考書／家具・家電／ゲーム／その他」と4つに分かれているが、要件（[ITEM](product/03-listing.md)）の区分は3つ。違いは実装時にユーザーへ確認する。
+- 商品の「状態」（目立った傷なし 等）はステータスと紛らわしいため、コードでは `condition`（`ItemCondition`）と呼ぶ。値はデザイン（[Sell](design/screens/Sell.dc.html)）の3つ（[ITEM](product/03-listing.md)）。
 
 ## そのほかの用語
 
