@@ -349,6 +349,113 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/admin/session": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * 管理者かどうかを確かめる
+         * @description ADMIN, FE: 管理者なら 204。未ログイン・管理者でなければ 404 not_found（管理画面は 404 なら「ページが見つからない」を出す。ADR 0015）。
+         */
+        get: operations["getAdminSession"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/admin/student-cards": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * 審査待ちの学生証を一覧する
+         * @description ADMIN, CARD: 審査待ち（pending）で置き換えられていない学生証を、提出の古い順に返す。画像の URL は含めない（createStudentCardView で発行する）。
+         */
+        get: operations["listPendingStudentCards"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/admin/student-cards/{studentCardId}/views": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * 学生証画像の閲覧記録を一覧する
+         * @description ADMIN, CARD: その学生証の画像を閲覧した記録を新しい順に返す。学生証がなければ 404 not_found。
+         */
+        get: operations["listStudentCardViews"];
+        put?: never;
+        /**
+         * 学生証画像の閲覧URLを発行し、閲覧を記録する
+         * @description ADMIN, CARD, STORAGE: 非公開バケットの画像を GET する署名付きURL（15分有効）を発行し、閲覧した管理者と日時を記録する。
+         *     学生証がない・画像が削除済みなら 404 not_found。
+         */
+        post: operations["createStudentCardView"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/admin/student-cards/{studentCardId}/approve": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * 学生証を承認する
+         * @description ADMIN, CARD: 審査待ちで置き換えられていない学生証を承認し、本人の出品者の承認状態を approved にする。
+         *     審査待ちでない・置き換えられた・本人が審査中でなければ 409 invalid_status_transition。学生証がなければ 404 not_found。
+         */
+        post: operations["approveStudentCard"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/admin/student-cards/{studentCardId}/reject": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * 学生証を差し戻す
+         * @description ADMIN, CARD: 審査待ちで置き換えられていない学生証を差し戻し、本人の出品者の承認状態を rejected にする。理由は持たない（ADR 0015）。
+         *     審査待ちでない・置き換えられた・本人が審査中でなければ 409 invalid_status_transition。学生証がなければ 404 not_found。
+         */
+        post: operations["rejectStudentCard"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
 }
 export type webhooks = Record<string, never>;
 export interface components {
@@ -534,6 +641,52 @@ export interface components {
              */
             reviewedAt: string | null;
         };
+        /**
+         * @description 学生証の審査状態
+         * @enum {string}
+         */
+        StudentCardStatus: "pending" | "approved" | "rejected";
+        /** @description ADMIN 管理者に見せる学生証と本人の情報（審査で学籍番号を照合する。CARD） */
+        AdminStudentCard: {
+            id: string;
+            status: components["schemas"]["StudentCardStatus"];
+            /** @description メールアドレスの学籍番号 */
+            studentNumber: string;
+            /** @description 推定した学部・学科の表示名。不明なら null */
+            departmentName: string | null;
+            admissionYear: number;
+            /** Format: date */
+            expiresOn: string;
+            /** Format: date-time */
+            submittedAt: string;
+            /**
+             * Format: date-time
+             * @description 審査した日時。審査前は null
+             */
+            reviewedAt: string | null;
+        };
+        /** @description STORAGE 学生証画像の閲覧URL（管理者だけに発行する） */
+        StudentCardImage: {
+            /** @description 署名付きURL（GET） */
+            url: string;
+            /**
+             * Format: date-time
+             * @description 署名付きURLの有効期限
+             */
+            expiresAt: string;
+            /**
+             * Format: date-time
+             * @description 記録した閲覧の日時
+             */
+            viewedAt: string;
+        };
+        /** @description ADMIN 学生証画像の閲覧記録 */
+        StudentCardView: {
+            /** Format: date-time */
+            viewedAt: string;
+            /** @description 閲覧した管理者の学籍番号 */
+            adminStudentNumber: string;
+        };
         Health: {
             /** @enum {string} */
             status: "ok";
@@ -564,6 +717,8 @@ export interface components {
         };
     };
     parameters: {
+        /** @description 学生証のID */
+        StudentCardId: string;
         /** @description ブラウザの localStorage に保存した端末識別子（AUTHN-3） */
         DeviceId: string;
     };
@@ -972,6 +1127,142 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["StudentCardState"];
+                };
+            };
+            default: components["responses"]["Error"];
+        };
+    };
+    getAdminSession: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description 管理者 */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            default: components["responses"]["Error"];
+        };
+    };
+    listPendingStudentCards: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description 審査待ちの学生証 */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AdminStudentCard"][];
+                };
+            };
+            default: components["responses"]["Error"];
+        };
+    };
+    listStudentCardViews: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description 学生証のID */
+                studentCardId: components["parameters"]["StudentCardId"];
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description 閲覧記録 */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["StudentCardView"][];
+                };
+            };
+            default: components["responses"]["Error"];
+        };
+    };
+    createStudentCardView: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description 学生証のID */
+                studentCardId: components["parameters"]["StudentCardId"];
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description 発行した閲覧URL */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["StudentCardImage"];
+                };
+            };
+            default: components["responses"]["Error"];
+        };
+    };
+    approveStudentCard: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description 学生証のID */
+                studentCardId: components["parameters"]["StudentCardId"];
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description 承認後の学生証 */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AdminStudentCard"];
+                };
+            };
+            default: components["responses"]["Error"];
+        };
+    };
+    rejectStudentCard: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description 学生証のID */
+                studentCardId: components["parameters"]["StudentCardId"];
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description 差し戻し後の学生証 */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AdminStudentCard"];
                 };
             };
             default: components["responses"]["Error"];
