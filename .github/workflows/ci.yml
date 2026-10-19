@@ -83,10 +83,23 @@ jobs:
           fi
       - name: go vet
         run: go vet ./...
-      - name: go test（libSQL 統合テストを含む）
+      # ストレージの統合テスト用（STORAGE）。compose の storage と同じイメージ。
+      # サービスコンテナには起動オプションを渡せないため docker run で起動する。-cors-headers はブラウザ向けなので付けない
+      - name: fake-gcs-server の起動
+        run: >-
+          docker run -d --name storage -p 4443:4443 fsouza/fake-gcs-server:1.56.1
+          -scheme=http -port=4443 -backend=memory
+          -public-host=localhost:4443 -external-url=http://localhost:4443
+      - name: バケットの作成
+        run: sh dev/storage-init.sh
+        env:
+          STORAGE_URL: http://localhost:4443
+          BUCKETS: student-cards
+      - name: go test（libSQL・ストレージの統合テストを含む）
         run: go test ./...
         env:
           TEST_DATABASE_URL: http://localhost:8080
+          TEST_STORAGE_EMULATOR_HOST: localhost:4443
       - name: 生成物の差分検査（api.gen.go, API-1）
         run: |
           go generate ./internal/api
