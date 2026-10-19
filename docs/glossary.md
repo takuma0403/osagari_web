@@ -46,6 +46,7 @@
 | ログインの再確認の理由 | `LoginRecheckReason` | `code_expired` 最後のコード確認から30日以上 / `new_device` 初めての端末 |
 
 - 商品の「状態」（目立った傷なし 等）はステータスと紛らわしいため、コードでは `condition`（`ItemCondition`）と呼ぶ。値はデザイン（[Sell](design/screens/Sell.dc.html)）の3つ（[ITEM](product/03-listing.md)）。
+- 要件（[ITEM](product/03-listing.md)）と出品画面（[Sell](design/screens/Sell.dc.html)）のカテゴリは3つ（`ItemCategory`）だが、一覧（[Main](design/screens/Main.dc.html)）のカテゴリチップとカテゴリ色は「教科書・家電・家具・ゲーム」の4つに分かれている。一覧での分け方と色の対応は一覧画面（#22）の実装時にユーザーへ確認する。
 
 ## そのほかの用語
 
