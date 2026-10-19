@@ -13,6 +13,7 @@ import (
 	"github.com/takuma0403/osagari_web/server/internal/api"
 	"github.com/takuma0403/osagari_web/server/internal/clock"
 	"github.com/takuma0403/osagari_web/server/internal/db"
+	"github.com/takuma0403/osagari_web/server/internal/domain"
 	"github.com/takuma0403/osagari_web/server/internal/handler"
 	"github.com/takuma0403/osagari_web/server/internal/logging"
 	"github.com/takuma0403/osagari_web/server/internal/mail"
@@ -30,6 +31,8 @@ type config struct {
 	Storage     storage.GCSConfig
 	// StudentCardBucket は学生証の非公開バケット（STORAGE）
 	StudentCardBucket string
+	// Admins は管理者の学籍番号の許可リスト（ADMIN, ADR 0015）
+	Admins domain.AdminList
 }
 
 func main() {
@@ -73,6 +76,7 @@ func run(logger *slog.Logger) error {
 		Clock:    clk,
 		Handler:  h,
 		Sessions: sessions,
+		Admins:   cfg.Admins,
 	})
 	return e.Start(":" + cfg.Port)
 }
@@ -128,12 +132,23 @@ func wire(cfg config, gdb *gorm.DB, clk clock.Clock, mailer mail.Mailer, store s
 		Users:    users,
 		Clock:    clk,
 	})
+	cards := repository.NewStudentCardRepository(gdb)
 	studentCard := service.NewStudentCardService(service.StudentCardDeps{
 		Tx:      tx,
 		Users:   users,
-		Cards:   repository.NewStudentCardRepository(gdb),
+		Cards:   cards,
 		Storage: store,
 		Bucket:  cfg.StudentCardBucket,
+		Clock:   clk,
+	})
+	adminStudentCard := service.NewAdminStudentCardService(service.AdminStudentCardDeps{
+		Tx:      tx,
+		Users:   users,
+		Cards:   cards,
+		Views:   repository.NewStudentCardViewRepository(gdb),
+		Storage: store,
+		Bucket:  cfg.StudentCardBucket,
+		Admins:  cfg.Admins,
 		Clock:   clk,
 	})
 	return handler.New(handler.Deps{
@@ -142,6 +157,8 @@ func wire(cfg config, gdb *gorm.DB, clk clock.Clock, mailer mail.Mailer, store s
 		Session:       session,
 		PasswordReset: reset,
 		StudentCard:   studentCard,
+
+		AdminStudentCard: adminStudentCard,
 	}), session
 }
 
@@ -168,6 +185,12 @@ func loadConfig() (config, error) {
 	if host := os.Getenv("STORAGE_EMULATOR_HOST"); host != "" {
 		cfg.Storage.EmulatorPublicHost = envOr("STORAGE_PUBLIC_HOST", host)
 	}
+	// 管理者の学籍番号。不正な値なら起動しない（値はログに出さない。ADR 0015）
+	admins, err := domain.ParseAdminList(os.Getenv("ADMIN_STUDENT_NUMBERS"))
+	if err != nil {
+		return config{}, fmt.Errorf("環境変数 ADMIN_STUDENT_NUMBERS: %w", err)
+	}
+	cfg.Admins = admins
 	// 本番（Gmail SMTP）は STARTTLS を必須にする。無効にするのはローカルの Mailpit だけ（AUTHN-7）
 	startTLS, err := strconv.ParseBool(envOr("SMTP_STARTTLS", "true"))
 	if err != nil {
