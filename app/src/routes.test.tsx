@@ -19,6 +19,18 @@ function renderAt(path: string, options: { user?: Session['user']; state?: unkno
 }
 
 describe('routes', () => {
+  // 画面が読み込みで呼ぶ API は応答を返さずに待たせる（ここではルートと見出しだけを確かめる）
+  beforeEach(() => {
+    vi.stubGlobal(
+      'fetch',
+      vi.fn(() => new Promise<Response>(() => {})),
+    )
+  })
+
+  afterEach(() => {
+    vi.unstubAllGlobals()
+  })
+
   it.each([
     ['/', '商品一覧'],
     ['/search', '検索結果'],
@@ -31,7 +43,7 @@ describe('routes', () => {
     ['/deals/42/scan', 'QR読み取り'],
     ['/deals/42/complete', '受け渡しの完了'],
     ['/mypage', 'マイページ'],
-    ['/mypage/student-card', '学生証登録'],
+    ['/mypage/student-card', '学生証の登録'],
     ['/mypage/sales', '売上管理'],
     ['/admin/student-cards', '学生証審査'],
     ['/admin/users', 'ユーザー'],

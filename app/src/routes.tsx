@@ -6,6 +6,7 @@ import { LoginPage } from './features/auth/pages/LoginPage'
 import { PasswordPage } from './features/auth/pages/PasswordPage'
 import { RecheckPage } from './features/auth/pages/RecheckPage'
 import { SignUpPage } from './features/auth/pages/SignUpPage'
+import { StudentCardPage } from './features/student-card/pages/StudentCardPage'
 import { PlaceholderPage } from './components/PlaceholderPage/PlaceholderPage'
 import { AdminLayout } from './layouts/AdminLayout/AdminLayout'
 import { MobileLayout } from './layouts/MobileLayout/MobileLayout'
@@ -71,7 +72,7 @@ export const routes: RouteObject[] = [
           placeholder('/deals/:dealId', '取引詳細'),
           placeholder('/deals/:dealId/scan', 'QR読み取り'),
           placeholder('/deals/:dealId/complete', '受け渡しの完了'),
-          placeholder('/mypage/student-card', '学生証登録'),
+          { path: '/mypage/student-card', element: <StudentCardPage /> },
           placeholder('/mypage/sales', '売上管理'),
         ],
       },
