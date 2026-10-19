@@ -102,7 +102,7 @@ func TestItemRepository(t *testing.T) {
 		FurnitureAppliance: &domain.FurnitureApplianceDetails{Size: ptr("W60"), OperationChecked: ptr(true)},
 	}
 	err = tx.Do(ctx, func(ctx context.Context) error {
-		if err := items.UpdateContent(ctx, pub.ID, u.ID, domain.ItemEditableStatuses, c, t1); err != nil {
+		if err := items.UpdateContent(ctx, pub.ID, u.ID, domain.ItemStatusPublished, t0, c, t1); err != nil {
 			return err
 		}
 		return items.ReplaceImages(ctx, pub.ID, []domain.ItemImage{newItemImage(u.ID + "/a"), newItemImage(u.ID + "/c")}, t1)
@@ -123,16 +123,22 @@ func TestItemRepository(t *testing.T) {
 	}
 
 	// 出品者でない・想定外のステータスは ErrConflict
-	if err := items.UpdateContent(ctx, pub.ID, "other", domain.ItemEditableStatuses, c, t1); !errors.Is(err, repository.ErrConflict) {
+	if err := items.UpdateContent(ctx, pub.ID, "other", domain.ItemStatusPublished, t1, c, t1); !errors.Is(err, repository.ErrConflict) {
 		t.Errorf("出品者でない: err = %v, want ErrConflict", err)
 	}
-	if err := items.UpdateStatus(ctx, pub.ID, u.ID, domain.ItemPublishableStatuses, domain.ItemStatusPublished, t1); !errors.Is(err, repository.ErrConflict) {
+	if err := items.UpdateContent(ctx, pub.ID, u.ID, domain.ItemStatusDraft, t1, c, t1); !errors.Is(err, repository.ErrConflict) {
+		t.Errorf("読んだ後にステータスが変わった: err = %v, want ErrConflict", err)
+	}
+	if err := items.UpdateContent(ctx, pub.ID, u.ID, domain.ItemStatusPublished, t0, c, t1); !errors.Is(err, repository.ErrConflict) {
+		t.Errorf("読んだ後に編集された: err = %v, want ErrConflict", err)
+	}
+	if err := items.UpdateStatus(ctx, pub.ID, u.ID, domain.ItemPublishableStatuses, nil, domain.ItemStatusPublished, t1); !errors.Is(err, repository.ErrConflict) {
 		t.Errorf("公開中を公開: err = %v, want ErrConflict", err)
 	}
 
 	// 取り下げ → 再出品
 	t2 := t1.Add(time.Hour)
-	if err := items.UpdateStatus(ctx, pub.ID, u.ID, domain.ItemWithdrawableStatuses, domain.ItemStatusWithdrawn, t2); err != nil {
+	if err := items.UpdateStatus(ctx, pub.ID, u.ID, domain.ItemWithdrawableStatuses, nil, domain.ItemStatusWithdrawn, t2); err != nil {
 		t.Fatal(err)
 	}
 	got, _ = items.FindByID(ctx, pub.ID)
@@ -140,7 +146,10 @@ func TestItemRepository(t *testing.T) {
 		t.Errorf("取り下げ後: got = %+v", got)
 	}
 	t3 := t2.Add(time.Hour)
-	if err := items.UpdateStatus(ctx, pub.ID, u.ID, domain.ItemPublishableStatuses, domain.ItemStatusPublished, t3); err != nil {
+	if err := items.UpdateStatus(ctx, pub.ID, u.ID, domain.ItemPublishableStatuses, &t1, domain.ItemStatusPublished, t3); !errors.Is(err, repository.ErrConflict) {
+		t.Errorf("公開の確認の後に編集された: err = %v, want ErrConflict", err)
+	}
+	if err := items.UpdateStatus(ctx, pub.ID, u.ID, domain.ItemPublishableStatuses, &t2, domain.ItemStatusPublished, t3); err != nil {
 		t.Fatal(err)
 	}
 	got, _ = items.FindByID(ctx, pub.ID)

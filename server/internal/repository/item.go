@@ -197,17 +197,20 @@ func (r *ItemRepository) FindByID(ctx context.Context, id string) (*domain.Item,
 	return it, nil
 }
 
-// UpdateContent は出品者の商品のステータスが from のどれかのときだけ、内容を書き換える（条件付きUPDATE。DB）。
-// 当てはまらなければ ErrConflict。写真は ReplaceImages で同じトランザクションの中で入れ替える。
-func (r *ItemRepository) UpdateContent(ctx context.Context, id, sellerID string, from []domain.ItemStatus, c domain.ItemContent, now time.Time) error {
+// UpdateContent は出品者の商品が、読んだときのステータス status と更新日時 updatedAt のままのときだけ内容を書き換える
+// （条件付きUPDATE。DB）。読んだ後にステータスや内容が変わっていれば ErrConflict。
+// 確かめた入力の決まり（下書きか公開中か）と、実際に書き換える商品のステータスを食い違わせないため。
+// 写真は ReplaceImages で同じトランザクションの中で入れ替える。
+func (r *ItemRepository) UpdateContent(ctx context.Context, id, sellerID string, status domain.ItemStatus, updatedAt time.Time, c domain.ItemContent, now time.Time) error {
 	cols := contentColumns(c)
 	cols["updated_at"] = formatTime(now)
-	return r.conditionalUpdate(ctx, id, sellerID, from, cols)
+	return r.conditionalUpdate(ctx, id, sellerID, []domain.ItemStatus{status}, &updatedAt, cols)
 }
 
 // UpdateStatus は出品者の商品のステータスが from のどれかのときだけ to にする（条件付きUPDATE。DB）。
+// unchangedSince を渡すと、更新日時がその値のまま（読んだ後に編集されていない）のときだけ更新する（公開時の入力の確認に使う）。
 // 公開なら published_at、取り下げなら withdrawn_at に now を入れる。当てはまらなければ ErrConflict。
-func (r *ItemRepository) UpdateStatus(ctx context.Context, id, sellerID string, from []domain.ItemStatus, to domain.ItemStatus, now time.Time) error {
+func (r *ItemRepository) UpdateStatus(ctx context.Context, id, sellerID string, from []domain.ItemStatus, unchangedSince *time.Time, to domain.ItemStatus, now time.Time) error {
 	ts := formatTime(now)
 	cols := map[string]any{"status": string(to), "updated_at": ts}
 	switch to {
@@ -216,13 +219,16 @@ func (r *ItemRepository) UpdateStatus(ctx context.Context, id, sellerID string, 
 	case domain.ItemStatusWithdrawn:
 		cols["withdrawn_at"] = ts
 	}
-	return r.conditionalUpdate(ctx, id, sellerID, from, cols)
+	return r.conditionalUpdate(ctx, id, sellerID, from, unchangedSince, cols)
 }
 
-func (r *ItemRepository) conditionalUpdate(ctx context.Context, id, sellerID string, from []domain.ItemStatus, cols map[string]any) error {
-	res := conn(ctx, r.db).Model(&itemRow{}).
-		Where("id = ? AND seller_id = ? AND status IN ?", id, sellerID, enumStrings(from)).
-		Updates(cols)
+func (r *ItemRepository) conditionalUpdate(ctx context.Context, id, sellerID string, from []domain.ItemStatus, unchangedSince *time.Time, cols map[string]any) error {
+	q := conn(ctx, r.db).Model(&itemRow{}).
+		Where("id = ? AND seller_id = ? AND status IN ?", id, sellerID, enumStrings(from))
+	if unchangedSince != nil {
+		q = q.Where("updated_at = ?", formatTime(*unchangedSince))
+	}
+	res := q.Updates(cols)
 	if res.Error != nil {
 		return res.Error
 	}
