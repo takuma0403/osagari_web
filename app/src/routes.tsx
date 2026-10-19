@@ -1,5 +1,8 @@
-import { Link, Navigate, type RouteObject } from 'react-router'
+import { Navigate, type RouteObject } from 'react-router'
 import { BottomNav } from './components/BottomNav/BottomNav'
+import { NotFoundPage } from './components/NotFoundPage/NotFoundPage'
+import { AdminCardPage } from './features/admin/pages/AdminCardPage'
+import { RequireAdmin } from './features/admin/RequireAdmin'
 import { GuestOnly, RequireAuth } from './features/auth/guards'
 import { CodePage } from './features/auth/pages/CodePage'
 import { LoginPage } from './features/auth/pages/LoginPage'
@@ -77,30 +80,26 @@ export const routes: RouteObject[] = [
         ],
       },
       {
-        // 管理画面（ADMIN）。PC 幅のレイアウト。管理者かどうかの判定は管理者権限の issue で足す
-        path: '/admin',
-        element: <AdminLayout />,
+        // 管理画面（ADMIN）。PC 幅のレイアウト。管理者でなければ知らないパスと同じ「ページが見つかりません」を出す（ADR 0015）
+        element: <RequireAdmin />,
         children: [
-          { index: true, element: <Navigate to="/admin/student-cards" replace /> },
-          placeholder('student-cards', '学生証審査'),
-          placeholder('users', 'ユーザー'),
-          placeholder('items', '出品・取引'),
-          placeholder('settings', '設定（手数料率）'),
+          {
+            path: '/admin',
+            element: <AdminLayout />,
+            children: [
+              { index: true, element: <Navigate to="/admin/student-cards" replace /> },
+              { path: 'student-cards', element: <AdminCardPage /> },
+              placeholder('users', 'ユーザー'),
+              placeholder('items', '出品・取引'),
+              placeholder('settings', '設定（手数料率）'),
+            ],
+          },
         ],
       },
     ],
   },
   {
     element: <MobileLayout />,
-    children: [
-      {
-        path: '*',
-        element: (
-          <PlaceholderPage title="ページが見つかりません">
-            <Link to="/">商品一覧へ戻る</Link>
-          </PlaceholderPage>
-        ),
-      },
-    ],
+    children: [{ path: '*', element: <NotFoundPage /> }],
   },
 ]
