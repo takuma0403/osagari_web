@@ -4,11 +4,7 @@ import (
 	"context"
 	"errors"
 	"net/http"
-	"slices"
-	"strings"
 	"time"
-
-	"github.com/google/uuid"
 
 	"github.com/takuma0403/osagari_web/server/internal/apperr"
 	"github.com/takuma0403/osagari_web/server/internal/clock"
@@ -19,16 +15,6 @@ import (
 
 // 学生証の機能固有のエラーコード（docs/tech/api.md の API-1）。
 const CodeInvalidStudentCardUpload apperr.Code = "invalid_student_card_upload"
-
-const (
-	// studentCardUploadTTL はアップロード用の署名付きURLの有効期限（STORAGE）。
-	studentCardUploadTTL = 15 * time.Minute
-	// studentCardMaxBytes は学生証画像の上限（STORAGE）。ブラウザで長辺1600pxに縮小した画像なら十分に収まる。
-	studentCardMaxBytes = 5 << 20
-)
-
-// studentCardContentTypes は受け付ける画像の形式（STORAGE）。
-var studentCardContentTypes = []string{"image/jpeg", "image/webp"}
 
 var (
 	errInvalidStudentCardUpload = apperr.New(http.StatusBadRequest, CodeInvalidStudentCardUpload,
@@ -61,10 +47,7 @@ func NewStudentCardService(d StudentCardDeps) *StudentCardService {
 }
 
 // StudentCardUpload は発行したアップロード先。ObjectKey を Submit に送る。
-type StudentCardUpload struct {
-	ObjectKey string
-	storage.SignedURL
-}
+type StudentCardUpload = ImageUpload
 
 // StudentCardState は本人の学生証の審査状況。
 type StudentCardState struct {
@@ -75,18 +58,17 @@ type StudentCardState struct {
 
 // CreateUpload は学生証画像を直接 PUT するための署名付きURLを発行する。オブジェクト名は `{ユーザーID}/{UUID}`。
 func (s *StudentCardService) CreateUpload(ctx context.Context, u *domain.User, contentType string) (StudentCardUpload, error) {
-	if !slices.Contains(studentCardContentTypes, contentType) {
-		return StudentCardUpload{}, apperr.BadRequest("JPEG か WebP の画像を選んでください")
+	if !validImageContentType(contentType) {
+		return StudentCardUpload{}, errImageContentType
 	}
 	if u.SellerStatus == domain.SellerStatusApproved {
 		return StudentCardUpload{}, errStudentCardApproved
 	}
-	objectKey := u.ID + "/" + uuid.NewString()
-	signed, err := s.d.Storage.SignedPutURL(ctx, s.d.Bucket, objectKey, contentType, studentCardMaxBytes, s.d.Clock.Now().Add(studentCardUploadTTL))
+	up, err := signImageUpload(ctx, s.d.Storage, s.d.Bucket, u.ID, contentType, s.d.Clock.Now())
 	if err != nil {
 		return StudentCardUpload{}, apperr.Internal(err)
 	}
-	return StudentCardUpload{ObjectKey: objectKey, SignedURL: signed}, nil
+	return up, nil
 }
 
 // Submit はアップロードした画像を学生証として登録し、出品者の承認状態を審査中にする。
@@ -96,8 +78,7 @@ func (s *StudentCardService) Submit(ctx context.Context, u *domain.User, objectK
 		return StudentCardState{}, errStudentCardApproved
 	}
 	// ほかの人のオブジェクトや、発行していない形の名前は受け付けない
-	id, ok := strings.CutPrefix(objectKey, u.ID+"/")
-	if parsed, err := uuid.Parse(id); !ok || err != nil || parsed.String() != id {
+	if !ownImageKey(u.ID, objectKey) {
 		return StudentCardState{}, errInvalidStudentCardUpload
 	}
 	exists, err := s.d.Cards.ExistsByObjectKey(ctx, objectKey)
@@ -107,18 +88,14 @@ func (s *StudentCardService) Submit(ctx context.Context, u *domain.User, objectK
 	if exists {
 		return StudentCardState{}, errInvalidStudentCardUpload
 	}
-	info, err := s.d.Storage.Stat(ctx, s.d.Bucket, objectKey)
-	if errors.Is(err, storage.ErrNotFound) {
+	info, err := statUploadedImage(ctx, s.d.Storage, s.d.Bucket, u.ID, objectKey)
+	switch {
+	case errors.Is(err, errUploadedImageInvalid):
 		return StudentCardState{}, errInvalidStudentCardUpload
-	}
-	if err != nil {
-		return StudentCardState{}, apperr.Internal(err)
-	}
-	if !slices.Contains(studentCardContentTypes, info.ContentType) || info.Size <= 0 {
-		return StudentCardState{}, errInvalidStudentCardUpload
-	}
-	if info.Size > studentCardMaxBytes {
+	case errors.Is(err, errUploadedImageTooLarge):
 		return StudentCardState{}, errStudentCardTooLarge
+	case err != nil:
+		return StudentCardState{}, apperr.Internal(err)
 	}
 
 	now := s.d.Clock.Now()
