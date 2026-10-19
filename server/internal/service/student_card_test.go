@@ -8,6 +8,8 @@ import (
 	"testing"
 	"time"
 
+	"gorm.io/gorm"
+
 	"github.com/takuma0403/osagari_web/server/internal/apperr"
 	"github.com/takuma0403/osagari_web/server/internal/clock"
 	"github.com/takuma0403/osagari_web/server/internal/domain"
@@ -20,6 +22,7 @@ import (
 const cardBucket = "student-cards"
 
 type cardFixture struct {
+	gdb     *gorm.DB
 	svc     *service.StudentCardService
 	users   *repository.UserRepository
 	cards   *repository.StudentCardRepository
@@ -32,6 +35,7 @@ func newCardFixture(t *testing.T) *cardFixture {
 	t.Helper()
 	gdb := testdb.New(t)
 	f := &cardFixture{
+		gdb:     gdb,
 		users:   repository.NewUserRepository(gdb),
 		cards:   repository.NewStudentCardRepository(gdb),
 		storage: storage.NewMemory(),

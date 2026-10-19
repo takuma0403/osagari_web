@@ -8,6 +8,7 @@ import (
 	"github.com/labstack/echo/v5"
 
 	"github.com/takuma0403/osagari_web/server/internal/api"
+	"github.com/takuma0403/osagari_web/server/internal/apperr"
 	"github.com/takuma0403/osagari_web/server/internal/auth"
 	"github.com/takuma0403/osagari_web/server/internal/domain"
 )
@@ -17,9 +18,16 @@ type Authenticator interface {
 	Authenticate(ctx context.Context, token string) (*domain.User, error)
 }
 
+// adminPathPrefix は管理APIのパスの接頭辞（ADMIN）。
+const adminPathPrefix = BasePath + "/admin/"
+
+// isAdminPath は管理APIのパスかを返す。
+func isAdminPath(path string) bool { return strings.HasPrefix(path, adminPathPrefix) }
+
 // sessionMiddleware は `__session` Cookie の値を context に入れ、セッションが必要な操作ではユーザーを確かめて context に入れる（AUTHN-5）。
 // セッションが要らない操作は、OpenAPI で `security: []` を付けたものだけ（API 契約が正本。それ以外はすべてセッション必須）。
-func sessionMiddleware(authn Authenticator, public map[string]bool) api.StrictMiddlewareFunc {
+// 管理API（`/api/admin/**`）は、未ログイン・管理者でなければ存在しないパスと同じ 404 にする（ADR 0015）。
+func sessionMiddleware(authn Authenticator, admins domain.AdminList, public map[string]bool) api.StrictMiddlewareFunc {
 	return func(f api.StrictHandlerFunc, operationID string) api.StrictHandlerFunc {
 		required := !public[operationID]
 		return func(c *echo.Context, req any) (any, error) {
@@ -29,7 +37,16 @@ func sessionMiddleware(authn Authenticator, public map[string]bool) api.StrictMi
 				token = ck.Value
 			}
 			ctx = auth.WithSessionToken(ctx, token)
-			if required {
+			if isAdminPath(c.Path()) {
+				u, err := authn.Authenticate(ctx, token)
+				if err != nil && apperr.CodeOf(err) == apperr.CodeInternal {
+					return nil, err
+				}
+				if err != nil || !admins.Contains(u) {
+					return nil, apperr.NotFound("")
+				}
+				ctx = auth.WithUser(ctx, u)
+			} else if required {
 				u, err := authn.Authenticate(ctx, token)
 				if err != nil {
 					return nil, err

@@ -1,4 +1,4 @@
-// fake-gcs-server に対して「署名付きURLの発行 → PUT → Stat」ができるかの検証（STORAGE）。
+// fake-gcs-server に対して「署名付きURLの発行 → PUT → Stat → 署名付きURLで GET」ができるかの検証（STORAGE）。
 // TEST_STORAGE_EMULATOR_HOST を設定したときだけ、compose の storage に対して実行する（未設定ならスキップ）：
 //
 //	docker compose run --rm -e TEST_STORAGE_EMULATOR_HOST=storage:4443 api go test -v ./internal/storage/...
@@ -11,6 +11,7 @@ package storage_test
 import (
 	"context"
 	"errors"
+	"io"
 	"net/http"
 	"os"
 	"strings"
@@ -83,5 +84,32 @@ func TestGCSEmulator(t *testing.T) {
 	}
 	if info.Size != int64(len(body)) || info.ContentType != "image/jpeg" {
 		t.Fatalf("Stat = %+v", info)
+	}
+
+	// 管理者の閲覧（ADR 0015）
+	gu, err := g.SignedGetURL(ctx, bucket, object, time.Now().Add(15*time.Minute))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if gu.Method != http.MethodGet || len(gu.Headers) != 0 ||
+		!strings.HasPrefix(gu.URL, "http://"+publicHost+"/"+bucket+"/") || !strings.Contains(gu.URL, "X-Goog-Signature=") {
+		t.Fatalf("SignedGetURL = %+v", gu)
+	}
+	greq, err := http.NewRequestWithContext(ctx, gu.Method, gu.URL, nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	greq.URL.Host = host
+	gres, err := http.DefaultClient.Do(greq)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer gres.Body.Close()
+	got, err := io.ReadAll(gres.Body)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if gres.StatusCode != http.StatusOK || string(got) != body {
+		t.Fatalf("GET status = %d body = %q", gres.StatusCode, got)
 	}
 }

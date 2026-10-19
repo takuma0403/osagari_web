@@ -107,6 +107,26 @@ func (r *UserRepository) FindByID(ctx context.Context, id string) (*domain.User,
 	return rows[0].toDomain()
 }
 
+// FindByIDs は ID の一覧でユーザーをまとめて探し、ID をキーにして返す。見つからない ID は含めない。
+func (r *UserRepository) FindByIDs(ctx context.Context, ids []string) (map[string]*domain.User, error) {
+	users := make(map[string]*domain.User, len(ids))
+	if len(ids) == 0 {
+		return users, nil
+	}
+	var rows []userRow
+	if err := conn(ctx, r.db).Where("id IN ?", ids).Find(&rows).Error; err != nil {
+		return nil, err
+	}
+	for _, row := range rows {
+		u, err := row.toDomain()
+		if err != nil {
+			return nil, err
+		}
+		users[u.ID] = u
+	}
+	return users, nil
+}
+
 // FindByEmail はメールアドレスでユーザーを探す。状態にかかわらず返す。なければ ErrNotFound。
 func (r *UserRepository) FindByEmail(ctx context.Context, email string) (*domain.User, error) {
 	var rows []userRow

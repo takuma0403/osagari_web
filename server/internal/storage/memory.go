@@ -11,7 +11,7 @@ import (
 type Memory struct {
 	mu      sync.Mutex
 	objects map[string]ObjectInfo
-	// Err を設定すると SignedPutURL・Stat がそのエラーを返す（ストレージの障害の確認用）
+	// Err を設定すると SignedPutURL・SignedGetURL・Stat がそのエラーを返す（ストレージの障害の確認用）
 	Err error
 }
 
@@ -29,6 +29,16 @@ func (m *Memory) SignedPutURL(_ context.Context, bucket, object, contentType str
 	}
 	u := url.URL{Scheme: "https", Host: "storage.test", Path: "/" + bucket + "/" + object}
 	return putURL(u.String(), putHeaders(contentType, maxBytes), expiresAt), nil
+}
+
+func (m *Memory) SignedGetURL(_ context.Context, bucket, object string, expiresAt time.Time) (SignedURL, error) {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+	if m.Err != nil {
+		return SignedURL{}, m.Err
+	}
+	u := url.URL{Scheme: "https", Host: "storage.test", Path: "/" + bucket + "/" + object}
+	return getURL(u.String(), expiresAt), nil
 }
 
 func (m *Memory) Stat(_ context.Context, bucket, object string) (ObjectInfo, error) {

@@ -50,4 +50,4 @@ Vite + React のSPAを Firebase Hosting に置きます。ログイン必須の�
   - ログイン前だけの画面（`/login`、`/signup*`、`/password-reset*`、`/recheck`）は、ログイン済みなら商品一覧へ送る。`/terms`・`/privacy` は誰でも見られる。それ以外の画面はすべてログインを求め、未ログインならログイン画面へ送る。
   - ログイン画面へ送るときは開こうとしていたページ（パス）を location.state に残し、ログイン（再確認を含む）に成功したらそこへ戻す。なければ商品一覧。
   - 共有リンク（`/items/:shareId`）も、[未決事項](../product/open-questions.md)が決まるまではログインを求める。
-  - 管理画面（`/admin/**`）の管理者かどうかの判定は、管理者権限の実装で足す。
+  - 管理画面（`/admin/**`）は `GET /api/admin/session` で管理者かどうかを確かめ、404 なら「ページが見つからない」を出す。管理画面への導線は UI に出さない（[ADR 0015](../decisions/0015-admin-authorization.md)）。

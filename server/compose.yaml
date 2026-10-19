@@ -92,6 +92,8 @@ services:
       SMTP_PORT: "1025"
       SMTP_FROM: お下がりフリマ <noreply@osagari.local>
       SMTP_STARTTLS: "false"
+      # 管理者の学籍番号（ADR 0015）。例：ADMIN_STUDENT_NUMBERS=26141023 docker compose up -d
+      ADMIN_STUDENT_NUMBERS: ${ADMIN_STUDENT_NUMBERS:-}
     volumes: *go-volumes
     depends_on:
       db:

@@ -23,3 +23,14 @@ type StudentCard struct {
 	CreatedAt      time.Time
 	UpdatedAt      time.Time
 }
+
+// StudentCardView は管理者が学生証画像を閲覧した記録（student_card_views。CARD, STORAGE, ADR 0015）。
+type StudentCardView struct {
+	ID            string
+	StudentCardID string
+	// AdminUserID は閲覧した管理者のユーザーID
+	AdminUserID string
+	ViewedAt    time.Time
+	CreatedAt   time.Time
+	UpdatedAt   time.Time
+}

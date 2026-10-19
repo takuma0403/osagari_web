@@ -57,22 +57,43 @@ func (e LoginRecheckReason) Valid() bool {
 
 // Defines values for SellerStatus.
 const (
-	Approved SellerStatus = "approved"
-	None     SellerStatus = "none"
-	Pending  SellerStatus = "pending"
-	Rejected SellerStatus = "rejected"
+	SellerStatusApproved SellerStatus = "approved"
+	SellerStatusNone     SellerStatus = "none"
+	SellerStatusPending  SellerStatus = "pending"
+	SellerStatusRejected SellerStatus = "rejected"
 )
 
 // Valid indicates whether the value is a known member of the SellerStatus enum.
 func (e SellerStatus) Valid() bool {
 	switch e {
-	case Approved:
+	case SellerStatusApproved:
 		return true
-	case None:
+	case SellerStatusNone:
 		return true
-	case Pending:
+	case SellerStatusPending:
 		return true
-	case Rejected:
+	case SellerStatusRejected:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for StudentCardStatus.
+const (
+	StudentCardStatusApproved StudentCardStatus = "approved"
+	StudentCardStatusPending  StudentCardStatus = "pending"
+	StudentCardStatusRejected StudentCardStatus = "rejected"
+)
+
+// Valid indicates whether the value is a known member of the StudentCardStatus enum.
+func (e StudentCardStatus) Valid() bool {
+	switch e {
+	case StudentCardStatusApproved:
+		return true
+	case StudentCardStatusPending:
+		return true
+	case StudentCardStatusRejected:
 		return true
 	default:
 		return false
@@ -134,6 +155,26 @@ func (e UserStatus) Valid() bool {
 	default:
 		return false
 	}
+}
+
+// AdminStudentCard ADMIN 管理者に見せる学生証と本人の情報（審査で学籍番号を照合する。CARD）
+type AdminStudentCard struct {
+	AdmissionYear int `json:"admissionYear"`
+
+	// DepartmentName 推定した学部・学科の表示名。不明なら null
+	DepartmentName *string            `json:"departmentName"`
+	ExpiresOn      openapi_types.Date `json:"expiresOn"`
+	Id             string             `json:"id"`
+
+	// ReviewedAt 審査した日時。審査前は null
+	ReviewedAt *time.Time `json:"reviewedAt"`
+
+	// Status 学生証の審査状態
+	Status StudentCardStatus `json:"status"`
+
+	// StudentNumber メールアドレスの学籍番号
+	StudentNumber string    `json:"studentNumber"`
+	SubmittedAt   time.Time `json:"submittedAt"`
 }
 
 // CurrentUser ログイン中の本人の情報。本人にだけ返す
@@ -280,6 +321,18 @@ type SignupCompletion struct {
 	SetupToken string `json:"setupToken"`
 }
 
+// StudentCardImage STORAGE 学生証画像の閲覧URL（管理者だけに発行する）
+type StudentCardImage struct {
+	// ExpiresAt 署名付きURLの有効期限
+	ExpiresAt time.Time `json:"expiresAt"`
+
+	// Url 署名付きURL（GET）
+	Url string `json:"url"`
+
+	// ViewedAt 記録した閲覧の日時
+	ViewedAt time.Time `json:"viewedAt"`
+}
+
 // StudentCardState CARD 本人の学生証の審査状況
 type StudentCardState struct {
 	// ReviewedAt 審査した日時。審査前・未登録なら null
@@ -291,6 +344,9 @@ type StudentCardState struct {
 	// SubmittedAt 最後に提出した日時。未登録なら null
 	SubmittedAt *time.Time `json:"submittedAt"`
 }
+
+// StudentCardStatus 学生証の審査状態
+type StudentCardStatus string
 
 // StudentCardSubmission defines model for StudentCardSubmission.
 type StudentCardSubmission struct {
@@ -328,6 +384,13 @@ type StudentCardUploadInput struct {
 // StudentCardUploadInputContentType アップロードする画像の形式（ブラウザで縮小・圧縮したもの。STORAGE）
 type StudentCardUploadInputContentType string
 
+// StudentCardView ADMIN 学生証画像の閲覧記録
+type StudentCardView struct {
+	// AdminStudentNumber 閲覧した管理者の学籍番号
+	AdminStudentNumber string    `json:"adminStudentNumber"`
+	ViewedAt           time.Time `json:"viewedAt"`
+}
+
 // StudentEstimate AUTH-2, AUTH-4 学籍番号から推定した情報
 type StudentEstimate struct {
 	// AdmissionYear 入学年度（学籍番号の上2桁 + 2000）
@@ -364,6 +427,9 @@ type UserStatus string
 
 // DeviceId defines model for DeviceId.
 type DeviceId = string
+
+// StudentCardId defines model for StudentCardId.
+type StudentCardId = string
 
 // LoginParams defines parameters for Login.
 type LoginParams struct {
@@ -421,6 +487,24 @@ type CreateStudentCardUploadJSONRequestBody = StudentCardUploadInput
 
 // ServerInterface represents all server handlers.
 type ServerInterface interface {
+	// GetAdminSession 管理者かどうかを確かめる
+	// (GET /admin/session)
+	GetAdminSession(ctx *echo.Context) error
+	// ListPendingStudentCards 審査待ちの学生証を一覧する
+	// (GET /admin/student-cards)
+	ListPendingStudentCards(ctx *echo.Context) error
+	// ApproveStudentCard 学生証を承認する
+	// (POST /admin/student-cards/{studentCardId}/approve)
+	ApproveStudentCard(ctx *echo.Context, studentCardId StudentCardId) error
+	// RejectStudentCard 学生証を差し戻す
+	// (POST /admin/student-cards/{studentCardId}/reject)
+	RejectStudentCard(ctx *echo.Context, studentCardId StudentCardId) error
+	// ListStudentCardViews 学生証画像の閲覧記録を一覧する
+	// (GET /admin/student-cards/{studentCardId}/views)
+	ListStudentCardViews(ctx *echo.Context, studentCardId StudentCardId) error
+	// CreateStudentCardView 学生証画像の閲覧URLを発行し、閲覧を記録する
+	// (POST /admin/student-cards/{studentCardId}/views)
+	CreateStudentCardView(ctx *echo.Context, studentCardId StudentCardId) error
 	// Login メールアドレスとパスワードでログインする
 	// (POST /auth/login)
 	Login(ctx *echo.Context, params LoginParams) error
@@ -474,6 +558,88 @@ type ServerInterface interface {
 // ServerInterfaceWrapper converts echo contexts to parameters.
 type ServerInterfaceWrapper struct {
 	Handler ServerInterface
+}
+
+// GetAdminSession converts echo context to params.
+func (w *ServerInterfaceWrapper) GetAdminSession(ctx *echo.Context) error {
+	var err error
+
+	// Invoke the callback with all the unmarshaled arguments
+	err = w.Handler.GetAdminSession(ctx)
+	return err
+}
+
+// ListPendingStudentCards converts echo context to params.
+func (w *ServerInterfaceWrapper) ListPendingStudentCards(ctx *echo.Context) error {
+	var err error
+
+	// Invoke the callback with all the unmarshaled arguments
+	err = w.Handler.ListPendingStudentCards(ctx)
+	return err
+}
+
+// ApproveStudentCard converts echo context to params.
+func (w *ServerInterfaceWrapper) ApproveStudentCard(ctx *echo.Context) error {
+	var err error
+	// ------------- Path parameter "studentCardId" -------------
+	var studentCardId StudentCardId
+
+	err = runtime.BindStyledParameterWithOptions("simple", "studentCardId", ctx.Param("studentCardId"), &studentCardId, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "string", Format: "", ValueIsUnescaped: ctx.Request().URL.RawPath == ""})
+	if err != nil {
+		return echo.NewHTTPError(http.StatusBadRequest, fmt.Sprintf("Invalid format for parameter studentCardId: %s", err))
+	}
+
+	// Invoke the callback with all the unmarshaled arguments
+	err = w.Handler.ApproveStudentCard(ctx, studentCardId)
+	return err
+}
+
+// RejectStudentCard converts echo context to params.
+func (w *ServerInterfaceWrapper) RejectStudentCard(ctx *echo.Context) error {
+	var err error
+	// ------------- Path parameter "studentCardId" -------------
+	var studentCardId StudentCardId
+
+	err = runtime.BindStyledParameterWithOptions("simple", "studentCardId", ctx.Param("studentCardId"), &studentCardId, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "string", Format: "", ValueIsUnescaped: ctx.Request().URL.RawPath == ""})
+	if err != nil {
+		return echo.NewHTTPError(http.StatusBadRequest, fmt.Sprintf("Invalid format for parameter studentCardId: %s", err))
+	}
+
+	// Invoke the callback with all the unmarshaled arguments
+	err = w.Handler.RejectStudentCard(ctx, studentCardId)
+	return err
+}
+
+// ListStudentCardViews converts echo context to params.
+func (w *ServerInterfaceWrapper) ListStudentCardViews(ctx *echo.Context) error {
+	var err error
+	// ------------- Path parameter "studentCardId" -------------
+	var studentCardId StudentCardId
+
+	err = runtime.BindStyledParameterWithOptions("simple", "studentCardId", ctx.Param("studentCardId"), &studentCardId, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "string", Format: "", ValueIsUnescaped: ctx.Request().URL.RawPath == ""})
+	if err != nil {
+		return echo.NewHTTPError(http.StatusBadRequest, fmt.Sprintf("Invalid format for parameter studentCardId: %s", err))
+	}
+
+	// Invoke the callback with all the unmarshaled arguments
+	err = w.Handler.ListStudentCardViews(ctx, studentCardId)
+	return err
+}
+
+// CreateStudentCardView converts echo context to params.
+func (w *ServerInterfaceWrapper) CreateStudentCardView(ctx *echo.Context) error {
+	var err error
+	// ------------- Path parameter "studentCardId" -------------
+	var studentCardId StudentCardId
+
+	err = runtime.BindStyledParameterWithOptions("simple", "studentCardId", ctx.Param("studentCardId"), &studentCardId, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "string", Format: "", ValueIsUnescaped: ctx.Request().URL.RawPath == ""})
+	if err != nil {
+		return echo.NewHTTPError(http.StatusBadRequest, fmt.Sprintf("Invalid format for parameter studentCardId: %s", err))
+	}
+
+	// Invoke the callback with all the unmarshaled arguments
+	err = w.Handler.CreateStudentCardView(ctx, studentCardId)
+	return err
 }
 
 // Login converts echo context to params.
@@ -743,10 +909,242 @@ func RegisterHandlersWithOptions(router EchoRouter, si ServerInterface, options 
 	router.POST(options.BaseURL+"/student-cards/uploads", wrapper.CreateStudentCardUpload, options.OperationMiddlewares["createStudentCardUpload"]...)
 	router.POST(options.BaseURL+"/student-cards", wrapper.SubmitStudentCard, options.OperationMiddlewares["submitStudentCard"]...)
 	router.GET(options.BaseURL+"/student-cards/current", wrapper.GetCurrentStudentCard, options.OperationMiddlewares["getCurrentStudentCard"]...)
+	router.GET(options.BaseURL+"/admin/session", wrapper.GetAdminSession, options.OperationMiddlewares["getAdminSession"]...)
+	router.GET(options.BaseURL+"/admin/student-cards", wrapper.ListPendingStudentCards, options.OperationMiddlewares["listPendingStudentCards"]...)
+	router.GET(options.BaseURL+"/admin/student-cards/:studentCardId/views", wrapper.ListStudentCardViews, options.OperationMiddlewares["listStudentCardViews"]...)
+	router.POST(options.BaseURL+"/admin/student-cards/:studentCardId/views", wrapper.CreateStudentCardView, options.OperationMiddlewares["createStudentCardView"]...)
+	router.POST(options.BaseURL+"/admin/student-cards/:studentCardId/approve", wrapper.ApproveStudentCard, options.OperationMiddlewares["approveStudentCard"]...)
+	router.POST(options.BaseURL+"/admin/student-cards/:studentCardId/reject", wrapper.RejectStudentCard, options.OperationMiddlewares["rejectStudentCard"]...)
 
 }
 
 type ErrorJSONResponse Error
+
+type GetAdminSessionRequestObject struct {
+}
+
+type GetAdminSessionResponseObject interface {
+	VisitGetAdminSessionResponse(w http.ResponseWriter) error
+}
+
+type GetAdminSession204Response struct {
+}
+
+func (response GetAdminSession204Response) VisitGetAdminSessionResponse(w http.ResponseWriter) error {
+	w.WriteHeader(204)
+	return nil
+}
+
+type GetAdminSessiondefaultJSONResponse struct {
+	Body       Error
+	StatusCode int
+}
+
+func (response GetAdminSessiondefaultJSONResponse) VisitGetAdminSessionResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response.Body); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(response.StatusCode)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type ListPendingStudentCardsRequestObject struct {
+}
+
+type ListPendingStudentCardsResponseObject interface {
+	VisitListPendingStudentCardsResponse(w http.ResponseWriter) error
+}
+
+type ListPendingStudentCards200JSONResponse []AdminStudentCard
+
+func (response ListPendingStudentCards200JSONResponse) VisitListPendingStudentCardsResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(200)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type ListPendingStudentCardsdefaultJSONResponse struct {
+	Body       Error
+	StatusCode int
+}
+
+func (response ListPendingStudentCardsdefaultJSONResponse) VisitListPendingStudentCardsResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response.Body); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(response.StatusCode)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type ApproveStudentCardRequestObject struct {
+	StudentCardId StudentCardId `json:"studentCardId"`
+}
+
+type ApproveStudentCardResponseObject interface {
+	VisitApproveStudentCardResponse(w http.ResponseWriter) error
+}
+
+type ApproveStudentCard200JSONResponse AdminStudentCard
+
+func (response ApproveStudentCard200JSONResponse) VisitApproveStudentCardResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(200)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type ApproveStudentCarddefaultJSONResponse struct {
+	Body       Error
+	StatusCode int
+}
+
+func (response ApproveStudentCarddefaultJSONResponse) VisitApproveStudentCardResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response.Body); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(response.StatusCode)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type RejectStudentCardRequestObject struct {
+	StudentCardId StudentCardId `json:"studentCardId"`
+}
+
+type RejectStudentCardResponseObject interface {
+	VisitRejectStudentCardResponse(w http.ResponseWriter) error
+}
+
+type RejectStudentCard200JSONResponse AdminStudentCard
+
+func (response RejectStudentCard200JSONResponse) VisitRejectStudentCardResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(200)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type RejectStudentCarddefaultJSONResponse struct {
+	Body       Error
+	StatusCode int
+}
+
+func (response RejectStudentCarddefaultJSONResponse) VisitRejectStudentCardResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response.Body); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(response.StatusCode)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type ListStudentCardViewsRequestObject struct {
+	StudentCardId StudentCardId `json:"studentCardId"`
+}
+
+type ListStudentCardViewsResponseObject interface {
+	VisitListStudentCardViewsResponse(w http.ResponseWriter) error
+}
+
+type ListStudentCardViews200JSONResponse []StudentCardView
+
+func (response ListStudentCardViews200JSONResponse) VisitListStudentCardViewsResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(200)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type ListStudentCardViewsdefaultJSONResponse struct {
+	Body       Error
+	StatusCode int
+}
+
+func (response ListStudentCardViewsdefaultJSONResponse) VisitListStudentCardViewsResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response.Body); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(response.StatusCode)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type CreateStudentCardViewRequestObject struct {
+	StudentCardId StudentCardId `json:"studentCardId"`
+}
+
+type CreateStudentCardViewResponseObject interface {
+	VisitCreateStudentCardViewResponse(w http.ResponseWriter) error
+}
+
+type CreateStudentCardView201JSONResponse StudentCardImage
+
+func (response CreateStudentCardView201JSONResponse) VisitCreateStudentCardViewResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(201)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type CreateStudentCardViewdefaultJSONResponse struct {
+	Body       Error
+	StatusCode int
+}
+
+func (response CreateStudentCardViewdefaultJSONResponse) VisitCreateStudentCardViewResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response.Body); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(response.StatusCode)
+	_, err := buf.WriteTo(w)
+	return err
+}
 
 type LoginRequestObject struct {
 	Params LoginParams
@@ -1411,6 +1809,24 @@ func (response CreateStudentCardUploaddefaultJSONResponse) VisitCreateStudentCar
 
 // StrictServerInterface represents all server handlers.
 type StrictServerInterface interface {
+	// GetAdminSession 管理者かどうかを確かめる
+	// (GET /admin/session)
+	GetAdminSession(ctx context.Context, request GetAdminSessionRequestObject) (GetAdminSessionResponseObject, error)
+	// ListPendingStudentCards 審査待ちの学生証を一覧する
+	// (GET /admin/student-cards)
+	ListPendingStudentCards(ctx context.Context, request ListPendingStudentCardsRequestObject) (ListPendingStudentCardsResponseObject, error)
+	// ApproveStudentCard 学生証を承認する
+	// (POST /admin/student-cards/{studentCardId}/approve)
+	ApproveStudentCard(ctx context.Context, request ApproveStudentCardRequestObject) (ApproveStudentCardResponseObject, error)
+	// RejectStudentCard 学生証を差し戻す
+	// (POST /admin/student-cards/{studentCardId}/reject)
+	RejectStudentCard(ctx context.Context, request RejectStudentCardRequestObject) (RejectStudentCardResponseObject, error)
+	// ListStudentCardViews 学生証画像の閲覧記録を一覧する
+	// (GET /admin/student-cards/{studentCardId}/views)
+	ListStudentCardViews(ctx context.Context, request ListStudentCardViewsRequestObject) (ListStudentCardViewsResponseObject, error)
+	// CreateStudentCardView 学生証画像の閲覧URLを発行し、閲覧を記録する
+	// (POST /admin/student-cards/{studentCardId}/views)
+	CreateStudentCardView(ctx context.Context, request CreateStudentCardViewRequestObject) (CreateStudentCardViewResponseObject, error)
 	// Login メールアドレスとパスワードでログインする
 	// (POST /auth/login)
 	Login(ctx context.Context, request LoginRequestObject) (LoginResponseObject, error)
@@ -1471,6 +1887,152 @@ func NewStrictHandler(ssi StrictServerInterface, middlewares []StrictMiddlewareF
 type strictHandler struct {
 	ssi         StrictServerInterface
 	middlewares []StrictMiddlewareFunc
+}
+
+// GetAdminSession operation middleware
+func (sh *strictHandler) GetAdminSession(ctx *echo.Context) error {
+	var request GetAdminSessionRequestObject
+
+	handler := func(ctx *echo.Context, request interface{}) (interface{}, error) {
+		return sh.ssi.GetAdminSession(ctx.Request().Context(), request.(GetAdminSessionRequestObject))
+	}
+	for _, middleware := range sh.middlewares {
+		handler = middleware(handler, "GetAdminSession")
+	}
+
+	response, err := handler(ctx, request)
+
+	if err != nil {
+		return err
+	} else if validResponse, ok := response.(GetAdminSessionResponseObject); ok {
+		return validResponse.VisitGetAdminSessionResponse(ctx.Response())
+	} else if response != nil {
+		return fmt.Errorf("unexpected response type: %T", response)
+	}
+	return nil
+}
+
+// ListPendingStudentCards operation middleware
+func (sh *strictHandler) ListPendingStudentCards(ctx *echo.Context) error {
+	var request ListPendingStudentCardsRequestObject
+
+	handler := func(ctx *echo.Context, request interface{}) (interface{}, error) {
+		return sh.ssi.ListPendingStudentCards(ctx.Request().Context(), request.(ListPendingStudentCardsRequestObject))
+	}
+	for _, middleware := range sh.middlewares {
+		handler = middleware(handler, "ListPendingStudentCards")
+	}
+
+	response, err := handler(ctx, request)
+
+	if err != nil {
+		return err
+	} else if validResponse, ok := response.(ListPendingStudentCardsResponseObject); ok {
+		return validResponse.VisitListPendingStudentCardsResponse(ctx.Response())
+	} else if response != nil {
+		return fmt.Errorf("unexpected response type: %T", response)
+	}
+	return nil
+}
+
+// ApproveStudentCard operation middleware
+func (sh *strictHandler) ApproveStudentCard(ctx *echo.Context, studentCardId StudentCardId) error {
+	var request ApproveStudentCardRequestObject
+
+	request.StudentCardId = studentCardId
+
+	handler := func(ctx *echo.Context, request interface{}) (interface{}, error) {
+		return sh.ssi.ApproveStudentCard(ctx.Request().Context(), request.(ApproveStudentCardRequestObject))
+	}
+	for _, middleware := range sh.middlewares {
+		handler = middleware(handler, "ApproveStudentCard")
+	}
+
+	response, err := handler(ctx, request)
+
+	if err != nil {
+		return err
+	} else if validResponse, ok := response.(ApproveStudentCardResponseObject); ok {
+		return validResponse.VisitApproveStudentCardResponse(ctx.Response())
+	} else if response != nil {
+		return fmt.Errorf("unexpected response type: %T", response)
+	}
+	return nil
+}
+
+// RejectStudentCard operation middleware
+func (sh *strictHandler) RejectStudentCard(ctx *echo.Context, studentCardId StudentCardId) error {
+	var request RejectStudentCardRequestObject
+
+	request.StudentCardId = studentCardId
+
+	handler := func(ctx *echo.Context, request interface{}) (interface{}, error) {
+		return sh.ssi.RejectStudentCard(ctx.Request().Context(), request.(RejectStudentCardRequestObject))
+	}
+	for _, middleware := range sh.middlewares {
+		handler = middleware(handler, "RejectStudentCard")
+	}
+
+	response, err := handler(ctx, request)
+
+	if err != nil {
+		return err
+	} else if validResponse, ok := response.(RejectStudentCardResponseObject); ok {
+		return validResponse.VisitRejectStudentCardResponse(ctx.Response())
+	} else if response != nil {
+		return fmt.Errorf("unexpected response type: %T", response)
+	}
+	return nil
+}
+
+// ListStudentCardViews operation middleware
+func (sh *strictHandler) ListStudentCardViews(ctx *echo.Context, studentCardId StudentCardId) error {
+	var request ListStudentCardViewsRequestObject
+
+	request.StudentCardId = studentCardId
+
+	handler := func(ctx *echo.Context, request interface{}) (interface{}, error) {
+		return sh.ssi.ListStudentCardViews(ctx.Request().Context(), request.(ListStudentCardViewsRequestObject))
+	}
+	for _, middleware := range sh.middlewares {
+		handler = middleware(handler, "ListStudentCardViews")
+	}
+
+	response, err := handler(ctx, request)
+
+	if err != nil {
+		return err
+	} else if validResponse, ok := response.(ListStudentCardViewsResponseObject); ok {
+		return validResponse.VisitListStudentCardViewsResponse(ctx.Response())
+	} else if response != nil {
+		return fmt.Errorf("unexpected response type: %T", response)
+	}
+	return nil
+}
+
+// CreateStudentCardView operation middleware
+func (sh *strictHandler) CreateStudentCardView(ctx *echo.Context, studentCardId StudentCardId) error {
+	var request CreateStudentCardViewRequestObject
+
+	request.StudentCardId = studentCardId
+
+	handler := func(ctx *echo.Context, request interface{}) (interface{}, error) {
+		return sh.ssi.CreateStudentCardView(ctx.Request().Context(), request.(CreateStudentCardViewRequestObject))
+	}
+	for _, middleware := range sh.middlewares {
+		handler = middleware(handler, "CreateStudentCardView")
+	}
+
+	response, err := handler(ctx, request)
+
+	if err != nil {
+		return err
+	} else if validResponse, ok := response.(CreateStudentCardViewResponseObject); ok {
+		return validResponse.VisitCreateStudentCardViewResponse(ctx.Response())
+	} else if response != nil {
+		return fmt.Errorf("unexpected response type: %T", response)
+	}
+	return nil
 }
 
 // Login operation middleware
@@ -2044,98 +2606,112 @@ func (sh *strictHandler) CreateStudentCardUpload(ctx *echo.Context) error {
 // const string: with thousands of chunks the chained `+` fold is several
 // times slower for the Go compiler than parsing a slice literal.
 var swaggerSpec = []string{
-	"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",
-	"ojq8j2NQpxAHrg78/wA=",
+	"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",
+	"6DQxs7bHMVaMG5XCHZV2lfdd6fvfAQA=",
 }
 
 // decodeSpec returns the embedded OpenAPI spec as raw JSON bytes,

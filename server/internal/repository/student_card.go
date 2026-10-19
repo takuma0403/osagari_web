@@ -144,3 +144,50 @@ func (r *StudentCardRepository) SupersedeCurrent(ctx context.Context, userID str
 	}
 	return res.RowsAffected > 0, nil
 }
+
+// FindByID は ID で学生証を探す。置き換えた学生証も返す。なければ ErrNotFound。
+func (r *StudentCardRepository) FindByID(ctx context.Context, id string) (*domain.StudentCard, error) {
+	var rows []studentCardRow
+	if err := conn(ctx, r.db).Where("id = ?", id).Limit(1).Find(&rows).Error; err != nil {
+		return nil, err
+	}
+	if len(rows) == 0 {
+		return nil, ErrNotFound
+	}
+	return rows[0].toDomain()
+}
+
+// ListPending は審査待ちで置き換えられていない学生証を、提出の古い順に返す（ADMIN）。
+func (r *StudentCardRepository) ListPending(ctx context.Context) ([]*domain.StudentCard, error) {
+	var rows []studentCardRow
+	if err := conn(ctx, r.db).
+		Where("status = ? AND superseded_at IS NULL", string(domain.StudentCardStatusPending)).
+		Order("submitted_at ASC, id ASC").Find(&rows).Error; err != nil {
+		return nil, err
+	}
+	cards := make([]*domain.StudentCard, 0, len(rows))
+	for _, row := range rows {
+		c, err := row.toDomain()
+		if err != nil {
+			return nil, err
+		}
+		cards = append(cards, c)
+	}
+	return cards, nil
+}
+
+// Review は審査待ちで置き換えられていない学生証だけを to（承認・差し戻し）にし、審査した管理者と日時を入れる（条件付きUPDATE。DB）。
+// 学生証がない、または審査待ちでない・置き換えられたなら ErrConflict。
+func (r *StudentCardRepository) Review(ctx context.Context, id string, to domain.StudentCardStatus, adminUserID string, now time.Time) error {
+	ts := formatTime(now)
+	res := conn(ctx, r.db).Model(&studentCardRow{}).
+		Where("id = ? AND status = ? AND superseded_at IS NULL", id, string(domain.StudentCardStatusPending)).
+		Updates(map[string]any{"status": string(to), "reviewed_by": adminUserID, "reviewed_at": ts, "updated_at": ts})
+	if res.Error != nil {
+		return res.Error
+	}
+	if res.RowsAffected == 0 {
+		return ErrConflict
+	}
+	return nil
+}

@@ -14,6 +14,8 @@ type Deps struct {
 	Session       SessionService
 	PasswordReset PasswordResetService
 	StudentCard   StudentCardService
+	// AdminStudentCard は管理者による学生証の審査（ADMIN）
+	AdminStudentCard AdminStudentCardService
 }
 
 // Handler は api.StrictServerInterface の実装。

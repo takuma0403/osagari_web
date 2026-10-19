@@ -3,6 +3,7 @@ package server
 import (
 	"errors"
 	"log/slog"
+	"net/http"
 
 	"github.com/labstack/echo/v5"
 
@@ -18,6 +19,10 @@ func errorHandler(logger *slog.Logger) echo.HTTPErrorHandler {
 			return
 		}
 		ae := toAppError(err)
+		// 管理APIはメソッド違いでも 404 にし、パスがあることを知られないようにする（ADR 0015）
+		if ae.Status == http.StatusMethodNotAllowed && isAdminPath(c.Request().URL.Path) {
+			ae = apperr.NotFound("")
+		}
 		if ae.Status >= 500 {
 			logger.ErrorContext(c.Request().Context(), "サーバーエラー",
 				"request_id", requestID(c), "route", routeOf(c), "err", err)
