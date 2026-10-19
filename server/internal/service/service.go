@@ -90,6 +90,15 @@ type StudentCardViewStore interface {
 	ListByCard(ctx context.Context, studentCardID string) ([]*domain.StudentCardView, error)
 }
 
+// ItemStore は items・item_images の読み書き（repository.ItemRepository）。
+type ItemStore interface {
+	Create(ctx context.Context, it *domain.Item) error
+	FindByID(ctx context.Context, id string) (*domain.Item, error)
+	UpdateContent(ctx context.Context, id, sellerID string, status domain.ItemStatus, updatedAt time.Time, c domain.ItemContent, now time.Time) error
+	UpdateStatus(ctx context.Context, id, sellerID string, from []domain.ItemStatus, unchangedSince *time.Time, to domain.ItemStatus, now time.Time) error
+	ReplaceImages(ctx context.Context, itemID string, images []domain.ItemImage, now time.Time) error
+}
+
 // loggerOrDefault は l が nil なら slog.Default() を返す。
 func loggerOrDefault(l *slog.Logger) *slog.Logger {
 	if l == nil {

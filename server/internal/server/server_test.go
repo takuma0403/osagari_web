@@ -237,12 +237,31 @@ func Testセッションの検証はAPI契約に従う(t *testing.T) {
 
 // 学生証の操作はすべてセッション必須（CARD）。ログインしていなければ service を呼ばずに 401 を返す。
 func Test学生証の操作はログインが必要(t *testing.T) {
-	srv, _ := newServerWithSessions(t, handler.New(handler.Deps{}), &stubAuthenticator{})
-	for _, tt := range []struct{ method, target string }{
+	assertLoginRequired(t, []struct{ method, target string }{
 		{http.MethodPost, "/api/student-cards/uploads"},
 		{http.MethodPost, "/api/student-cards"},
 		{http.MethodGet, "/api/student-cards/current"},
-	} {
+	})
+}
+
+// 出品の操作はすべてセッション必須（ITEM）。ログインしていなければ service を呼ばずに 401 を返す。
+func Test出品の操作はログインが必要(t *testing.T) {
+	assertLoginRequired(t, []struct{ method, target string }{
+		{http.MethodPost, "/api/items/image-uploads"},
+		{http.MethodPost, "/api/items"},
+		{http.MethodGet, "/api/items/item-1"},
+		{http.MethodPut, "/api/items/item-1"},
+		{http.MethodPost, "/api/items/item-1/publish"},
+		{http.MethodPost, "/api/items/item-1/withdraw"},
+	})
+}
+
+// assertLoginRequired は、ログインしていないと各操作が 401 unauthorized になることを確かめる。
+// handler の service は空なので、呼ばれれば panic して 500 になる。
+func assertLoginRequired(t *testing.T, ops []struct{ method, target string }) {
+	t.Helper()
+	srv, _ := newServerWithSessions(t, handler.New(handler.Deps{}), &stubAuthenticator{})
+	for _, tt := range ops {
 		req := httptest.NewRequest(tt.method, tt.target, strings.NewReader(`{}`))
 		req.Header.Set("Content-Type", "application/json")
 		rec := httptest.NewRecorder()

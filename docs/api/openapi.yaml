@@ -20,6 +20,8 @@ tags:
     description: 新規登録・ログイン・パスワード再設定（AUTH-1, AUTHN）
   - name: student-cards
     description: 学生証の登録と審査状況（CARD, STORAGE）
+  - name: items
+    description: 出品・編集・取り下げと商品写真（ITEM, STORAGE）
   - name: admin
     description: 管理者向け（ADMIN）。未ログイン・管理者でなければすべて 404 not_found（ADR 0015）
 paths:
@@ -410,6 +412,135 @@ paths:
                 $ref: '#/components/schemas/StudentCardState'
         default:
           $ref: '#/components/responses/Error'
+  /items/image-uploads:
+    post:
+      tags: [items]
+      operationId: createItemImageUpload
+      summary: 商品写真のアップロード用の署名付きURLを発行する
+      description: |
+        ITEM, STORAGE: 商品写真のバケットに直接 PUT するための署名付きURL（15分有効、5MB まで）を発行する。ブラウザは返った `headers` を付けて `uploadUrl` に画像を PUT し、
+        そのあと `objectKey` を createItem・updateItem の `imageObjectKeys` に入れる。オブジェクト名は `{ユーザーID}/{UUID}`。
+        学生証が承認されていなければ 403 seller_not_approved。
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ImageUploadInput'
+      responses:
+        '201':
+          description: 発行した署名付きURL
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ImageUpload'
+        default:
+          $ref: '#/components/responses/Error'
+  /items:
+    post:
+      tags: [items]
+      operationId: createItem
+      summary: 商品を出品する（下書きか公開）
+      description: |
+        ITEM: `publish` が false なら下書き（タイトルだけ必須）、true なら公開中として作る（すべての共通項目と写真1枚以上が必須）。
+        入力が不正なら 400 bad_request、写真が不正なら 400 invalid_item_image_upload、学生証が承認されていなければ 403 seller_not_approved。
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ItemCreation'
+      responses:
+        '201':
+          description: 作った商品
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/OwnItem'
+        default:
+          $ref: '#/components/responses/Error'
+  /items/{itemId}:
+    get:
+      tags: [items]
+      operationId: getOwnItem
+      summary: 自分の商品を取得する（編集用）
+      description: |
+        ITEM, STORAGE: 出品者本人の商品を、下書き・取り下げを含めて返す。写真には閲覧用の署名付きURL（15分有効）を付ける。
+        ほかの人の商品は 404 not_found（存在するかどうかを区別しない）。公開されている商品を見るときは BROWSE の API を使う。
+      parameters:
+        - $ref: '#/components/parameters/ItemId'
+      responses:
+        '200':
+          description: 商品
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/OwnItem'
+        default:
+          $ref: '#/components/responses/Error'
+    put:
+      tags: [items]
+      operationId: updateItem
+      summary: 商品を編集する
+      description: |
+        ITEM: すべての項目を置き換える。写真は `imageObjectKeys` の並びが表示順になる。編集できるのは下書き・公開中・取り下げの商品だけで（ADR 0016）、
+        それ以外は 409 invalid_status_transition。公開中の商品はすべての共通項目と写真1枚以上が必須、下書き・取り下げはタイトルだけ必須。
+        ほかの人の商品は 404 not_found、学生証が承認されていなければ 403 seller_not_approved。
+      parameters:
+        - $ref: '#/components/parameters/ItemId'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ItemInput'
+      responses:
+        '200':
+          description: 編集後の商品
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/OwnItem'
+        default:
+          $ref: '#/components/responses/Error'
+  /items/{itemId}/publish:
+    post:
+      tags: [items]
+      operationId: publishItem
+      summary: 商品を公開する（再出品を含む）
+      description: |
+        ITEM: 下書きか取り下げの商品を公開中にする。それ以外は 409 invalid_status_transition（ADR 0016）。
+        共通項目か写真が足りなければ 400 bad_request。ほかの人の商品は 404 not_found、学生証が承認されていなければ 403 seller_not_approved。
+      parameters:
+        - $ref: '#/components/parameters/ItemId'
+      responses:
+        '200':
+          description: 公開後の商品
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/OwnItem'
+        default:
+          $ref: '#/components/responses/Error'
+  /items/{itemId}/withdraw:
+    post:
+      tags: [items]
+      operationId: withdrawItem
+      summary: 商品を取り下げる
+      description: |
+        ITEM: 下書き・公開中・購入希望ありの商品を取り下げる。取引中・取引完了・停止などは 409 invalid_status_transition（ADR 0016）。
+        ほかの人の商品は 404 not_found。
+      parameters:
+        - $ref: '#/components/parameters/ItemId'
+      responses:
+        '200':
+          description: 取り下げ後の商品
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/OwnItem'
+        default:
+          $ref: '#/components/responses/Error'
   /admin/session:
     get:
       tags: [admin]
@@ -528,6 +659,13 @@ components:
       in: path
       required: true
       description: 学生証のID
+      schema:
+        type: string
+    ItemId:
+      name: itemId
+      in: path
+      required: true
+      description: 商品のID
       schema:
         type: string
     DeviceId:
@@ -842,6 +980,204 @@ components:
         adminStudentNumber:
           type: string
           description: 閲覧した管理者の学籍番号
+    ImageContentType:
+      type: string
+      description: アップロードする画像の形式（ブラウザで縮小・圧縮したもの。STORAGE）
+      enum: [image/jpeg, image/webp]
+    ImageUploadInput:
+      type: object
+      required: [contentType]
+      properties:
+        contentType:
+          $ref: '#/components/schemas/ImageContentType'
+    ImageUpload:
+      type: object
+      description: STORAGE 画像のアップロード先
+      required: [objectKey, uploadUrl, method, headers, expiresAt]
+      properties:
+        objectKey:
+          type: string
+          description: 登録で送るオブジェクト名（`{ユーザーID}/{UUID}`）
+        uploadUrl:
+          type: string
+          description: 署名付きURL
+        method:
+          type: string
+          enum: [PUT]
+        headers:
+          type: object
+          description: PUT に付けるヘッダー（署名に含まれる。Content-Type など）
+          additionalProperties:
+            type: string
+        expiresAt:
+          type: string
+          format: date-time
+          description: 署名付きURLの有効期限
+    ItemStatus:
+      type: string
+      description: 商品のステータス
+      enum: [draft, published, requested, in_deal, completed, withdrawn, suspended]
+    ItemCategory:
+      type: string
+      description: カテゴリ
+      enum: [textbook, furniture_appliance, game_other]
+    ItemCondition:
+      type: string
+      description: 商品の状態（new_like 新品同様 / good 目立った傷なし / fair やや傷あり）
+      enum: [new_like, good, fair]
+    Campus:
+      type: string
+      description: 受け渡し希望キャンパス
+      enum: [honjo, nabeshima]
+    TextbookDetails:
+      type: object
+      description: ITEM 教科書・参考書の追加項目（どれも任意）
+      properties:
+        courseName:
+          type: string
+          maxLength: 100
+          description: 授業名
+        instructor:
+          type: string
+          maxLength: 100
+          description: 担当教員
+        isbn:
+          type: string
+          description: ISBN（10桁か13桁。ハイフンは除いて保存する）
+          example: '9784000000000'
+        hasWriting:
+          type: boolean
+          description: 書き込みの有無
+    FurnitureApplianceDetails:
+      type: object
+      description: ITEM 家具・家電の追加項目（どれも任意）
+      properties:
+        size:
+          type: string
+          maxLength: 100
+          description: サイズ
+        operationChecked:
+          type: boolean
+          description: 動作確認の有無
+    ItemInput:
+      type: object
+      description: |
+        ITEM 出品・編集の入力。下書きはタイトルだけ必須で、公開するときはすべての共通項目と写真1枚以上が必須。
+        `textbook` は category が textbook のときだけ、`furnitureAppliance` は furniture_appliance のときだけ送れる。
+      required: [title, imageObjectKeys]
+      properties:
+        title:
+          type: string
+          minLength: 1
+          maxLength: 100
+        category:
+          $ref: '#/components/schemas/ItemCategory'
+        condition:
+          $ref: '#/components/schemas/ItemCondition'
+        price:
+          type: integer
+          format: int64
+          minimum: 100
+          maximum: 100000
+          description: 価格（円）
+        description:
+          type: string
+          maxLength: 2000
+          description: 説明文
+        campus:
+          $ref: '#/components/schemas/Campus'
+        imageObjectKeys:
+          type: array
+          maxItems: 10
+          description: createItemImageUpload で受け取ったオブジェクト名。並びが表示順
+          items:
+            type: string
+        textbook:
+          $ref: '#/components/schemas/TextbookDetails'
+        furnitureAppliance:
+          $ref: '#/components/schemas/FurnitureApplianceDetails'
+    ItemCreation:
+      description: ITEM 出品の入力
+      allOf:
+        - $ref: '#/components/schemas/ItemInput'
+        - type: object
+          required: [publish]
+          properties:
+            publish:
+              type: boolean
+              description: true なら公開中、false なら下書きとして作る
+    ItemImage:
+      type: object
+      description: STORAGE 商品写真と閲覧用の署名付きURL
+      required: [objectKey, url, expiresAt]
+      properties:
+        objectKey:
+          type: string
+          description: 編集のときに imageObjectKeys に入れる
+        url:
+          type: string
+          description: 署名付きURL（GET）
+        expiresAt:
+          type: string
+          format: date-time
+          description: 署名付きURLの有効期限
+    OwnItem:
+      type: object
+      description: ITEM 出品者本人に見せる商品
+      required: [id, shareId, status, title, category, condition, price, description, campus, images, textbook, furnitureAppliance, publishedAt, createdAt, updatedAt]
+      properties:
+        id:
+          type: string
+        shareId:
+          type: string
+          description: 商品ページの固定URL `/items/:shareId` に使う
+        status:
+          $ref: '#/components/schemas/ItemStatus'
+        title:
+          type: string
+        category:
+          allOf:
+            - $ref: '#/components/schemas/ItemCategory'
+          nullable: true
+        condition:
+          allOf:
+            - $ref: '#/components/schemas/ItemCondition'
+          nullable: true
+        price:
+          type: integer
+          format: int64
+          nullable: true
+        description:
+          type: string
+          nullable: true
+        campus:
+          allOf:
+            - $ref: '#/components/schemas/Campus'
+          nullable: true
+        images:
+          type: array
+          description: 表示順
+          items:
+            $ref: '#/components/schemas/ItemImage'
+        textbook:
+          allOf:
+            - $ref: '#/components/schemas/TextbookDetails'
+          nullable: true
+        furnitureAppliance:
+          allOf:
+            - $ref: '#/components/schemas/FurnitureApplianceDetails'
+          nullable: true
+        publishedAt:
+          type: string
+          format: date-time
+          nullable: true
+          description: 最後に公開した日時。一度も公開していなければ null
+        createdAt:
+          type: string
+          format: date-time
+        updatedAt:
+          type: string
+          format: date-time
     Health:
       type: object
       required: [status]

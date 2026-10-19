@@ -61,6 +61,8 @@ APIが担当する主な処理は次のとおりです。
   | `account_expired` | 403 | パスワードは一致したが（またはパスワード再設定のコードを確認したが）、アカウントが失効している（有効期限切れを含む。[AUTH-3](../product/01-account-auth.md)） |
   | `invalid_login_challenge` | 400 | ログインの再確認のチャレンジが無効・期限切れ・使用済み（[AUTHN-3](auth.md)） |
   | `invalid_student_card_upload` | 400 | 学生証の登録で、オブジェクトが本人のものでない・アップロードされていない・JPEG/WebP でない・5MB を超える・登録済み（[STORAGE](storage.md)） |
+  | `seller_not_approved` | 403 | 学生証が承認されていない利用者が出品・編集しようとした（[ITEM](../product/03-listing.md)） |
+  | `invalid_item_image_upload` | 400 | 商品写真の登録で、オブジェクトが本人のものでない・アップロードされていない・JPEG/WebP でない・5MB を超える・ほかの商品で使われている（[STORAGE](storage.md)） |
 
   管理API（`/api/admin/**`）は、未ログインでも管理者でなくても 404 `not_found` を返し、存在しないパスと区別できないようにする。管理者は環境変数 `ADMIN_STUDENT_NUMBERS`（学籍番号の許可リスト）で決める（[ADR 0015](../decisions/0015-admin-authorization.md)）。
 

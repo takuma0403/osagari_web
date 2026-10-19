@@ -349,6 +349,118 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/items/image-uploads": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * 商品写真のアップロード用の署名付きURLを発行する
+         * @description ITEM, STORAGE: 商品写真のバケットに直接 PUT するための署名付きURL（15分有効、5MB まで）を発行する。ブラウザは返った `headers` を付けて `uploadUrl` に画像を PUT し、
+         *     そのあと `objectKey` を createItem・updateItem の `imageObjectKeys` に入れる。オブジェクト名は `{ユーザーID}/{UUID}`。
+         *     学生証が承認されていなければ 403 seller_not_approved。
+         */
+        post: operations["createItemImageUpload"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/items": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * 商品を出品する（下書きか公開）
+         * @description ITEM: `publish` が false なら下書き（タイトルだけ必須）、true なら公開中として作る（すべての共通項目と写真1枚以上が必須）。
+         *     入力が不正なら 400 bad_request、写真が不正なら 400 invalid_item_image_upload、学生証が承認されていなければ 403 seller_not_approved。
+         */
+        post: operations["createItem"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/items/{itemId}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * 自分の商品を取得する（編集用）
+         * @description ITEM, STORAGE: 出品者本人の商品を、下書き・取り下げを含めて返す。写真には閲覧用の署名付きURL（15分有効）を付ける。
+         *     ほかの人の商品は 404 not_found（存在するかどうかを区別しない）。公開されている商品を見るときは BROWSE の API を使う。
+         */
+        get: operations["getOwnItem"];
+        /**
+         * 商品を編集する
+         * @description ITEM: すべての項目を置き換える。写真は `imageObjectKeys` の並びが表示順になる。編集できるのは下書き・公開中・取り下げの商品だけで（ADR 0016）、
+         *     それ以外は 409 invalid_status_transition。公開中の商品はすべての共通項目と写真1枚以上が必須、下書き・取り下げはタイトルだけ必須。
+         *     ほかの人の商品は 404 not_found、学生証が承認されていなければ 403 seller_not_approved。
+         */
+        put: operations["updateItem"];
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/items/{itemId}/publish": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * 商品を公開する（再出品を含む）
+         * @description ITEM: 下書きか取り下げの商品を公開中にする。それ以外は 409 invalid_status_transition（ADR 0016）。
+         *     共通項目か写真が足りなければ 400 bad_request。ほかの人の商品は 404 not_found、学生証が承認されていなければ 403 seller_not_approved。
+         */
+        post: operations["publishItem"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/items/{itemId}/withdraw": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * 商品を取り下げる
+         * @description ITEM: 下書き・公開中・購入希望ありの商品を取り下げる。取引中・取引完了・停止などは 409 invalid_status_transition（ADR 0016）。
+         *     ほかの人の商品は 404 not_found。
+         */
+        post: operations["withdrawItem"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/admin/session": {
         parameters: {
             query?: never;
@@ -687,6 +799,138 @@ export interface components {
             /** @description 閲覧した管理者の学籍番号 */
             adminStudentNumber: string;
         };
+        /**
+         * @description アップロードする画像の形式（ブラウザで縮小・圧縮したもの。STORAGE）
+         * @enum {string}
+         */
+        ImageContentType: "image/jpeg" | "image/webp";
+        ImageUploadInput: {
+            contentType: components["schemas"]["ImageContentType"];
+        };
+        /** @description STORAGE 画像のアップロード先 */
+        ImageUpload: {
+            /** @description 登録で送るオブジェクト名（`{ユーザーID}/{UUID}`） */
+            objectKey: string;
+            /** @description 署名付きURL */
+            uploadUrl: string;
+            /** @enum {string} */
+            method: "PUT";
+            /** @description PUT に付けるヘッダー（署名に含まれる。Content-Type など） */
+            headers: {
+                [key: string]: string;
+            };
+            /**
+             * Format: date-time
+             * @description 署名付きURLの有効期限
+             */
+            expiresAt: string;
+        };
+        /**
+         * @description 商品のステータス
+         * @enum {string}
+         */
+        ItemStatus: "draft" | "published" | "requested" | "in_deal" | "completed" | "withdrawn" | "suspended";
+        /**
+         * @description カテゴリ
+         * @enum {string}
+         */
+        ItemCategory: "textbook" | "furniture_appliance" | "game_other";
+        /**
+         * @description 商品の状態（new_like 新品同様 / good 目立った傷なし / fair やや傷あり）
+         * @enum {string}
+         */
+        ItemCondition: "new_like" | "good" | "fair";
+        /**
+         * @description 受け渡し希望キャンパス
+         * @enum {string}
+         */
+        Campus: "honjo" | "nabeshima";
+        /** @description ITEM 教科書・参考書の追加項目（どれも任意） */
+        TextbookDetails: {
+            /** @description 授業名 */
+            courseName?: string;
+            /** @description 担当教員 */
+            instructor?: string;
+            /**
+             * @description ISBN（10桁か13桁。ハイフンは除いて保存する）
+             * @example 9784000000000
+             */
+            isbn?: string;
+            /** @description 書き込みの有無 */
+            hasWriting?: boolean;
+        };
+        /** @description ITEM 家具・家電の追加項目（どれも任意） */
+        FurnitureApplianceDetails: {
+            /** @description サイズ */
+            size?: string;
+            /** @description 動作確認の有無 */
+            operationChecked?: boolean;
+        };
+        /**
+         * @description ITEM 出品・編集の入力。下書きはタイトルだけ必須で、公開するときはすべての共通項目と写真1枚以上が必須。
+         *     `textbook` は category が textbook のときだけ、`furnitureAppliance` は furniture_appliance のときだけ送れる。
+         */
+        ItemInput: {
+            title: string;
+            category?: components["schemas"]["ItemCategory"];
+            condition?: components["schemas"]["ItemCondition"];
+            /**
+             * Format: int64
+             * @description 価格（円）
+             */
+            price?: number;
+            /** @description 説明文 */
+            description?: string;
+            campus?: components["schemas"]["Campus"];
+            /** @description createItemImageUpload で受け取ったオブジェクト名。並びが表示順 */
+            imageObjectKeys: string[];
+            textbook?: components["schemas"]["TextbookDetails"];
+            furnitureAppliance?: components["schemas"]["FurnitureApplianceDetails"];
+        };
+        /** @description ITEM 出品の入力 */
+        ItemCreation: components["schemas"]["ItemInput"] & {
+            /** @description true なら公開中、false なら下書きとして作る */
+            publish: boolean;
+        };
+        /** @description STORAGE 商品写真と閲覧用の署名付きURL */
+        ItemImage: {
+            /** @description 編集のときに imageObjectKeys に入れる */
+            objectKey: string;
+            /** @description 署名付きURL（GET） */
+            url: string;
+            /**
+             * Format: date-time
+             * @description 署名付きURLの有効期限
+             */
+            expiresAt: string;
+        };
+        /** @description ITEM 出品者本人に見せる商品 */
+        OwnItem: {
+            id: string;
+            /** @description 商品ページの固定URL `/items/:shareId` に使う */
+            shareId: string;
+            status: components["schemas"]["ItemStatus"];
+            title: string;
+            category: components["schemas"]["ItemCategory"] | null;
+            condition: components["schemas"]["ItemCondition"] | null;
+            /** Format: int64 */
+            price: number | null;
+            description: string | null;
+            campus: components["schemas"]["Campus"] | null;
+            /** @description 表示順 */
+            images: components["schemas"]["ItemImage"][];
+            textbook: components["schemas"]["TextbookDetails"] | null;
+            furnitureAppliance: components["schemas"]["FurnitureApplianceDetails"] | null;
+            /**
+             * Format: date-time
+             * @description 最後に公開した日時。一度も公開していなければ null
+             */
+            publishedAt: string | null;
+            /** Format: date-time */
+            createdAt: string;
+            /** Format: date-time */
+            updatedAt: string;
+        };
         Health: {
             /** @enum {string} */
             status: "ok";
@@ -719,6 +963,8 @@ export interface components {
     parameters: {
         /** @description 学生証のID */
         StudentCardId: string;
+        /** @description 商品のID */
+        ItemId: string;
         /** @description ブラウザの localStorage に保存した端末識別子（AUTHN-3） */
         DeviceId: string;
     };
@@ -1127,6 +1373,156 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["StudentCardState"];
+                };
+            };
+            default: components["responses"]["Error"];
+        };
+    };
+    createItemImageUpload: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["ImageUploadInput"];
+            };
+        };
+        responses: {
+            /** @description 発行した署名付きURL */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ImageUpload"];
+                };
+            };
+            default: components["responses"]["Error"];
+        };
+    };
+    createItem: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["ItemCreation"];
+            };
+        };
+        responses: {
+            /** @description 作った商品 */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["OwnItem"];
+                };
+            };
+            default: components["responses"]["Error"];
+        };
+    };
+    getOwnItem: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description 商品のID */
+                itemId: components["parameters"]["ItemId"];
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description 商品 */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["OwnItem"];
+                };
+            };
+            default: components["responses"]["Error"];
+        };
+    };
+    updateItem: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description 商品のID */
+                itemId: components["parameters"]["ItemId"];
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["ItemInput"];
+            };
+        };
+        responses: {
+            /** @description 編集後の商品 */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["OwnItem"];
+                };
+            };
+            default: components["responses"]["Error"];
+        };
+    };
+    publishItem: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description 商品のID */
+                itemId: components["parameters"]["ItemId"];
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description 公開後の商品 */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["OwnItem"];
+                };
+            };
+            default: components["responses"]["Error"];
+        };
+    };
+    withdrawItem: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description 商品のID */
+                itemId: components["parameters"]["ItemId"];
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description 取り下げ後の商品 */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["OwnItem"];
                 };
             };
             default: components["responses"]["Error"];
