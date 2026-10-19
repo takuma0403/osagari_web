@@ -136,7 +136,7 @@ func Test新規登録からログイン状態まで(t *testing.T) {
 	}
 	user := decode[api.CurrentUser](t, rec)
 	if user.Email != email || user.StudentNumber != "26238001" || user.Department == nil || *user.Department != "238" ||
-		user.Status != api.Active || user.SellerStatus != api.SellerStatusNone {
+		user.Status != api.UserStatusActive || user.SellerStatus != api.SellerStatusNone {
 		t.Errorf("user=%+v", user)
 	}
 	cookies := rec.Result().Cookies()

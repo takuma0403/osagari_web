@@ -31,6 +31,8 @@ type config struct {
 	Storage     storage.GCSConfig
 	// StudentCardBucket は学生証の非公開バケット（STORAGE）
 	StudentCardBucket string
+	// ItemImageBucket は商品写真のバケット（STORAGE）
+	ItemImageBucket string
 	// Admins は管理者の学籍番号の許可リスト（ADMIN, ADR 0015）
 	Admins domain.AdminList
 }
@@ -151,12 +153,20 @@ func wire(cfg config, gdb *gorm.DB, clk clock.Clock, mailer mail.Mailer, store s
 		Admins:  cfg.Admins,
 		Clock:   clk,
 	})
+	item := service.NewItemService(service.ItemDeps{
+		Tx:      tx,
+		Items:   repository.NewItemRepository(gdb),
+		Storage: store,
+		Bucket:  cfg.ItemImageBucket,
+		Clock:   clk,
+	})
 	return handler.New(handler.Deps{
 		Signup:        signup,
 		Login:         login,
 		Session:       session,
 		PasswordReset: reset,
 		StudentCard:   studentCard,
+		Item:          item,
 
 		AdminStudentCard: adminStudentCard,
 	}), session
@@ -180,6 +190,10 @@ func loadConfig() (config, error) {
 	cfg.StudentCardBucket = os.Getenv("STORAGE_BUCKET_STUDENT_CARDS")
 	if cfg.StudentCardBucket == "" {
 		return config{}, fmt.Errorf("環境変数 STORAGE_BUCKET_STUDENT_CARDS が設定されていません")
+	}
+	cfg.ItemImageBucket = os.Getenv("STORAGE_BUCKET_ITEM_IMAGES")
+	if cfg.ItemImageBucket == "" {
+		return config{}, fmt.Errorf("環境変数 STORAGE_BUCKET_ITEM_IMAGES が設定されていません")
 	}
 	// エミュレータ（fake-gcs-server）を使うときは、署名付きURLにブラウザから届くホストを入れる（STORAGE）
 	if host := os.Getenv("STORAGE_EMULATOR_HOST"); host != "" {
