@@ -99,6 +99,11 @@ type ItemStore interface {
 	ReplaceImages(ctx context.Context, itemID string, images []domain.ItemImage, now time.Time) error
 }
 
+// SettingStore は settings の読み書き（repository.SettingRepository）。
+type SettingStore interface {
+	FeeRate(ctx context.Context) (int, error)
+}
+
 // loggerOrDefault は l が nil なら slog.Default() を返す。
 func loggerOrDefault(l *slog.Logger) *slog.Logger {
 	if l == nil {

@@ -167,6 +167,7 @@ func wire(cfg config, gdb *gorm.DB, clk clock.Clock, mailer mail.Mailer, store s
 		PasswordReset: reset,
 		StudentCard:   studentCard,
 		Item:          item,
+		Setting:       service.NewSettingService(service.SettingDeps{Settings: repository.NewSettingRepository(gdb)}),
 
 		AdminStudentCard: adminStudentCard,
 	}), session
