@@ -461,6 +461,27 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/settings/fee-rate": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * 現在の手数料率を取得する
+         * @description PAY-2: 現在の手数料率（ベーシスポイント）を返す。出品画面の受け取り見込みの表示に使う。
+         *     手数料は 商品価格 × 料率 の1円未満を切り捨てた額（ADR 0017）。取引に適用する料率は取引が成立した時点の値（ADR 0003）。
+         */
+        get: operations["getFeeRate"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/admin/session": {
         parameters: {
             query?: never;
@@ -824,6 +845,11 @@ export interface components {
              * @description 署名付きURLの有効期限
              */
             expiresAt: string;
+        };
+        /** @description PAY-2 手数料率 */
+        FeeRate: {
+            /** @description 手数料率（ベーシスポイント。500 = 5%） */
+            feeRateBasisPoints: number;
         };
         /**
          * @description 商品のステータス
@@ -1523,6 +1549,27 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["OwnItem"];
+                };
+            };
+            default: components["responses"]["Error"];
+        };
+    };
+    getFeeRate: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description 現在の手数料率 */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["FeeRate"];
                 };
             };
             default: components["responses"]["Error"];
