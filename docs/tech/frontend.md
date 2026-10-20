@@ -37,7 +37,7 @@ Vite + React のSPAを Firebase Hosting に置きます。ログイン必須の�
   | `/search` | 検索結果 | スマホ＋下部ナビ |
   | `/items/:shareId` | 商品詳細（共有リンク） | スマホ |
   | `/items/:shareId/request` | 購入希望・決済（モック） | スマホ |
-  | `/items/:shareId/edit`、`/sell` | 出品の編集、出品 | スマホ |
+  | `/sell`、`/sell/:itemId` | 出品、出品の編集（編集APIが商品IDを受け取るため、共有用IDではなく商品IDを使う。[ADR 0017](../decisions/0017-fee-rounding-and-provisional-rate.md)） | スマホ |
   | `/deals` | 取引一覧（下部ナビの「取引」） | スマホ＋下部ナビ |
   | `/deals/:dealId` | 取引詳細（購入希望の承認、受け渡しQR、キャンセル） | スマホ |
   | `/deals/:dealId/scan` | QR読み取り（購入者） | スマホ |

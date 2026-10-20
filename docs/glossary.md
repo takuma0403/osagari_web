@@ -23,7 +23,7 @@
 | パスワード設定用の一時トークン | `PasswordSetupToken` | `password_setup_tokens` | コードの確認後に発行する15分有効・一度だけのトークン（ハッシュで保存。[ADR 0007](decisions/0007-signup-flow.md)） |
 | ログインチャレンジ | `LoginChallenge` | `login_challenges` | パスワードが一致したが再確認が必要なときに発行する、15分有効・一度だけのトークン。コードの確認・再送に使う（ハッシュで保存。[ADR 0009](decisions/0009-login-recheck-challenge.md)） |
 | パスワードの入力ミスの記録 | — | `login_failures` | メールアドレスごとの入力ミスの回数とログインを止める期限（AUTHN-6。[ADR 0011](decisions/0011-rate-limits.md)） |
-| 設定 | `Setting` | `settings` | 手数料率など |
+| 設定 | `Setting` | `settings` | 手数料率（`fee_rate_bp`、ベーシスポイント）など。1行だけのテーブル（[ADR 0017](decisions/0017-fee-rounding-and-provisional-rate.md)） |
 
 ## 列挙値
 
