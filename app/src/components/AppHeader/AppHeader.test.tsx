@@ -29,6 +29,12 @@ describe('AppHeader', () => {
     expect(screen.queryByRole('button', { name: '戻る' })).not.toBeInTheDocument()
   })
 
+  it('closable では戻るボタンを「閉じる」にする', () => {
+    renderHeader(<AppHeader title="出品する" backTo="/" closable />)
+    expect(screen.getByRole('link', { name: '閉じる' })).toHaveAttribute('href', '/')
+    expect(screen.queryByRole('link', { name: '戻る' })).not.toBeInTheDocument()
+  })
+
   it('bordered={false} では白地と下線を付けない', () => {
     renderHeader(<AppHeader backTo="/signup" bordered={false} />)
     expect(screen.getByRole('banner').className).not.toMatch(/bordered/)
