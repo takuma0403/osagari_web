@@ -42,6 +42,7 @@ func newItemFixture(t *testing.T) *itemFixture {
 	f.svc = service.NewItemService(service.ItemDeps{
 		Tx:      repository.NewTransactor(gdb),
 		Items:   f.items,
+		Users:   f.users,
 		Storage: f.storage,
 		Bucket:  itemBucket,
 		Clock:   f.clock,

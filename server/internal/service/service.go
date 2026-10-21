@@ -97,6 +97,8 @@ type ItemStore interface {
 	UpdateContent(ctx context.Context, id, sellerID string, status domain.ItemStatus, updatedAt time.Time, c domain.ItemContent, now time.Time) error
 	UpdateStatus(ctx context.Context, id, sellerID string, from []domain.ItemStatus, unchangedSince *time.Time, to domain.ItemStatus, now time.Time) error
 	ReplaceImages(ctx context.Context, itemID string, images []domain.ItemImage, now time.Time) error
+	FindByShareID(ctx context.Context, shareID string) (*domain.Item, error)
+	ListPublic(ctx context.Context, f domain.ItemFilter, after *domain.ItemCursor, limit int, now time.Time) ([]*domain.Item, int, error)
 }
 
 // SettingStore は settings の読み書き（repository.SettingRepository）。
