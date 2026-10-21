@@ -155,7 +155,7 @@ DS-3 の部品を作るために足した補助の部品（画面からも使え
 | 商品一覧 | [Main](screens/Main.dc.html) | `accent`（色の検討用。実装は primary 固定）。カテゴリチップは「すべて」＋要件の3区分、右上のお知らせ（ベル）は置かない（[ADR 0019](../decisions/0019-browse-category-chips-and-filter.md)） | [BROWSE](../product/04-browse-search-share.md) |
 | 検索結果 | [Search](screens/Search.dc.html) | — | BROWSE |
 | 〃（絞り込み） | [SearchFilter](screens/SearchFilter.dc.html) | `error`：価格の下限が上限より大きい | BROWSE |
-| 商品詳細 | [Detail](screens/Detail.dc.html) | `shareApp`：右上の共有アイコン（既定オフ。実装しない。[ADR 0020](../decisions/0020-share-link-login-and-copy-only.md)） | BROWSE, [ITEM](../product/03-listing.md), [DEAL-1](../product/05-deal-flow.md) |
+| 商品詳細 | [Detail](screens/Detail.dc.html) | `shareApp`：右上の共有アイコン（既定オフ。実装しない。[ADR 0020](../decisions/0020-share-link-login-and-copy-only.md)）。実装では、売り切れ（取引中・取引完了）のとき「購入希望 n件」の位置に neutral の「売り切れ」バッジを出し、主ボタンを無効にする（[ADR 0018](../decisions/0018-browse-visible-items.md)） | BROWSE, [ITEM](../product/03-listing.md), [DEAL-1](../product/05-deal-flow.md) |
 | 商品詳細（共有） | [DetailShare](screens/DetailShare.dc.html) | `copied`：コピー完了トースト、`shareApp`：「ほかのアプリで共有」ボタン（既定オフ。実装しない。ADR 0020） | BROWSE, [FE](../tech/frontend.md) |
 | 購入希望・決済（モック） | [Request](screens/Request.dc.html) | — | DEAL-1, [PAY](../product/06-payment.md) |
 | 取引詳細 | [DealRequests](screens/DealRequests.dc.html) | — | DEAL-1 |
