@@ -156,6 +156,7 @@ func wire(cfg config, gdb *gorm.DB, clk clock.Clock, mailer mail.Mailer, store s
 	item := service.NewItemService(service.ItemDeps{
 		Tx:      tx,
 		Items:   repository.NewItemRepository(gdb),
+		Users:   users,
 		Storage: store,
 		Bucket:  cfg.ItemImageBucket,
 		Clock:   clk,

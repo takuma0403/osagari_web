@@ -37,15 +37,18 @@ const base62 = "0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz"
 
 // ItemDeps は ItemService の依存。
 type ItemDeps struct {
-	Tx      Transactor
-	Items   ItemStore
+	Tx    Transactor
+	Items ItemStore
+	// Users は商品ページに出品者の情報を出すのに使う（BROWSE）
+	Users   UserStore
 	Storage storage.Storage
 	// Bucket は商品写真のバケットの名前
 	Bucket string
 	Clock  clock.Clock
 }
 
-// ItemService は出品・編集・取り下げ・再出品と、商品写真のアップロードURLの発行を行う（ITEM, STORAGE）。
+// ItemService は出品・編集・取り下げ・再出品と、商品写真のアップロードURLの発行（ITEM, STORAGE）、
+// ほかの利用者向けの一覧・検索・商品ページ（BROWSE。item_browse.go）を扱う。
 type ItemService struct {
 	d ItemDeps
 }
