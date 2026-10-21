@@ -12,7 +12,7 @@
 | スタイル | **CSS Modules + CSS変数**（Tailwind・CSS-in-JS・UIライブラリは使わない） | FE-1 |
 | APIの型 | openapi-typescript で `docs/api/openapi.yaml` から `src/api/schema.gen.ts` を生成（手書き禁止） | API-1 |
 | APIクライアント | `fetch` の薄いラッパー（`src/api/client.ts`）。`credentials: 'same-origin'`、`X-Device-Id` ヘッダー（`src/lib/deviceId.ts`）を付ける。失敗は `ApiError`（`status`・`code`・`message`）で投げ、通信自体の失敗はフロント専用の `network_error`（status 0） | AUTHN-3 |
-| QR | 表示はQR生成ライブラリ、読み取りはカメラを使うライブラリ（選ぶときは軽さとメンテ状況を確認） | FE |
+| QR・バーコード | 表示はQR生成ライブラリ、読み取りはカメラを使うライブラリ（選ぶときは軽さとメンテ状況を確認）。ISBN のバーコードは `@zxing/browser` を動的 import で使う | FE |
 | テスト | Vitest + Testing Library（jsdom）+ user-event。story は addon-vitest で Chromium（Playwright）に描画し a11y も検査 | DS-1, ADR 0005 |
 | 部品カタログ | Storybook（`@storybook/react-vite` + addon-a11y + addon-vitest）。公開しない。全 story を CI で検査する | DS-3, ADR 0004, ADR 0005 |
 | Lint / Format | oxlint / Prettier（Markdown は対象外） | — |
