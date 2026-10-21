@@ -439,6 +439,84 @@ paths:
         default:
           $ref: '#/components/responses/Error'
   /items:
+    get:
+      tags: [items]
+      operationId: listItems
+      summary: 公開中の商品を新着順に一覧・検索する
+      description: |
+        BROWSE: 公開中・購入希望ありの商品を、最後に公開した日時の新しい順に返す（ADR 0018）。出品者のアカウントが有効（active）でない商品は含めない。
+        条件はすべて任意で、指定したものをすべて満たす商品を返す。`keyword` は空白で区切った語をすべて含む商品（タイトル・説明文・授業名・担当教員・ISBN のどれか）を探す。
+        続きは応答の `nextCursor` を `cursor` に入れて取る。条件が不正（priceMin が priceMax より大きい、壊れた cursor など）なら 400 bad_request。
+      parameters:
+        - name: keyword
+          in: query
+          required: false
+          description: キーワード（空白区切りで AND）
+          schema:
+            type: string
+            maxLength: 100
+        - name: category
+          in: query
+          required: false
+          schema:
+            $ref: '#/components/schemas/ItemCategory'
+        - name: courseName
+          in: query
+          required: false
+          description: 授業名（部分一致）
+          schema:
+            type: string
+            maxLength: 100
+        - name: priceMin
+          in: query
+          required: false
+          description: 価格の下限（円、この値を含む）
+          schema:
+            type: integer
+            format: int64
+            minimum: 0
+        - name: priceMax
+          in: query
+          required: false
+          description: 価格の上限（円、この値を含む）
+          schema:
+            type: integer
+            format: int64
+            minimum: 0
+        - name: campus
+          in: query
+          required: false
+          schema:
+            $ref: '#/components/schemas/Campus'
+        - name: condition
+          in: query
+          required: false
+          schema:
+            $ref: '#/components/schemas/ItemCondition'
+        - name: cursor
+          in: query
+          required: false
+          description: 前の応答の nextCursor。省略すると先頭から
+          schema:
+            type: string
+        - name: limit
+          in: query
+          required: false
+          description: 1回に返す件数
+          schema:
+            type: integer
+            minimum: 1
+            maximum: 50
+            default: 20
+      responses:
+        '200':
+          description: 商品の一覧
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ItemList'
+        default:
+          $ref: '#/components/responses/Error'
     post:
       tags: [items]
       operationId: createItem
@@ -541,6 +619,26 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/OwnItem'
+        default:
+          $ref: '#/components/responses/Error'
+  /items/shared/{shareId}:
+    get:
+      tags: [items]
+      operationId: getPublicItem
+      summary: 共有用IDで商品の詳細を取得する
+      description: |
+        BROWSE: 商品ページ（`/items/:shareId`）に出す商品の詳細を返す。公開中・購入希望ありに加え、取引中・取引完了も「売り切れ」として status 付きで返す（ADR 0018）。
+        下書き・取り下げ・停止の商品と、出品者のアカウントが有効（active）でない商品は 404 not_found（出品者本人も同じ。本人は getOwnItem を使う）。
+        出品者の学籍番号は返さない（DEAL-1）。
+      parameters:
+        - $ref: '#/components/parameters/ShareId'
+      responses:
+        '200':
+          description: 商品
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PublicItem'
         default:
           $ref: '#/components/responses/Error'
   /settings/fee-rate:
@@ -685,6 +783,13 @@ components:
       in: path
       required: true
       description: 商品のID
+      schema:
+        type: string
+    ShareId:
+      name: shareId
+      in: path
+      required: true
+      description: 商品の共有用ID（BROWSE）
       schema:
         type: string
     DeviceId:
@@ -1207,6 +1312,119 @@ components:
         updatedAt:
           type: string
           format: date-time
+    ItemList:
+      type: object
+      description: BROWSE 商品の一覧・検索の結果
+      required: [items, total, nextCursor]
+      properties:
+        items:
+          type: array
+          description: 新着順
+          items:
+            $ref: '#/components/schemas/ItemSummary'
+        total:
+          type: integer
+          description: 条件に合う商品の総数（cursor に関係なく数える）
+        nextCursor:
+          type: string
+          nullable: true
+          description: 続きを取るときに cursor に入れる値。続きがなければ null
+    ItemSummary:
+      type: object
+      description: BROWSE 一覧・検索結果のカードに出す商品
+      required: [shareId, status, title, category, condition, price, campus, thumbnail, courseName, hasWriting, publishedAt]
+      properties:
+        shareId:
+          type: string
+          description: 商品ページの固定URL `/items/:shareId` に使う
+        status:
+          $ref: '#/components/schemas/ItemStatus'
+        title:
+          type: string
+        category:
+          $ref: '#/components/schemas/ItemCategory'
+        condition:
+          $ref: '#/components/schemas/ItemCondition'
+        price:
+          type: integer
+          format: int64
+        campus:
+          $ref: '#/components/schemas/Campus'
+        thumbnail:
+          description: 1枚目の写真
+          allOf:
+            - $ref: '#/components/schemas/ItemImage'
+          nullable: true
+        courseName:
+          type: string
+          nullable: true
+          description: 授業名（教科書・参考書のみ）
+        hasWriting:
+          type: boolean
+          nullable: true
+          description: 書き込みの有無（教科書・参考書のみ）
+        publishedAt:
+          type: string
+          format: date-time
+          description: 最後に公開した日時
+    PublicItem:
+      type: object
+      description: |
+        BROWSE 商品ページに出す商品。status が in_deal・completed なら売り切れ（購入希望は出せない）。
+        `isOwn` はログイン中の本人が出品者かどうか。
+      required: [shareId, status, title, category, condition, price, description, campus, images, textbook, furnitureAppliance, publishedAt, seller, isOwn]
+      properties:
+        shareId:
+          type: string
+        status:
+          $ref: '#/components/schemas/ItemStatus'
+        title:
+          type: string
+        category:
+          $ref: '#/components/schemas/ItemCategory'
+        condition:
+          $ref: '#/components/schemas/ItemCondition'
+        price:
+          type: integer
+          format: int64
+        description:
+          type: string
+        campus:
+          $ref: '#/components/schemas/Campus'
+        images:
+          type: array
+          description: 表示順
+          items:
+            $ref: '#/components/schemas/ItemImage'
+        textbook:
+          allOf:
+            - $ref: '#/components/schemas/TextbookDetails'
+          nullable: true
+        furnitureAppliance:
+          allOf:
+            - $ref: '#/components/schemas/FurnitureApplianceDetails'
+          nullable: true
+        publishedAt:
+          type: string
+          format: date-time
+          description: 最後に公開した日時
+        seller:
+          $ref: '#/components/schemas/ItemSeller'
+        isOwn:
+          type: boolean
+          description: ログイン中の本人が出品者なら true
+    ItemSeller:
+      type: object
+      description: BROWSE 商品ページに出す出品者の情報。学籍番号は含めない（DEAL-1）
+      required: [departmentName, admissionYear]
+      properties:
+        departmentName:
+          type: string
+          nullable: true
+          description: 学部・学科の名前。不明なら null
+        admissionYear:
+          type: integer
+          description: 入学年度
     Health:
       type: object
       required: [status]

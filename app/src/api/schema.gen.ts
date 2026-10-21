@@ -378,7 +378,13 @@ export interface paths {
             path?: never;
             cookie?: never;
         };
-        get?: never;
+        /**
+         * 公開中の商品を新着順に一覧・検索する
+         * @description BROWSE: 公開中・購入希望ありの商品を、最後に公開した日時の新しい順に返す（ADR 0018）。出品者のアカウントが有効（active）でない商品は含めない。
+         *     条件はすべて任意で、指定したものをすべて満たす商品を返す。`keyword` は空白で区切った語をすべて含む商品（タイトル・説明文・授業名・担当教員・ISBN のどれか）を探す。
+         *     続きは応答の `nextCursor` を `cursor` に入れて取る。条件が不正（priceMin が priceMax より大きい、壊れた cursor など）なら 400 bad_request。
+         */
+        get: operations["listItems"];
         put?: never;
         /**
          * 商品を出品する（下書きか公開）
@@ -455,6 +461,28 @@ export interface paths {
          *     ほかの人の商品は 404 not_found。
          */
         post: operations["withdrawItem"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/items/shared/{shareId}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * 共有用IDで商品の詳細を取得する
+         * @description BROWSE: 商品ページ（`/items/:shareId`）に出す商品の詳細を返す。公開中・購入希望ありに加え、取引中・取引完了も「売り切れ」として status 付きで返す（ADR 0018）。
+         *     下書き・取り下げ・停止の商品と、出品者のアカウントが有効（active）でない商品は 404 not_found（出品者本人も同じ。本人は getOwnItem を使う）。
+         *     出品者の学籍番号は返さない（DEAL-1）。
+         */
+        get: operations["getPublicItem"];
+        put?: never;
+        post?: never;
         delete?: never;
         options?: never;
         head?: never;
@@ -957,6 +985,72 @@ export interface components {
             /** Format: date-time */
             updatedAt: string;
         };
+        /** @description BROWSE 商品の一覧・検索の結果 */
+        ItemList: {
+            /** @description 新着順 */
+            items: components["schemas"]["ItemSummary"][];
+            /** @description 条件に合う商品の総数（cursor に関係なく数える） */
+            total: number;
+            /** @description 続きを取るときに cursor に入れる値。続きがなければ null */
+            nextCursor: string | null;
+        };
+        /** @description BROWSE 一覧・検索結果のカードに出す商品 */
+        ItemSummary: {
+            /** @description 商品ページの固定URL `/items/:shareId` に使う */
+            shareId: string;
+            status: components["schemas"]["ItemStatus"];
+            title: string;
+            category: components["schemas"]["ItemCategory"];
+            condition: components["schemas"]["ItemCondition"];
+            /** Format: int64 */
+            price: number;
+            campus: components["schemas"]["Campus"];
+            /** @description 1枚目の写真 */
+            thumbnail: components["schemas"]["ItemImage"] | null;
+            /** @description 授業名（教科書・参考書のみ） */
+            courseName: string | null;
+            /** @description 書き込みの有無（教科書・参考書のみ） */
+            hasWriting: boolean | null;
+            /**
+             * Format: date-time
+             * @description 最後に公開した日時
+             */
+            publishedAt: string;
+        };
+        /**
+         * @description BROWSE 商品ページに出す商品。status が in_deal・completed なら売り切れ（購入希望は出せない）。
+         *     `isOwn` はログイン中の本人が出品者かどうか。
+         */
+        PublicItem: {
+            shareId: string;
+            status: components["schemas"]["ItemStatus"];
+            title: string;
+            category: components["schemas"]["ItemCategory"];
+            condition: components["schemas"]["ItemCondition"];
+            /** Format: int64 */
+            price: number;
+            description: string;
+            campus: components["schemas"]["Campus"];
+            /** @description 表示順 */
+            images: components["schemas"]["ItemImage"][];
+            textbook: components["schemas"]["TextbookDetails"] | null;
+            furnitureAppliance: components["schemas"]["FurnitureApplianceDetails"] | null;
+            /**
+             * Format: date-time
+             * @description 最後に公開した日時
+             */
+            publishedAt: string;
+            seller: components["schemas"]["ItemSeller"];
+            /** @description ログイン中の本人が出品者なら true */
+            isOwn: boolean;
+        };
+        /** @description BROWSE 商品ページに出す出品者の情報。学籍番号は含めない（DEAL-1） */
+        ItemSeller: {
+            /** @description 学部・学科の名前。不明なら null */
+            departmentName: string | null;
+            /** @description 入学年度 */
+            admissionYear: number;
+        };
         Health: {
             /** @enum {string} */
             status: "ok";
@@ -991,6 +1085,8 @@ export interface components {
         StudentCardId: string;
         /** @description 商品のID */
         ItemId: string;
+        /** @description 商品の共有用ID（BROWSE） */
+        ShareId: string;
         /** @description ブラウザの localStorage に保存した端末識別子（AUTHN-3） */
         DeviceId: string;
     };
@@ -1429,6 +1525,43 @@ export interface operations {
             default: components["responses"]["Error"];
         };
     };
+    listItems: {
+        parameters: {
+            query?: {
+                /** @description キーワード（空白区切りで AND） */
+                keyword?: string;
+                category?: components["schemas"]["ItemCategory"];
+                /** @description 授業名（部分一致） */
+                courseName?: string;
+                /** @description 価格の下限（円、この値を含む） */
+                priceMin?: number;
+                /** @description 価格の上限（円、この値を含む） */
+                priceMax?: number;
+                campus?: components["schemas"]["Campus"];
+                condition?: components["schemas"]["ItemCondition"];
+                /** @description 前の応答の nextCursor。省略すると先頭から */
+                cursor?: string;
+                /** @description 1回に返す件数 */
+                limit?: number;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description 商品の一覧 */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ItemList"];
+                };
+            };
+            default: components["responses"]["Error"];
+        };
+    };
     createItem: {
         parameters: {
             query?: never;
@@ -1549,6 +1682,30 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["OwnItem"];
+                };
+            };
+            default: components["responses"]["Error"];
+        };
+    };
+    getPublicItem: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description 商品の共有用ID（BROWSE） */
+                shareId: components["parameters"]["ShareId"];
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description 商品 */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PublicItem"];
                 };
             };
             default: components["responses"]["Error"];

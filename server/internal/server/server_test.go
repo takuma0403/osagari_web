@@ -256,6 +256,15 @@ func Test出品の操作はログインが必要(t *testing.T) {
 	})
 }
 
+// 一覧・検索・商品ページもセッション必須（BROWSE, ADR 0013）。共有リンクを未ログインで開いたときの表示は未決のため。
+func Test商品の閲覧はログインが必要(t *testing.T) {
+	assertLoginRequired(t, []struct{ method, target string }{
+		{http.MethodGet, "/api/items"},
+		{http.MethodGet, "/api/items?category=textbook&priceMax=2000"},
+		{http.MethodGet, "/api/items/shared/share0000001"},
+	})
+}
+
 // assertLoginRequired は、ログインしていないと各操作が 401 unauthorized になることを確かめる。
 // handler の service は空なので、呼ばれれば panic して 500 になる。
 func assertLoginRequired(t *testing.T, ops []struct{ method, target string }) {
