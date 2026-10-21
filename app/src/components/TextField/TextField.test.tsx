@@ -44,4 +44,17 @@ describe('TextField', () => {
     render(<TextField label="授業名" hideLabel placeholder="授業名" />)
     expect(screen.getByLabelText('授業名')).toBeInTheDocument()
   })
+
+  it('invalid では文を出さずに枠だけエラーにし、呼び出し側の説明と結び付ける', () => {
+    render(
+      <>
+        <TextField label="価格の上限" invalid aria-describedby="price-error" />
+        <p id="price-error">上限は下限以上にしてください</p>
+      </>,
+    )
+    const input = screen.getByLabelText('価格の上限')
+    expect(input).toHaveAttribute('aria-invalid', 'true')
+    expect(input).toHaveAccessibleDescription('上限は下限以上にしてください')
+    expect(screen.queryByRole('alert')).not.toBeInTheDocument()
+  })
 })

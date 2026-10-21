@@ -61,3 +61,15 @@ export const DealConfirmed: Story = {
     ),
   },
 }
+
+export const WithAction: Story = {
+  args: {
+    title: '絞り込み',
+    description: undefined,
+    action: (
+      <Button variant="text" size="sm">
+        クリア
+      </Button>
+    ),
+  },
+}

@@ -18,6 +18,8 @@ export type TextFieldProps = Omit<ComponentProps<'input'>, 'size' | 'prefix'> &
     numeric?: boolean
     /** input に足すクラス（幅の調整など） */
     inputClassName?: string
+    /** エラーの文を出さずに枠だけ danger にする（価格帯のように、2つの欄に1つの文を出すとき。文は呼び出し側で出し、aria-describedby で結ぶ） */
+    invalid?: boolean
   }
 
 /**
@@ -35,6 +37,7 @@ export function TextField({
   suffix,
   numeric,
   inputClassName,
+  invalid,
   className,
   id,
   type = 'text',
@@ -48,7 +51,7 @@ export function TextField({
     styles.box,
     styles[size],
     tone === 'primary' && styles.tonePrimary,
-    error && styles.invalid,
+    (error || invalid) && styles.invalid,
     isPassword && styles.withAction,
   ]
     .filter(Boolean)
@@ -74,8 +77,10 @@ export function TextField({
           id={ids.inputId}
           type={isPassword && revealed ? 'text' : type}
           className={inputClass}
-          aria-invalid={error ? true : undefined}
-          aria-describedby={ids.describedBy}
+          aria-invalid={error || invalid ? true : undefined}
+          aria-describedby={
+            [ids.describedBy, rest['aria-describedby']].filter(Boolean).join(' ') || undefined
+          }
         />
         {suffix && <span className={styles.affix}>{suffix}</span>}
         {isPassword && (
