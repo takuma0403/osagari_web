@@ -1,4 +1,4 @@
-import { render, screen } from '@testing-library/react'
+import { render, screen, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { BottomSheet } from './BottomSheet'
 
@@ -29,5 +29,13 @@ describe('BottomSheet', () => {
     render(<BottomSheet open onClose={onClose} title="リンクをコピー" />)
     await userEvent.keyboard('{Escape}')
     expect(onClose).toHaveBeenCalled()
+  })
+
+  it('見出しの右に action を置ける', () => {
+    render(
+      <BottomSheet open onClose={() => {}} title="絞り込み" action={<button>クリア</button>} />,
+    )
+    const dialog = screen.getByRole('dialog', { name: '絞り込み' })
+    expect(within(dialog).getByRole('button', { name: 'クリア' })).toBeInTheDocument()
   })
 })

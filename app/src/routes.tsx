@@ -9,6 +9,8 @@ import { LoginPage } from './features/auth/pages/LoginPage'
 import { PasswordPage } from './features/auth/pages/PasswordPage'
 import { RecheckPage } from './features/auth/pages/RecheckPage'
 import { SignUpPage } from './features/auth/pages/SignUpPage'
+import { MainPage } from './features/items/pages/MainPage'
+import { SearchPage } from './features/items/pages/SearchPage'
 import { SellPage } from './features/sell/pages/SellPage'
 import { StudentCardPage } from './features/student-card/pages/StudentCardPage'
 import { PlaceholderPage } from './components/PlaceholderPage/PlaceholderPage'
@@ -59,8 +61,8 @@ export const routes: RouteObject[] = [
         // 利用者向けの画面のうち、下部ナビ（BottomNav）を出すもの。デザインでナビがあるのは Main・Search・DealList・MyPage
         element: <MobileLayout bottomNav={<BottomNav />} />,
         children: [
-          placeholder('/', '商品一覧'),
-          placeholder('/search', '検索結果'),
+          { path: '/', element: <MainPage /> },
+          { path: '/search', element: <SearchPage /> },
           placeholder('/deals', '取引一覧'),
           placeholder('/mypage', 'マイページ'),
         ],

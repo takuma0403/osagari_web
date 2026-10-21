@@ -1,11 +1,11 @@
 import { render } from '@testing-library/react'
 import type { ReactElement } from 'react'
-import { createMemoryRouter, RouterProvider } from 'react-router'
+import { createMemoryRouter, parsePath, RouterProvider } from 'react-router'
 import { SessionContext, type Session } from '../features/auth/session'
 import { Destination } from './Destination'
 
 type Options = {
-  /** 開く URL。path にパラメーター（:itemId など）があるときに渡す。既定は path */
+  /** 開く URL（?以降のクエリも書ける）。path にパラメーター（:itemId など）があるときに渡す。既定は path */
   at?: string
   /** 画面に渡す location.state */
   state?: unknown
@@ -26,7 +26,7 @@ export function renderRoute(
 ) {
   const router = createMemoryRouter(
     [{ path, element }, ...destinations.map((to) => ({ path: to, element: <Destination /> }))],
-    { initialEntries: [{ pathname: at ?? path, state }] },
+    { initialEntries: [{ ...parsePath(at ?? path), state }] },
   )
   const session: Session = { user: null, signIn: vi.fn(), signOut: vi.fn(), ...overrides }
   return {

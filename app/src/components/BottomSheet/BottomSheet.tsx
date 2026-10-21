@@ -12,6 +12,8 @@ type Props = {
   leading?: ReactNode
   /** 上端のつまみ。取引成立の確認のように、必ず読んでほしいシートでは false */
   handle?: boolean
+  /** 見出しの右に置くもの（絞り込みの「クリア」など） */
+  action?: ReactNode
   children?: ReactNode
 }
 
@@ -23,6 +25,7 @@ export function BottomSheet({
   description,
   leading,
   handle = true,
+  action,
   children,
 }: Props) {
   const titleId = useId()
@@ -37,9 +40,12 @@ export function BottomSheet({
       {handle && <div className={styles.handle} aria-hidden="true" />}
       <div className={[styles.header, leading && styles.centered].filter(Boolean).join(' ')}>
         {leading}
-        <h2 id={titleId} className={styles.title}>
-          {title}
-        </h2>
+        <div className={styles.titleRow}>
+          <h2 id={titleId} className={styles.title}>
+            {title}
+          </h2>
+          {action}
+        </div>
         {description && <p className={styles.description}>{description}</p>}
       </div>
       {children}

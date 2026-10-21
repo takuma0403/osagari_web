@@ -34,8 +34,8 @@ Vite + React のSPAを Firebase Hosting に置きます。ログイン必須の�
   | `/password-reset`、`/password-reset/code`、`/password-reset/password` | パスワード再設定（同上） | スマホ |
   | `/recheck` | ログイン時の本人確認（AUTHN-3） | スマホ |
   | `/terms`、`/privacy` | 利用規約、プライバシーポリシー（ログイン画面からリンク。内容は [未決](../product/open-questions.md) で、決まるまでは仮ページ） | スマホ |
-  | `/` | 商品一覧 | スマホ＋下部ナビ |
-  | `/search` | 検索結果 | スマホ＋下部ナビ |
+  | `/` | 商品一覧（選んだカテゴリを `?category=` に持つ） | スマホ＋下部ナビ |
+  | `/search` | 検索結果（条件を `?keyword=&category=&courseName=&priceMin=&priceMax=&campus=&condition=` に持つ。値は `GET /items` の query と同じ。[ADR 0019](../decisions/0019-browse-category-chips-and-filter.md)） | スマホ＋下部ナビ |
   | `/items/:shareId` | 商品詳細（共有リンク） | スマホ |
   | `/items/:shareId/request` | 購入希望・決済（モック） | スマホ |
   | `/sell`、`/sell/:itemId` | 出品、出品の編集（編集APIが商品IDを受け取るため、共有用IDではなく商品IDを使う。[ADR 0017](../decisions/0017-fee-rounding-and-provisional-rate.md)） | スマホ |

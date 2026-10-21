@@ -41,7 +41,7 @@ describe('routes', () => {
   })
 
   it.each([
-    ['/', '商品一覧'],
+    ['/', '新着の出品'],
     ['/search', '検索結果'],
     ['/items/abc123', '商品詳細'],
     ['/items/abc123/request', '購入希望・決済'],

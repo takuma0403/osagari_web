@@ -15,7 +15,7 @@ export const Default: Story = {}
 
 export const Selected: Story = { args: { selected: true } }
 
-const categories = ['すべて', '教科書・参考書', '家具・家電', 'ゲーム', 'その他']
+const categories = ['すべて', '教科書・参考書', '家具・家電', 'ゲーム・その他']
 
 export const Categories: Story = {
   render: function Render() {

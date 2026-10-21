@@ -9,23 +9,6 @@ export const ITEM_PRICE_MIN = 100
 export const ITEM_PRICE_MAX = 100000
 export const ITEM_IMAGES_MAX = 10
 
-export const categoryOptions: { value: ItemCategory; label: string }[] = [
-  { value: 'textbook', label: '教科書・参考書' },
-  { value: 'furniture_appliance', label: '家具・家電' },
-  { value: 'game_other', label: 'ゲーム・その他' },
-]
-
-export const conditionOptions: { value: ItemCondition; label: string }[] = [
-  { value: 'new_like', label: '新品同様' },
-  { value: 'good', label: '目立った傷なし' },
-  { value: 'fair', label: 'やや傷あり' },
-]
-
-export const campusOptions: { value: Campus; label: string }[] = [
-  { value: 'honjo', label: '本庄' },
-  { value: 'nabeshima', label: '鍋島' },
-]
-
 /** 入力欄の値。未選択・未入力は空文字で持ち、送るときに省く */
 export type SellForm = {
   title: string

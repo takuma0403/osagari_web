@@ -1,6 +1,6 @@
 import { useId } from 'react'
 import type { Campus } from '../../api'
-import { campusOptions } from '../../form'
+import { campusOptions } from '../../../../lib/itemOptions'
 import styles from './CampusPicker.module.css'
 
 type Props = {
