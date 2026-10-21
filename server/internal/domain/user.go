@@ -43,10 +43,19 @@ func (u User) IsExpired(now time.Time) bool {
 	if u.Status == UserStatusExpired {
 		return true
 	}
-	y, m, d := now.In(jst).Date()
-	today := time.Date(y, m, d, 0, 0, 0, 0, time.UTC)
 	ey, em, ed := u.ExpiresOn.Date()
-	return today.After(time.Date(ey, em, ed, 0, 0, 0, 0, time.UTC))
+	return JSTDate(now).After(time.Date(ey, em, ed, 0, 0, 0, 0, time.UTC))
+}
+
+// IsActive は now の時点でアカウントが使える（有効で、失効していない）かを返す。
+func (u User) IsActive(now time.Time) bool {
+	return u.Status == UserStatusActive && !u.IsExpired(now)
+}
+
+// JSTDate は now の日本時間での日付を、UTC の0時として返す。有効期限（日付）と比べるのに使う。
+func JSTDate(now time.Time) time.Time {
+	y, m, d := now.In(jst).Date()
+	return time.Date(y, m, d, 0, 0, 0, 0, time.UTC)
 }
 
 // Session はログインセッション（sessions）。Cookie の値は持たず、SHA-256 のハッシュだけを持つ（AUTHN-5）。

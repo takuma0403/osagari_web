@@ -100,7 +100,7 @@ func (s *SessionService) Authenticate(ctx context.Context, token string) (*domai
 	if err != nil {
 		return nil, apperr.Internal(err)
 	}
-	if u.Status != domain.UserStatusActive || u.IsExpired(now) {
+	if !u.IsActive(now) {
 		return nil, errUnauthenticated
 	}
 	return u, nil

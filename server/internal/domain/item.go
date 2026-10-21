@@ -29,6 +29,41 @@ var (
 	ItemPublishableStatuses = []ItemStatus{ItemStatusDraft, ItemStatusWithdrawn}
 )
 
+// ほかの利用者に見せる商品のステータス（BROWSE, ADR 0018）。どちらも出品者のアカウントが使える（User.IsActive）ときだけ見せる。
+var (
+	// ItemListableStatuses は一覧・検索に出すステータス。購入希望ありは承認されるまでほかの人も購入希望を出せる（DEAL-1）
+	ItemListableStatuses = []ItemStatus{ItemStatusPublished, ItemStatusRequested}
+	// ItemViewableStatuses は商品ページ（共有リンク）で見せるステータス。取引中・取引完了は売り切れとして見せる
+	ItemViewableStatuses = []ItemStatus{ItemStatusPublished, ItemStatusRequested, ItemStatusInDeal, ItemStatusCompleted}
+)
+
+// 一覧・検索の件数（BROWSE）。
+const (
+	ItemListDefaultLimit = 20
+	ItemListMaxLimit     = 50
+	// ItemSearchTextMaxLen はキーワード・授業名の条件の上限
+	ItemSearchTextMaxLen = 100
+)
+
+// ItemFilter は一覧・検索の条件（BROWSE）。nil・空の項目は条件にしない。指定した条件はすべて満たす商品を探す。
+type ItemFilter struct {
+	// Keywords はタイトル・説明文・授業名・担当教員・ISBN のどれかに含まれる語。すべての語を含む商品を探す
+	Keywords   []string
+	Category   *ItemCategory
+	CourseName *string
+	// PriceMin・PriceMax は価格の範囲（円、両端を含む）
+	PriceMin  *int64
+	PriceMax  *int64
+	Campus    *Campus
+	Condition *ItemCondition
+}
+
+// ItemCursor は一覧の続きの位置。新着順（PublishedAt の新しい順、同じなら ID の大きい順）で、この商品より後ろを返す。
+type ItemCursor struct {
+	PublishedAt time.Time
+	ID          string
+}
+
 // Item は商品（items）。下書きはタイトルだけ必須なので、ほかの共通項目は nil を許す（ITEM, ADR 0016）。
 type Item struct {
 	ID       string
@@ -106,6 +141,9 @@ func (i Item) CanWithdraw() bool { return slices.Contains(ItemWithdrawableStatus
 
 // CanPublish は公開できるステータスかを返す。
 func (i Item) CanPublish() bool { return slices.Contains(ItemPublishableStatuses, i.Status) }
+
+// IsViewable は商品ページでほかの利用者に見せるステータスかを返す（ADR 0018）。
+func (i Item) IsViewable() bool { return slices.Contains(ItemViewableStatuses, i.Status) }
 
 // Normalize は前後の空白を除き、空の任意項目を nil にし、ISBN からハイフンと空白を除いて大文字にする（末尾の X）。
 func (c ItemContent) Normalize() ItemContent {
