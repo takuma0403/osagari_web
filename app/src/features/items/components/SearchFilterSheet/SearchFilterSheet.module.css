@@ -1,0 +1,65 @@
+.clear {
+  color: var(--color-primary);
+  font-weight: 700;
+}
+
+.form {
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+}
+
+.fieldset {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  min-width: 0;
+  margin: 0;
+  padding: 0;
+  border: none;
+}
+
+.legend {
+  margin-bottom: 8px;
+  padding: 0;
+  font-size: var(--text-label);
+  font-weight: 700;
+}
+
+.chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.priceRow {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.price {
+  flex: 1 1 0;
+  min-width: 0;
+}
+
+.tilde {
+  color: var(--color-text-muted);
+  font-size: var(--text-button-md);
+}
+
+.error {
+  color: var(--color-danger);
+  font-size: var(--text-label);
+  font-weight: 700;
+}
+
+/* 「この条件で検索」はシートの下端に固定する（シートの下の余白 28px まで地を伸ばす） */
+.footer {
+  position: sticky;
+  bottom: 0;
+  margin: 0 -20px -28px;
+  padding: 12px 20px 28px;
+  border-top: 1px solid var(--color-border);
+  background: var(--color-surface);
+}
