@@ -55,7 +55,7 @@ app/
 - 学籍番号の入力は8桁の数字だけを受け付け、ドメイン部分は固定表示（EmailField）。最終的な検証はサーバーが行う。
 - 端末識別子は localStorage に保存する。Cookie は `__session` 以外を使わない（[AUTHN-3](../docs/tech/auth.md)）。
 - 画像はアップロード前にブラウザで長辺1600px・JPEG/WebPに縮小し、APIが発行した署名付きURLへ直接 PUT する（[STORAGE](../docs/tech/storage.md)）。
-- 共有ボタンは「【お下がり】商品名 ¥価格（状態） URL」の文をコピーし、スマホでは Web Share API も使う（[FE](../docs/tech/frontend.md)）。
+- 共有ボタンは「【お下がり】商品名 ¥価格（状態） URL」の文をコピーする。Web Share API は使わない（[FE](../docs/tech/frontend.md)、ADR 0020）。
 - 画面の実装手順は `design-to-code` スキル、API を増やすときは `api-contract` スキル。
 
 ## コマンド
