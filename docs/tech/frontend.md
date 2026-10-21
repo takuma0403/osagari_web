@@ -15,7 +15,7 @@ Vite + React のSPAを Firebase Hosting に置きます。ログイン必須の�
 - Firebase Hosting 単体では Next.js のSSRは動きません。Next.js をSSRで使うには、Blazeプランが前提の App Hosting を使う必要があります（[Firebase公式ブログ](https://firebase.blog/posts/2024/05/app-hosting-vs-hosting)）。
 - Vercel の Hobby プランは非商用の個人利用に限られ、商用利用には Pro 以上が必要です（[Vercel Fair Use Guidelines](https://vercel.com/docs/limits/fair-use-guidelines)）。
 - **ルーティング**：画面遷移は React Router で行います。商品ページの共有リンク（`/items/:shareId`）もSPAのルートとして扱い、Firebase Hosting では `/api/**` 以外のすべてのパスを `index.html` に返す設定にします。
-- **共有リンクのプレビュー**：SPAのため、TeamsやLINEにリンクを貼っても商品ごとのタイトルや画像のプレビュー（OGP）は表示されず、アプリ共通の表示になります。リンクを開けば商品ページは問題なく表示されます。その代わりに、共有ボタンでは商品名・価格・状態とURLをまとめた文章をコピーできるようにし、リンクを貼るだけで内容が伝わるようにします（例：「【お下がり】線形代数学の教科書 ¥1,500（書き込みなし） https://…/items/123」）。スマホでは Web Share API で共有シートも開けるようにします。
+- **共有リンクのプレビュー**：SPAのため、TeamsやLINEにリンクを貼っても商品ごとのタイトルや画像のプレビュー（OGP）は表示されず、アプリ共通の表示になります。リンクを開けば商品ページは問題なく表示されます。その代わりに、共有ボタンでは商品名・価格・状態とURLをまとめた文章をコピーできるようにし、リンクを貼るだけで内容が伝わるようにします（例：「【お下がり】線形代数学の教科書 ¥1,500（書き込みなし） https://…/items/123」）。共有はコピーだけで、Web Share API（ほかのアプリの共有シート）は使いません（[ADR 0020](../decisions/0020-share-link-login-and-copy-only.md)）。
 - **QRコード**：表示はQR生成ライブラリ、読み取りはブラウザのカメラを使うライブラリで行います。カメラの利用にはHTTPSが必要ですが、Firebase Hosting は標準でHTTPSです。
 - **ISBN のバーコード**：出品画面（ITEM）で、ISBN をカメラで読み取れるようにします。ライブラリは `@zxing/browser`（EAN-13 だけを読み、978・979 で始まる値を ISBN として採用）で、読み取りを開いたときに動的に読み込み、最初の画面の読み込みを重くしないようにします。
 
@@ -50,5 +50,5 @@ Vite + React のSPAを Firebase Hosting に置きます。ログイン必須の�
 - **ログインのガード**（[ADR 0013](../decisions/0013-frontend-auth-guard.md)）：起動時に `GET /me` でログイン状態を確かめ、どの API でも `401 unauthorized` が返ったら未ログインに戻す。
   - ログイン前だけの画面（`/login`、`/signup*`、`/password-reset*`、`/recheck`）は、ログイン済みなら商品一覧へ送る。`/terms`・`/privacy` は誰でも見られる。それ以外の画面はすべてログインを求め、未ログインならログイン画面へ送る。
   - ログイン画面へ送るときは開こうとしていたページ（パス）を location.state に残し、ログイン（再確認を含む）に成功したらそこへ戻す。なければ商品一覧。
-  - 共有リンク（`/items/:shareId`）も、[未決事項](../product/open-questions.md)が決まるまではログインを求める。
+  - 共有リンク（`/items/:shareId`）もログインを求め、ログイン後に商品ページへ戻す（[ADR 0020](../decisions/0020-share-link-login-and-copy-only.md)）。
   - 管理画面（`/admin/**`）は `GET /api/admin/session` で管理者かどうかを確かめ、404 なら「ページが見つからない」を出す。管理画面への導線は UI に出さない（[ADR 0015](../decisions/0015-admin-authorization.md)）。

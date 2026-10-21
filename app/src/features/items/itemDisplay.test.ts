@@ -1,5 +1,6 @@
 import type { ItemSummary } from './api'
-import { cardProps, rowProps } from './itemDisplay'
+import { cardProps, conditionNote, itemShareText, rowProps } from './itemDisplay'
+import { publicItem } from './test/fixtures'
 
 const base: ItemSummary = {
   shareId: 'abc123',
@@ -60,5 +61,40 @@ describe('rowProps', () => {
       hasWriting: null,
     })
     expect(row).toMatchObject({ subtitle: 'ゲーム・その他', note: 'やや傷あり', tint: 'game' })
+  })
+})
+
+describe('conditionNote', () => {
+  it('教科書で書き込みの有無が分かればそれを出す', () => {
+    expect(conditionNote('textbook', false, 'fair')).toBe('書き込みなし')
+    expect(conditionNote('textbook', true, 'fair')).toBe('書き込みあり')
+  })
+
+  it('書き込みが分からない教科書と、教科書以外は状態を出す', () => {
+    expect(conditionNote('textbook', undefined, 'fair')).toBe('やや傷あり')
+    expect(conditionNote('furniture_appliance', null, 'new_like')).toBe('新品同様')
+  })
+})
+
+describe('itemShareText', () => {
+  it('商品名・価格・状態と商品ページの URL をまとめる', () => {
+    expect(itemShareText(publicItem(), 'https://example.com')).toBe(
+      '【お下がり】線形代数入門 ¥1,500（書き込みなし） https://example.com/items/abc123',
+    )
+  })
+
+  it('教科書以外は状態を入れる', () => {
+    const item = publicItem({
+      shareId: 'def456',
+      title: 'ローテーブル',
+      category: 'furniture_appliance',
+      condition: 'new_like',
+      price: 800,
+      textbook: null,
+      furnitureAppliance: { size: '60cm' },
+    })
+    expect(itemShareText(item, 'https://example.com')).toBe(
+      '【お下がり】ローテーブル ¥800（新品同様） https://example.com/items/def456',
+    )
   })
 })

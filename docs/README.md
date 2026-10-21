@@ -32,7 +32,7 @@
 | 学生証登録・審査 | [CARD](product/02-student-card.md), [ADMIN](product/07-admin.md) | [STORAGE](tech/storage.md), [JOBS-1](tech/jobs-payment-mock.md) | StudentCard, AdminCard | StudentCard | 利用規約・プライバシーポリシー |
 | 出品・編集・取り下げ | [ITEM](product/03-listing.md) | [STORAGE](tech/storage.md) | Sell, MyPage | Item, ItemImage | 禁止出品物、取引中の取り下げ |
 | 一覧・検索 | [BROWSE](product/04-browse-search-share.md) | [FE](tech/frontend.md), [DB](tech/database.md) | Main, Search | Item | — |
-| 商品詳細・共有 | [BROWSE](product/04-browse-search-share.md) | [FE](tech/frontend.md)（共有文・Web Share API） | Detail, DetailShare | Item | 未ログイン時の共有リンク |
+| 商品詳細・共有 | [BROWSE](product/04-browse-search-share.md) | [FE](tech/frontend.md)（共有文のコピー） | Detail, DetailShare | Item | — |
 | 購入希望・承認・期限切れ | [DEAL-1](product/05-deal-flow.md) | [DB](tech/database.md)（条件付き更新）, [JOBS-1](tech/jobs-payment-mock.md) | Request, DealRequests, DealList | Transaction, Payment | 承認期限48hとオーソリ期限 |
 | 取引成立の確認モーダル | [DEAL-2](product/05-deal-flow.md) | — | DealConfirm | Transaction | — |
 | 受け渡し完了（QR・リンク・コード） | [DEAL-3](product/05-deal-flow.md) | [FE](tech/frontend.md)（QR）, [API](tech/api.md) | DealQR, DealScan, DealCompleteIssue, DealCompleteEnter | Transaction | — |
