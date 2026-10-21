@@ -1,0 +1,93 @@
+.picker {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+/* 10枚まで並ぶので横にスクロールする */
+.row {
+  display: flex;
+  gap: 8px;
+  overflow-x: auto;
+}
+
+.slot {
+  position: relative;
+  flex-shrink: 0;
+}
+
+.thumb,
+.add {
+  position: relative;
+  flex-shrink: 0;
+  width: 80px;
+  height: 80px;
+  padding: 0;
+  overflow: hidden;
+  border-radius: var(--radius-input);
+}
+
+.thumb {
+  border: none;
+  background: var(--color-primary-soft);
+}
+
+.image {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.cover {
+  position: absolute;
+  pointer-events: none;
+  bottom: 4px;
+  left: 4px;
+  padding: 1px 6px;
+  border-radius: var(--radius-pill);
+  background: var(--color-surface);
+  color: var(--color-primary-hover);
+  font-size: var(--text-badge);
+  font-weight: 700;
+}
+
+/* アップロード中は写真を白く薄めて示す */
+.uploading {
+  position: absolute;
+  inset: 0;
+  background: var(--color-surface);
+  opacity: 0.6;
+}
+
+.add {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 4px;
+  border: 1.5px dashed var(--color-primary-dashed);
+  background: var(--color-surface);
+  color: var(--color-primary);
+  font-size: var(--text-badge);
+}
+
+.add:disabled {
+  color: var(--color-text-disabled);
+}
+
+.note {
+  color: var(--color-text-muted);
+  font-size: var(--text-note);
+}
+
+.error {
+  color: var(--color-danger);
+  font-size: var(--text-label);
+  font-weight: 700;
+}
+
+.actions {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}

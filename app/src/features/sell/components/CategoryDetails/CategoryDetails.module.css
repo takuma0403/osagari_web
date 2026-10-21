@@ -1,0 +1,59 @@
+/* 淡色の地の枠（デザインの「教科書の情報」） */
+.box {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  margin: 0;
+  padding: 14px;
+  border: none;
+  border-radius: var(--radius-card);
+  background: var(--color-primary-soft);
+}
+
+.legend {
+  float: left;
+  padding: 0;
+  color: var(--color-primary-hover);
+  font-size: var(--text-label);
+  font-weight: 700;
+}
+
+.isbn {
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+}
+
+.isbnField {
+  flex-grow: 1;
+  min-width: 0;
+}
+
+.scan {
+  display: flex;
+  flex-shrink: 0;
+  align-items: center;
+  justify-content: center;
+  width: var(--tap-min);
+  height: var(--tap-min);
+  padding: 0;
+  border: 1px solid var(--color-primary-border);
+  border-radius: var(--radius-input);
+  background: var(--color-surface);
+  color: var(--color-primary-hover);
+}
+
+.check {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  min-height: var(--tap-min);
+  font-size: var(--text-body);
+}
+
+.check input {
+  width: 22px;
+  height: 22px;
+  margin: 0;
+  accent-color: var(--color-primary);
+}
