@@ -14,9 +14,8 @@ import type { OwnItem } from '../api'
 import { CampusPicker } from '../components/CampusPicker/CampusPicker'
 import { CategoryDetails } from '../components/CategoryDetails/CategoryDetails'
 import { PhotoPicker } from '../components/PhotoPicker/PhotoPicker'
+import { categoryOptions, conditionOptions } from '../../../lib/itemOptions'
 import {
-  categoryOptions,
-  conditionOptions,
   ITEM_DESCRIPTION_MAX,
   ITEM_TITLE_MAX,
   parsePrice,

@@ -3,7 +3,7 @@ import styles from './ItemPhoto.module.css'
 
 /**
  * 写真がないときの地の色（DS-2 の --color-cat-*）。
- * 要件のカテゴリ（ItemCategory）との対応は商品一覧の画面で決める（glossary の注記）。
+ * 要件のカテゴリ（ItemCategory）との対応は lib/itemOptions.ts の categoryTint（glossary の注記）。
  */
 export type PhotoTint = 'textbook' | 'appliance' | 'furniture' | 'game'
 
