@@ -3,6 +3,7 @@ package repository
 import (
 	"context"
 	"fmt"
+	"strings"
 	"time"
 
 	"gorm.io/gorm"
@@ -178,12 +179,29 @@ func (r *ItemRepository) FindByID(ctx context.Context, id string) (*domain.Item,
 	if len(rows) == 0 {
 		return nil, ErrNotFound
 	}
-	it, err := rows[0].toDomain()
+	return r.withImages(ctx, rows[0])
+}
+
+// FindByShareID は共有用IDで商品を写真つきで探す（BROWSE）。ステータスは問わない。なければ ErrNotFound。
+func (r *ItemRepository) FindByShareID(ctx context.Context, shareID string) (*domain.Item, error) {
+	var rows []itemRow
+	if err := conn(ctx, r.db).Where("share_id = ?", shareID).Limit(1).Find(&rows).Error; err != nil {
+		return nil, err
+	}
+	if len(rows) == 0 {
+		return nil, ErrNotFound
+	}
+	return r.withImages(ctx, rows[0])
+}
+
+// withImages は商品の行に、すべての写真を表示順で付けて返す。
+func (r *ItemRepository) withImages(ctx context.Context, row itemRow) (*domain.Item, error) {
+	it, err := row.toDomain()
 	if err != nil {
 		return nil, err
 	}
 	var imgRows []itemImageRow
-	if err := conn(ctx, r.db).Where("item_id = ?", id).Order("position ASC").Find(&imgRows).Error; err != nil {
+	if err := conn(ctx, r.db).Where("item_id = ?", it.ID).Order("position ASC").Find(&imgRows).Error; err != nil {
 		return nil, err
 	}
 	it.Images = make([]domain.ItemImage, 0, len(imgRows))
@@ -196,6 +214,103 @@ func (r *ItemRepository) FindByID(ctx context.Context, id string) (*domain.Item,
 	}
 	return it, nil
 }
+
+// ListPublic は一覧・検索に出す商品（domain.ItemListableStatuses）のうち、条件 f に合うものを新着順に limit 件まで返す（BROWSE, ADR 0018）。
+// 出品者のアカウントが now の時点で使えない（有効でない・有効期限を過ぎた。domain.User.IsActive）商品は含めない。
+// after を渡すと、その位置より後ろを返す。写真は1枚目だけを Images に入れる。total は after に関係なく条件に合う件数。
+func (r *ItemRepository) ListPublic(ctx context.Context, f domain.ItemFilter, after *domain.ItemCursor, limit int, now time.Time) ([]*domain.Item, int, error) {
+	var total int64
+	if err := r.publicQuery(ctx, f, now).Count(&total).Error; err != nil {
+		return nil, 0, err
+	}
+	q := r.publicQuery(ctx, f, now)
+	if after != nil {
+		at := formatTime(after.PublishedAt)
+		q = q.Where("(items.published_at < ? OR (items.published_at = ? AND items.id < ?))", at, at, after.ID)
+	}
+	var rows []itemRow
+	if err := q.Select("items.*").Order("items.published_at DESC, items.id DESC").Limit(limit).Find(&rows).Error; err != nil {
+		return nil, 0, err
+	}
+	items := make([]*domain.Item, 0, len(rows))
+	ids := make([]string, 0, len(rows))
+	for _, row := range rows {
+		it, err := row.toDomain()
+		if err != nil {
+			return nil, 0, err
+		}
+		it.Images = []domain.ItemImage{}
+		items = append(items, it)
+		ids = append(ids, it.ID)
+	}
+	if len(ids) == 0 {
+		return items, int(total), nil
+	}
+	var imgRows []itemImageRow
+	if err := conn(ctx, r.db).Where("item_id IN ? AND position = 0", ids).Find(&imgRows).Error; err != nil {
+		return nil, 0, err
+	}
+	byItem := make(map[string]domain.ItemImage, len(imgRows))
+	for _, ir := range imgRows {
+		img, err := ir.toDomain()
+		if err != nil {
+			return nil, 0, err
+		}
+		byItem[img.ItemID] = img
+	}
+	for _, it := range items {
+		if img, ok := byItem[it.ID]; ok {
+			it.Images = []domain.ItemImage{img}
+		}
+	}
+	return items, int(total), nil
+}
+
+// publicQuery は一覧・検索の条件（並びと位置を除く）を組み立てる。users と結合するので列には items. を付ける。
+func (r *ItemRepository) publicQuery(ctx context.Context, f domain.ItemFilter, now time.Time) *gorm.DB {
+	q := conn(ctx, r.db).Model(&itemRow{}).
+		Joins("JOIN users ON users.id = items.seller_id").
+		Where("items.status IN ?", enumStrings(domain.ItemListableStatuses)).
+		// User.IsActive と同じ判定：有効で、日本時間の今日が有効期限を過ぎていない
+		Where("users.status = ? AND users.expires_on >= ?", string(domain.UserStatusActive), domain.JSTDate(now).Format(dateLayout))
+	for _, w := range f.Keywords {
+		p := likePattern(w)
+		cond := `items.title LIKE ? ESCAPE '\' OR items.description LIKE ? ESCAPE '\' OR items.course_name LIKE ? ESCAPE '\'` +
+			` OR items.instructor LIKE ? ESCAPE '\'`
+		args := []any{p, p, p, p}
+		// ISBN はハイフンを除いて保存しているので、語からもハイフンを除いて探す。ハイフンだけの語では ISBN を探さない
+		if isbn := strings.ReplaceAll(w, "-", ""); isbn != "" {
+			cond += ` OR items.isbn LIKE ? ESCAPE '\'`
+			args = append(args, likePattern(isbn))
+		}
+		q = q.Where("("+cond+")", args...)
+	}
+	if f.Category != nil {
+		q = q.Where("items.category = ?", string(*f.Category))
+	}
+	if f.CourseName != nil {
+		q = q.Where(`items.course_name LIKE ? ESCAPE '\'`, likePattern(*f.CourseName))
+	}
+	if f.PriceMin != nil {
+		q = q.Where("items.price >= ?", *f.PriceMin)
+	}
+	if f.PriceMax != nil {
+		q = q.Where("items.price <= ?", *f.PriceMax)
+	}
+	if f.Campus != nil {
+		q = q.Where("items.campus = ?", string(*f.Campus))
+	}
+	if f.Condition != nil {
+		q = q.Where("items.condition = ?", string(*f.Condition))
+	}
+	return q
+}
+
+// likeEscaper は LIKE の特殊文字（% と _）とエスケープ文字（\）をそのままの文字として探せるようにする。
+var likeEscaper = strings.NewReplacer(`\`, `\\`, `%`, `\%`, `_`, `\_`)
+
+// likePattern は s を部分一致で探す LIKE のパターンにする（ESCAPE '\' と一緒に使う）。
+func likePattern(s string) string { return "%" + likeEscaper.Replace(s) + "%" }
 
 // UpdateContent は出品者の商品が、読んだときのステータス status と更新日時 updatedAt のままのときだけ内容を書き換える
 // （条件付きUPDATE。DB）。読んだ後にステータスや内容が変わっていれば ErrConflict。
