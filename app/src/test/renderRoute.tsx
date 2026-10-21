@@ -5,6 +5,8 @@ import { SessionContext, type Session } from '../features/auth/session'
 import { Destination } from './Destination'
 
 type Options = {
+  /** 開く URL。path にパラメーター（:itemId など）があるときに渡す。既定は path */
+  at?: string
   /** 画面に渡す location.state */
   state?: unknown
   /** 遷移先として用意するパス（見出しにパスを出す仮の画面になる） */
@@ -20,11 +22,11 @@ type Options = {
 export function renderRoute(
   path: string,
   element: ReactElement,
-  { state, destinations = [], session: overrides }: Options = {},
+  { at, state, destinations = [], session: overrides }: Options = {},
 ) {
   const router = createMemoryRouter(
     [{ path, element }, ...destinations.map((to) => ({ path: to, element: <Destination /> }))],
-    { initialEntries: [{ pathname: path, state }] },
+    { initialEntries: [{ pathname: at ?? path, state }] },
   )
   const session: Session = { user: null, signIn: vi.fn(), signOut: vi.fn(), ...overrides }
   return {

@@ -3,7 +3,11 @@ import { createMemoryRouter, RouterProvider } from 'react-router'
 import { SessionContext, type Session } from './features/auth/session'
 import { routes } from './routes'
 
-const me = { id: 'u1', email: '26238001@edu.cc.saga-u.ac.jp' } as Session['user']
+const me = {
+  id: 'u1',
+  email: '26238001@edu.cc.saga-u.ac.jp',
+  sellerStatus: 'approved',
+} as Session['user']
 
 /** user を省くとログイン中。undefined を渡すと確認中 */
 function renderAt(path: string, options: { user?: Session['user']; state?: unknown } = {}) {
@@ -41,8 +45,8 @@ describe('routes', () => {
     ['/search', '検索結果'],
     ['/items/abc123', '商品詳細'],
     ['/items/abc123/request', '購入希望・決済'],
-    ['/items/abc123/edit', '出品の編集'],
-    ['/sell', '出品'],
+    ['/sell', '出品する'],
+    ['/sell/i1', '出品を編集'],
     ['/deals', '取引一覧'],
     ['/deals/42', '取引詳細'],
     ['/deals/42/scan', 'QR読み取り'],

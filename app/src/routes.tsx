@@ -9,6 +9,7 @@ import { LoginPage } from './features/auth/pages/LoginPage'
 import { PasswordPage } from './features/auth/pages/PasswordPage'
 import { RecheckPage } from './features/auth/pages/RecheckPage'
 import { SignUpPage } from './features/auth/pages/SignUpPage'
+import { SellPage } from './features/sell/pages/SellPage'
 import { StudentCardPage } from './features/student-card/pages/StudentCardPage'
 import { PlaceholderPage } from './components/PlaceholderPage/PlaceholderPage'
 import { AdminLayout } from './layouts/AdminLayout/AdminLayout'
@@ -70,8 +71,8 @@ export const routes: RouteObject[] = [
         children: [
           placeholder('/items/:shareId', '商品詳細'),
           placeholder('/items/:shareId/request', '購入希望・決済'),
-          placeholder('/items/:shareId/edit', '出品の編集'),
-          placeholder('/sell', '出品'),
+          { path: '/sell', element: <SellPage /> },
+          { path: '/sell/:itemId', element: <SellPage /> },
           placeholder('/deals/:dealId', '取引詳細'),
           placeholder('/deals/:dealId/scan', 'QR読み取り'),
           placeholder('/deals/:dealId/complete', '受け渡しの完了'),
