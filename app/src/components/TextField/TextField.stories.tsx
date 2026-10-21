@@ -6,7 +6,7 @@ const meta = {
   title: '入力/TextField',
   component: TextField,
   args: { label: 'タイトル', defaultValue: '線形代数入門', size: 'lg' },
-  argTypes: { size: { control: 'inline-radio', options: ['lg', 'md'] } },
+  argTypes: { size: { control: 'inline-radio', options: ['lg', 'md', 'sm'] } },
 } satisfies Meta<typeof TextField>
 
 export default meta
@@ -59,4 +59,15 @@ export const Price: Story = {
 
 export const HiddenLabel: Story = {
   args: { label: '授業名', hideLabel: true, size: 'md', placeholder: '授業名', defaultValue: '' },
+}
+
+export const SmallOnPrimary: Story = {
+  args: {
+    label: '担当教員',
+    hideLabel: true,
+    size: 'sm',
+    tone: 'primary',
+    placeholder: '担当教員',
+    defaultValue: '',
+  },
 }
