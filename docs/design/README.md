@@ -1,7 +1,7 @@
 # デザイン（UIの正本）
 
 - **キャンバス（正本）**: https://claude.ai/artifact/QdafhFt85mz3WvYPPtDGEH （Claude Design「佐賀大お下がりフリマ デザイン」）
-- **リポジトリ内の写し**: [screens/](screens/) … キャンバスの各アートボードの `.dc.html` ソースと [canvas.json](screens/canvas.json)（2026-10-14 取得、version `1791920931-c1a1`）
+- **リポジトリ内の写し**: [screens/](screens/) … キャンバスの各アートボードの `.dc.html` ソースと [canvas.json](screens/canvas.json)（2026-10-22 取得、version `1792595429-a00f`）
 - **ロゴ**: [assets/logo.png](assets/logo.png)（1254×1254。画面ではアイコン枠に `object-fit: cover; transform: scale(1.32)` で表示している。アプリでは 128×128 に縮小した `app/src/assets/logo.png` を `AppLogo` 部品で使う）
 - 更新手順は [design-sync スキル](../../.claude/skills/design-sync/SKILL.md)、実装への移し方は [design-to-code スキル](../../.claude/skills/design-to-code/SKILL.md) を参照。
 
@@ -54,7 +54,7 @@
 | `--color-overlay` | `rgba(27, 43, 75, 0.55)` | ボトムシート背面の幕 |
 | `--color-overlay-dark` | `rgba(0, 0, 0, 0.5)` | カメラ画面上のモーダル背面の幕 |
 
-**カテゴリの写真プレースホルダ色**（画像がないときの地）：教科書 `#DDF0F0`／家電 `#DCEEF6`／家具 `#FBF0CC`／ゲーム `#E1EFE3`。`--color-cat-textbook` `--color-cat-appliance` `--color-cat-furniture` `--color-cat-game` として定義する。
+**カテゴリの写真プレースホルダ色**（画像がないときの地）：教科書 `#DDF0F0`／家電 `#DCEEF6`／家具 `#FBF0CC`／ゲーム `#E1EFE3`。`--color-cat-textbook` `--color-cat-appliance` `--color-cat-furniture` `--color-cat-game` として定義する。商品のカテゴリ（`ItemCategory`）との対応は 教科書・参考書→教科書、家具・家電→家具、ゲーム・その他→ゲーム（家電の色は商品の写真には使わない。[ADR 0019](../decisions/0019-browse-category-chips-and-filter.md)）。
 
 使われている箇所が1つだけの色（`#EFEBE2` `#1F3550` `#2F6FA3` など）は、実装時に [screens/](screens/) の該当箇所を見て上表のどれかに寄せるか、必要なら追加する。
 
@@ -129,13 +129,13 @@ Google Fonts から `Zen+Kaku+Gothic+New:wght@400;500;700` と `Outfit:wght@500;
 | `TextField` | ラベル＋高さ52pxの入力枠。フォーカス中は primary 1.5px、エラーは danger 1.5px | Login, SignUp, Password, Sell |
 | `EmailField` | 学籍番号8桁の入力＋固定の `@edu.cc.saga-u.ac.jp` 表示 | Login, SignUp |
 | `CodeInput` | 6桁×1マス（grid 6列、高さ52px、Outfit 22px）＋有効期限・再送 | Code, Recheck |
-| `Chip` | 高さ36px。選択中 primary 塗り／絞り込み条件は primary-soft＋×アイコン | Main, Search |
+| `Chip` | 高さ36px。選択中 primary 塗り／絞り込み条件は primary-soft＋×アイコン | Main, Search, SearchFilter |
 | `Badge` | 11〜12px / 700 / pill。primary-soft・warning を基本に、danger（停止など）・neutral（終了）・surface（写真の上のカテゴリ） | Detail, Request ほか |
 | `ItemCard` | 正方形写真＋カテゴリバッジ＋タイトル2行＋価格＋キャンパス・状態（2列グリッド） | Main, MyPage |
 | `ItemRow` | 84pxサムネイル＋タイトル＋授業名＋価格＋状態バッジ（横長） | Search |
 | `InfoBox` | 角丸12px、アイコン＋文。info / warning / danger / neutral(bg) | Code, Recheck, Login, Password |
 | `DefinitionList` | 2列グリッドの `<dl>`（項目名は muted） | Detail, Password |
-| `BottomSheet` | 上端角丸20px＋つまみ＋背面の幕 | DetailShare, DealCancel, DealConfirm（つまみなし） |
+| `BottomSheet` | 上端角丸20px＋つまみ＋背面の幕。見出しの右に操作（絞り込みの「クリア」）を置ける | DetailShare, DealCancel, SearchFilter, DealConfirm（つまみなし） |
 | `ConfirmDialog` | 中央モーダル、角丸18px、主要ボタン＋テキストボタン | DealScan, DealCompleteEnter |
 | `SegmentedTabs` | 2択の切り替え（pill の枠内に高さ36pxのタブ2つ。選択中は primary 塗り）、`role="tablist"` | DealList, AdminDeals |
 | `Toast` | 紺地・白文字・pill、`role="status"` | DetailShare |
@@ -152,8 +152,9 @@ DS-3 の部品を作るために足した補助の部品（画面からも使え
 | 〃 | [Code](screens/Code.dc.html) | `mode`：新規登録／再設定／再確認、`error` | AUTHN-1・2・6 |
 | 〃 | [Password](screens/Password.dc.html) | `mode`：新規登録／再設定 | AUTHN-2・4・5 |
 | 〃 | [Recheck](screens/Recheck.dc.html) | `reason`：30日経過／はじめての端末、`error` | AUTH-1, AUTHN-3 |
-| 商品一覧 | [Main](screens/Main.dc.html) | `accent`（色の検討用。実装は primary 固定） | [BROWSE](../product/04-browse-search-share.md) |
+| 商品一覧 | [Main](screens/Main.dc.html) | `accent`（色の検討用。実装は primary 固定）。カテゴリチップは「すべて」＋要件の3区分、右上のお知らせ（ベル）は置かない（[ADR 0019](../decisions/0019-browse-category-chips-and-filter.md)） | [BROWSE](../product/04-browse-search-share.md) |
 | 検索結果 | [Search](screens/Search.dc.html) | — | BROWSE |
+| 〃（絞り込み） | [SearchFilter](screens/SearchFilter.dc.html) | `error`：価格の下限が上限より大きい | BROWSE |
 | 商品詳細 | [Detail](screens/Detail.dc.html) | `shareApp`：右上の共有アイコン（既定オフ） | BROWSE, [ITEM](../product/03-listing.md), [DEAL-1](../product/05-deal-flow.md) |
 | 商品詳細（共有） | [DetailShare](screens/DetailShare.dc.html) | `copied`：コピー完了トースト、`shareApp`：「ほかのアプリで共有」ボタン（既定オフ） | BROWSE, [FE](../tech/frontend.md) |
 | 購入希望・決済（モック） | [Request](screens/Request.dc.html) | — | DEAL-1, [PAY](../product/06-payment.md) |
