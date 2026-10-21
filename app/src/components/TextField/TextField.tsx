@@ -1,27 +1,24 @@
-import { useId, useState, type ComponentProps, type ReactNode } from 'react'
+import { useState, type ComponentProps, type ReactNode } from 'react'
 import { Icon } from '../Icon/Icon'
+import { FieldFrame, type FieldProps } from './Field'
+import { useFieldIds } from './useFieldIds'
 import styles from './TextField.module.css'
 
-export type TextFieldProps = Omit<ComponentProps<'input'>, 'size' | 'prefix'> & {
-  /** 入力欄のラベル（DS-1：入力には必ず label を付ける） */
-  label: string
-  /** ラベルを見た目の上で隠す（読み上げには残る）。授業名など、プレースホルダで分かる欄に使う */
-  hideLabel?: boolean
-  /** 入力欄の下に出す補足 */
-  hint?: ReactNode
-  /** 入力エラー。あると枠が danger になり、role="alert" で読み上げる */
-  error?: string
-  /** lg 52px・17px（ログイン・登録）／md 48px・15px（出品） */
-  size?: 'lg' | 'md'
-  /** 入力欄の前に置く固定の文字（例 価格の ¥） */
-  prefix?: ReactNode
-  /** 入力欄の後ろに置く固定の文字（例 @edu.cc.saga-u.ac.jp） */
-  suffix?: ReactNode
-  /** 数字（学籍番号・価格）を Outfit で表示する */
-  numeric?: boolean
-  /** input に足すクラス（幅の調整など） */
-  inputClassName?: string
-}
+export type TextFieldProps = Omit<ComponentProps<'input'>, 'size' | 'prefix'> &
+  FieldProps & {
+    /** lg 52px・17px（ログイン・登録）／md 48px・15px（出品）／sm 44px・14px（出品のカテゴリ別の追加項目） */
+    size?: 'lg' | 'md' | 'sm'
+    /** 枠の色。primary は primary-border（出品のカテゴリ別の追加項目。淡色の地の上に置く） */
+    tone?: 'default' | 'primary'
+    /** 入力欄の前に置く固定の文字（例 価格の ¥） */
+    prefix?: ReactNode
+    /** 入力欄の後ろに置く固定の文字（例 @edu.cc.saga-u.ac.jp） */
+    suffix?: ReactNode
+    /** 数字（学籍番号・価格）を Outfit で表示する */
+    numeric?: boolean
+    /** input に足すクラス（幅の調整など） */
+    inputClassName?: string
+  }
 
 /**
  * ラベル付きの1行入力（DS-3）。フォーカス中は primary、エラーは danger の 1.5px 枠。
@@ -33,6 +30,7 @@ export function TextField({
   hint,
   error,
   size = 'lg',
+  tone = 'default',
   prefix,
   suffix,
   numeric,
@@ -42,17 +40,14 @@ export function TextField({
   type = 'text',
   ...rest
 }: TextFieldProps) {
-  const autoId = useId()
-  const inputId = id ?? autoId
-  const hintId = `${inputId}-hint`
-  const errorId = `${inputId}-error`
+  const ids = useFieldIds(id, { hint, error })
   const [revealed, setRevealed] = useState(false)
   const isPassword = type === 'password'
-  const describedBy = [hint && hintId, error && errorId].filter(Boolean).join(' ') || undefined
 
   const boxClass = [
     styles.box,
     styles[size],
+    tone === 'primary' && styles.tonePrimary,
     error && styles.invalid,
     isPassword && styles.withAction,
   ]
@@ -63,20 +58,24 @@ export function TextField({
     .join(' ')
 
   return (
-    <div className={[styles.field, className].filter(Boolean).join(' ')}>
-      <label htmlFor={inputId} className={hideLabel ? 'visually-hidden' : styles.label}>
-        {label}
-      </label>
+    <FieldFrame
+      label={label}
+      hideLabel={hideLabel}
+      hint={hint}
+      error={error}
+      ids={ids}
+      className={className}
+    >
       <div className={boxClass}>
         {prefix && <span className={`${styles.affix} ${styles.prefix}`}>{prefix}</span>}
         {/* 補足・エラーとの関連付けを呼び出し側の props で上書きさせないよう、rest を先に展開する */}
         <input
           {...rest}
-          id={inputId}
+          id={ids.inputId}
           type={isPassword && revealed ? 'text' : type}
           className={inputClass}
           aria-invalid={error ? true : undefined}
-          aria-describedby={describedBy}
+          aria-describedby={ids.describedBy}
         />
         {suffix && <span className={styles.affix}>{suffix}</span>}
         {isPassword && (
@@ -90,16 +89,6 @@ export function TextField({
           </button>
         )}
       </div>
-      {hint && (
-        <div id={hintId} className={styles.hint}>
-          {hint}
-        </div>
-      )}
-      {error && (
-        <div id={errorId} role="alert" className={styles.error}>
-          {error}
-        </div>
-      )}
-    </div>
+    </FieldFrame>
   )
 }

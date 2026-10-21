@@ -30,6 +30,36 @@
   font-size: var(--text-button-md);
 }
 
+.sm {
+  height: var(--tap-min);
+  padding: 0 12px;
+  font-size: var(--text-body);
+}
+
+/* 淡色の地（--color-primary-soft）の上に置く入力欄。出品のカテゴリ別の追加項目 */
+.tonePrimary {
+  border-color: var(--color-primary-border);
+}
+
+/* 複数行の入力（TextAreaField）。高さは行数で決める */
+.multiline {
+  align-items: stretch;
+  padding: 10px 12px;
+  font-size: var(--text-body);
+}
+
+.textarea {
+  line-height: 1.6;
+  resize: none;
+}
+
+/* 選択（SelectField）。文字色を本文に揃え、選択肢の矢印はブラウザの標準を使う */
+.select {
+  margin: 0 -2px;
+  font-family: inherit;
+  cursor: pointer;
+}
+
 /* フォーカス中・エラーは 1.5px の枠（DS-3）。幅を変えずに太く見せるため、外側に 0.5px の影を足す */
 .box:focus-within {
   border-color: var(--color-primary);

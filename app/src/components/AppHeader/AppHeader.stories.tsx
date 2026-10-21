@@ -21,3 +21,5 @@ export const MockBadge: Story = {
 export const TitleOnly: Story = { args: { title: '取引', backTo: undefined } }
 
 export const FormScreen: Story = { args: { title: undefined, backTo: '/signup', bordered: false } }
+
+export const Closable: Story = { args: { title: '出品する', backTo: '/', closable: true } }

@@ -16,20 +16,31 @@ type Props = {
   right?: ReactNode
   /** 白地と下線を付ける。フォーム系の画面（地が白）では false */
   bordered?: boolean
+  /** 戻るボタンを「閉じる」（×）にする。出品のように、入力をやめて元の画面へ戻る画面で使う */
+  closable?: boolean
 }
 
 /** 画面上部のヘッダー（DS-3）。高さ56px、戻るボタンは 44px */
-export function AppHeader({ title, backTo, backState, onBack, right, bordered = true }: Props) {
-  const back = <Icon name="back" />
+export function AppHeader({
+  title,
+  backTo,
+  backState,
+  onBack,
+  right,
+  bordered = true,
+  closable,
+}: Props) {
+  const back = <Icon name={closable ? 'close' : 'back'} />
+  const backLabel = closable ? '閉じる' : '戻る'
   return (
     <header className={[styles.header, bordered && styles.bordered].filter(Boolean).join(' ')}>
       {backTo !== undefined ? (
-        <Link to={backTo} state={backState} className={styles.back} aria-label="戻る">
+        <Link to={backTo} state={backState} className={styles.back} aria-label={backLabel}>
           {back}
         </Link>
       ) : (
         onBack && (
-          <button type="button" className={styles.back} aria-label="戻る" onClick={onBack}>
+          <button type="button" className={styles.back} aria-label={backLabel} onClick={onBack}>
             {back}
           </button>
         )
