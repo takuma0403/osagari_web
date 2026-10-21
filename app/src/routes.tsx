@@ -9,6 +9,7 @@ import { LoginPage } from './features/auth/pages/LoginPage'
 import { PasswordPage } from './features/auth/pages/PasswordPage'
 import { RecheckPage } from './features/auth/pages/RecheckPage'
 import { SignUpPage } from './features/auth/pages/SignUpPage'
+import { DetailPage } from './features/items/pages/DetailPage'
 import { MainPage } from './features/items/pages/MainPage'
 import { SearchPage } from './features/items/pages/SearchPage'
 import { SellPage } from './features/sell/pages/SellPage'
@@ -54,7 +55,7 @@ export const routes: RouteObject[] = [
   },
   {
     // ここから下はログインが必要（AUTHN-5）。未ログインならログイン画面へ送り、ログイン後に戻す。
-    // 共有リンク（/items/:shareId）を未ログインで開いたときの表示は未決のため、決まるまではログインを求める
+    // 共有リンク（/items/:shareId）も未ログインならログインを求め、ログイン後に商品ページへ戻す（ADR 0020）
     element: <RequireAuth />,
     children: [
       {
@@ -71,7 +72,7 @@ export const routes: RouteObject[] = [
         // 利用者向けの画面のうち、下部ナビを出さないもの（詳細・入力・取引の操作など）
         element: <MobileLayout />,
         children: [
-          placeholder('/items/:shareId', '商品詳細'),
+          { path: '/items/:shareId', element: <DetailPage /> },
           placeholder('/items/:shareId/request', '購入希望・決済'),
           { path: '/sell', element: <SellPage /> },
           { path: '/sell/:itemId', element: <SellPage /> },
