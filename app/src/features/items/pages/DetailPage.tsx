@@ -64,20 +64,20 @@ function detailRows(item: PublicItem): DefinitionItem[] {
 function PrimaryAction({ item }: { item: PublicItem }) {
   if (item.isOwn) {
     return (
-      <Button fullWidth disabled>
+      <Button className={styles.primary} disabled>
         自分の出品です
       </Button>
     )
   }
   if (isSoldOut(item)) {
     return (
-      <Button fullWidth disabled>
+      <Button className={styles.primary} disabled>
         売り切れ
       </Button>
     )
   }
   return (
-    <ButtonLink to={`${itemPath(item.shareId)}/request`} fullWidth>
+    <ButtonLink to={`${itemPath(item.shareId)}/request`} className={styles.primary}>
       購入希望を出す
     </ButtonLink>
   )

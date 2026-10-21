@@ -110,6 +110,11 @@
   background: var(--color-surface);
 }
 
+/* 「リンクをコピー」の残りの幅に広げる主ボタン（Button の fullWidth は幅100%で縮まないため使わない） */
+.primary {
+  flex-grow: 1;
+}
+
 /* 読み込み中・見つからない・エラー */
 .status {
   display: flex;
