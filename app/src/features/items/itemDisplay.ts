@@ -5,10 +5,39 @@ import {
   conditionOptions,
   labelOf,
 } from '../../lib/itemOptions'
-import type { ItemSummary } from './api'
+import { shareText } from '../../lib/share'
+import type { ItemSummary, PublicItem } from './api'
+
+type ItemCategory = ItemSummary['category']
+type ItemCondition = ItemSummary['condition']
 
 /** 商品ページの固定URL（BROWSE） */
 export const itemPath = (shareId: string) => `/items/${encodeURIComponent(shareId)}`
+
+/**
+ * 価格の横に添える状態の注記。教科書で書き込みの有無が分かればそれを、ほかは状態を出す。
+ * 検索結果の行と共有文（FE の例「（書き込みなし）」）で使う。
+ */
+export function conditionNote(
+  category: ItemCategory,
+  hasWriting: boolean | null | undefined,
+  condition: ItemCondition,
+): string {
+  if (category === 'textbook' && hasWriting != null) {
+    return hasWriting ? '書き込みあり' : '書き込みなし'
+  }
+  return labelOf(conditionOptions, condition)
+}
+
+/** 共有リンクに添える文（BROWSE）。origin はアプリの URL の先頭（https://… ） */
+export function itemShareText(item: PublicItem, origin: string): string {
+  return shareText({
+    title: item.title,
+    price: item.price,
+    note: conditionNote(item.category, item.textbook?.hasWriting, item.condition),
+    url: `${origin}${itemPath(item.shareId)}`,
+  })
+}
 
 /** 一覧のカード（ItemCard）に渡す値 */
 export function cardProps(item: ItemSummary) {
@@ -36,12 +65,7 @@ export function rowProps(item: ItemSummary) {
     subtitle:
       isTextbook && item.courseName ? item.courseName : labelOf(categoryOptions, item.category),
     price: item.price,
-    note:
-      isTextbook && item.hasWriting != null
-        ? item.hasWriting
-          ? '書き込みあり'
-          : '書き込みなし'
-        : labelOf(conditionOptions, item.condition),
+    note: conditionNote(item.category, item.hasWriting, item.condition),
     tint: categoryTint[item.category],
     imageUrl: item.thumbnail?.url,
   }
