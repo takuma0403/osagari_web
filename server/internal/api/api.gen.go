@@ -181,6 +181,24 @@ func (e LoginRecheckReason) Valid() bool {
 	}
 }
 
+// Defines values for PaymentMethod.
+const (
+	Card   PaymentMethod = "card"
+	Paypay PaymentMethod = "paypay"
+)
+
+// Valid indicates whether the value is a known member of the PaymentMethod enum.
+func (e PaymentMethod) Valid() bool {
+	switch e {
+	case Card:
+		return true
+	case Paypay:
+		return true
+	default:
+		return false
+	}
+}
+
 // Defines values for SellerStatus.
 const (
 	SellerStatusApproved SellerStatus = "approved"
@@ -253,6 +271,54 @@ func (e StudentCardUploadInputContentType) Valid() bool {
 	case StudentCardUploadInputContentTypeImagejpeg:
 		return true
 	case StudentCardUploadInputContentTypeImagewebp:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for TransactionRole.
+const (
+	Buyer  TransactionRole = "buyer"
+	Seller TransactionRole = "seller"
+)
+
+// Valid indicates whether the value is a known member of the TransactionRole enum.
+func (e TransactionRole) Valid() bool {
+	switch e {
+	case Buyer:
+		return true
+	case Seller:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for TransactionStatus.
+const (
+	TransactionStatusCancelled TransactionStatus = "cancelled"
+	TransactionStatusCompleted TransactionStatus = "completed"
+	TransactionStatusExpired   TransactionStatus = "expired"
+	TransactionStatusInDeal    TransactionStatus = "in_deal"
+	TransactionStatusRejected  TransactionStatus = "rejected"
+	TransactionStatusRequested TransactionStatus = "requested"
+)
+
+// Valid indicates whether the value is a known member of the TransactionStatus enum.
+func (e TransactionStatus) Valid() bool {
+	switch e {
+	case TransactionStatusCancelled:
+		return true
+	case TransactionStatusCompleted:
+		return true
+	case TransactionStatusExpired:
+		return true
+	case TransactionStatusInDeal:
+		return true
+	case TransactionStatusRejected:
+		return true
+	case TransactionStatusRequested:
 		return true
 	default:
 		return false
@@ -624,6 +690,9 @@ type PasswordResetCompletion struct {
 	SetupToken string `json:"setupToken"`
 }
 
+// PaymentMethod 支払い方法（ADR 0021）
+type PaymentMethod string
+
 // PublicItem BROWSE 商品ページに出す商品。status が in_deal・completed なら売り切れ（購入希望は出せない）。
 // `isOwn` はログイン中の本人が出品者かどうか。`itemId` は本人の出品のときだけ入る（出品の編集に使う）。
 type PublicItem struct {
@@ -659,6 +728,43 @@ type PublicItem struct {
 	Status   ItemStatus       `json:"status"`
 	Textbook *TextbookDetails `json:"textbook"`
 	Title    string           `json:"title"`
+}
+
+// PurchaseRequest DEAL-1 出品者に見せる承認待ちの購入希望。購入者の学籍番号は含めない
+type PurchaseRequest struct {
+	// ApprovalDeadline 承認期限
+	ApprovalDeadline time.Time `json:"approvalDeadline"`
+
+	// Buyer 購入希望の一覧に出す購入者の情報。学籍番号は含めない（DEAL-1）
+	Buyer RequestBuyer `json:"buyer"`
+
+	// RequestedAt 購入希望を出した日時
+	RequestedAt   time.Time `json:"requestedAt"`
+	TransactionId string    `json:"transactionId"`
+}
+
+// PurchaseRequestInput DEAL-1 購入希望の入力
+type PurchaseRequestInput struct {
+	// PaymentMethod 支払い方法（ADR 0021）
+	PaymentMethod PaymentMethod `json:"paymentMethod"`
+}
+
+// PurchaseRequestList defines model for PurchaseRequestList.
+type PurchaseRequestList struct {
+	// Requests 希望の古い順
+	Requests []PurchaseRequest `json:"requests"`
+}
+
+// RequestBuyer 購入希望の一覧に出す購入者の情報。学籍番号は含めない（DEAL-1）
+type RequestBuyer struct {
+	// AdmissionYear 入学年度
+	AdmissionYear int `json:"admissionYear"`
+
+	// CompletedDealCount 購入者・出品者として取引を完了した回数
+	CompletedDealCount int `json:"completedDealCount"`
+
+	// DepartmentName 学部・学科の名前。不明なら null
+	DepartmentName *string `json:"departmentName"`
 }
 
 // SellerStatus 出品者の承認状態
@@ -809,6 +915,65 @@ type TextbookDetails struct {
 	Isbn *string `json:"isbn,omitempty"`
 }
 
+// Transaction DEAL 取引（購入希望の段階を含む）。`counterpartStudentNumber` は承認（取引成立）の後だけ入り、それより前は null（DEAL-1）。
+// 手数料の3項目は出品者にだけ、取引成立の後に入る（PAY-2, ADR 0003）。
+type Transaction struct {
+	// ApprovalDeadline 承認期限（購入希望から48時間）
+	ApprovalDeadline time.Time `json:"approvalDeadline"`
+
+	// CounterpartStudentNumber 相手の学籍番号。承認の後だけ入る（DEAL-1）
+	CounterpartStudentNumber *string `json:"counterpartStudentNumber"`
+
+	// CreatedAt 購入希望を出した日時
+	CreatedAt time.Time `json:"createdAt"`
+
+	// Fee 手数料（円）。出品者で取引成立後だけ入る
+	Fee *int64 `json:"fee"`
+
+	// FeeRateBasisPoints 適用した手数料率（ベーシスポイント）。出品者で取引成立後だけ入る
+	FeeRateBasisPoints *int   `json:"feeRateBasisPoints"`
+	Id                 string `json:"id"`
+
+	// IdentityDisclosedAt 学籍番号を開示した日時（承認時）
+	IdentityDisclosedAt *time.Time `json:"identityDisclosedAt"`
+
+	// Item 取引に出す商品の情報
+	Item TransactionItem `json:"item"`
+
+	// PaymentMethod 支払い方法（ADR 0021）
+	PaymentMethod PaymentMethod `json:"paymentMethod"`
+
+	// Price 金額（購入希望の時点の商品価格。円）
+	Price int64 `json:"price"`
+
+	// Role ログイン中の本人がその取引の購入者か出品者か
+	Role TransactionRole `json:"role"`
+
+	// SellerAcknowledgedAt 出品者が確認モーダルに同意した日時（DEAL-2）
+	SellerAcknowledgedAt *time.Time `json:"sellerAcknowledgedAt"`
+
+	// SellerProceeds 出品者の売上（円）。出品者で取引成立後だけ入る
+	SellerProceeds *int64 `json:"sellerProceeds"`
+
+	// Status 取引のステータス。requested は購入希望（承認待ち）
+	Status TransactionStatus `json:"status"`
+}
+
+// TransactionItem 取引に出す商品の情報
+type TransactionItem struct {
+	ShareId string `json:"shareId"`
+
+	// Status 商品のステータス
+	Status ItemStatus `json:"status"`
+	Title  string     `json:"title"`
+}
+
+// TransactionRole ログイン中の本人がその取引の購入者か出品者か
+type TransactionRole string
+
+// TransactionStatus 取引のステータス。requested は購入希望（承認待ち）
+type TransactionStatus string
+
 // UserStatus ユーザーの状態
 type UserStatus string
 
@@ -823,6 +988,9 @@ type ShareId = string
 
 // StudentCardId defines model for StudentCardId.
 type StudentCardId = string
+
+// TransactionId defines model for TransactionId.
+type TransactionId = string
 
 // LoginParams defines parameters for Login.
 type LoginParams struct {
@@ -902,6 +1070,9 @@ type CreateItemJSONRequestBody = ItemCreation
 // CreateItemImageUploadJSONRequestBody defines body for CreateItemImageUpload for application/json ContentType.
 type CreateItemImageUploadJSONRequestBody = ImageUploadInput
 
+// CreatePurchaseRequestJSONRequestBody defines body for CreatePurchaseRequest for application/json ContentType.
+type CreatePurchaseRequestJSONRequestBody = PurchaseRequestInput
+
 // UpdateItemJSONRequestBody defines body for UpdateItem for application/json ContentType.
 type UpdateItemJSONRequestBody = ItemInput
 
@@ -979,6 +1150,9 @@ type ServerInterface interface {
 	// GetPublicItem 共有用IDで商品の詳細を取得する
 	// (GET /items/shared/{shareId})
 	GetPublicItem(ctx *echo.Context, shareId ShareId) error
+	// CreatePurchaseRequest 購入希望を出す
+	// (POST /items/shared/{shareId}/requests)
+	CreatePurchaseRequest(ctx *echo.Context, shareId ShareId) error
 	// GetOwnItem 自分の商品を取得する（編集用）
 	// (GET /items/{itemId})
 	GetOwnItem(ctx *echo.Context, itemId ItemId) error
@@ -988,6 +1162,9 @@ type ServerInterface interface {
 	// PublishItem 商品を公開する（再出品を含む）
 	// (POST /items/{itemId}/publish)
 	PublishItem(ctx *echo.Context, itemId ItemId) error
+	// ListPurchaseRequests 自分の商品に届いている購入希望の一覧を取得する
+	// (GET /items/{itemId}/requests)
+	ListPurchaseRequests(ctx *echo.Context, itemId ItemId) error
 	// WithdrawItem 商品を取り下げる
 	// (POST /items/{itemId}/withdraw)
 	WithdrawItem(ctx *echo.Context, itemId ItemId) error
@@ -1006,6 +1183,18 @@ type ServerInterface interface {
 	// CreateStudentCardUpload 学生証画像のアップロード用の署名付きURLを発行する
 	// (POST /student-cards/uploads)
 	CreateStudentCardUpload(ctx *echo.Context) error
+	// GetTransaction 取引の詳細を取得する
+	// (GET /transactions/{transactionId})
+	GetTransaction(ctx *echo.Context, transactionId TransactionId) error
+	// AcknowledgeTransaction 取引成立の確認モーダルに同意する
+	// (POST /transactions/{transactionId}/acknowledge)
+	AcknowledgeTransaction(ctx *echo.Context, transactionId TransactionId) error
+	// ApproveTransaction 購入希望を承認する
+	// (POST /transactions/{transactionId}/approve)
+	ApproveTransaction(ctx *echo.Context, transactionId TransactionId) error
+	// RejectTransaction 購入希望を却下する
+	// (POST /transactions/{transactionId}/reject)
+	RejectTransaction(ctx *echo.Context, transactionId TransactionId) error
 	// ReceivePaymentWebhook 決済サービスからの通知を受ける（枠だけ）
 	// (POST /webhooks/payment)
 	ReceivePaymentWebhook(ctx *echo.Context) error
@@ -1374,6 +1563,22 @@ func (w *ServerInterfaceWrapper) GetPublicItem(ctx *echo.Context) error {
 	return err
 }
 
+// CreatePurchaseRequest converts echo context to params.
+func (w *ServerInterfaceWrapper) CreatePurchaseRequest(ctx *echo.Context) error {
+	var err error
+	// ------------- Path parameter "shareId" -------------
+	var shareId ShareId
+
+	err = runtime.BindStyledParameterWithOptions("simple", "shareId", ctx.Param("shareId"), &shareId, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "string", Format: "", ValueIsUnescaped: ctx.Request().URL.RawPath == ""})
+	if err != nil {
+		return echo.NewHTTPError(http.StatusBadRequest, fmt.Sprintf("Invalid format for parameter shareId: %s", err))
+	}
+
+	// Invoke the callback with all the unmarshaled arguments
+	err = w.Handler.CreatePurchaseRequest(ctx, shareId)
+	return err
+}
+
 // GetOwnItem converts echo context to params.
 func (w *ServerInterfaceWrapper) GetOwnItem(ctx *echo.Context) error {
 	var err error
@@ -1419,6 +1624,22 @@ func (w *ServerInterfaceWrapper) PublishItem(ctx *echo.Context) error {
 
 	// Invoke the callback with all the unmarshaled arguments
 	err = w.Handler.PublishItem(ctx, itemId)
+	return err
+}
+
+// ListPurchaseRequests converts echo context to params.
+func (w *ServerInterfaceWrapper) ListPurchaseRequests(ctx *echo.Context) error {
+	var err error
+	// ------------- Path parameter "itemId" -------------
+	var itemId ItemId
+
+	err = runtime.BindStyledParameterWithOptions("simple", "itemId", ctx.Param("itemId"), &itemId, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "string", Format: "", ValueIsUnescaped: ctx.Request().URL.RawPath == ""})
+	if err != nil {
+		return echo.NewHTTPError(http.StatusBadRequest, fmt.Sprintf("Invalid format for parameter itemId: %s", err))
+	}
+
+	// Invoke the callback with all the unmarshaled arguments
+	err = w.Handler.ListPurchaseRequests(ctx, itemId)
 	return err
 }
 
@@ -1480,6 +1701,70 @@ func (w *ServerInterfaceWrapper) CreateStudentCardUpload(ctx *echo.Context) erro
 
 	// Invoke the callback with all the unmarshaled arguments
 	err = w.Handler.CreateStudentCardUpload(ctx)
+	return err
+}
+
+// GetTransaction converts echo context to params.
+func (w *ServerInterfaceWrapper) GetTransaction(ctx *echo.Context) error {
+	var err error
+	// ------------- Path parameter "transactionId" -------------
+	var transactionId TransactionId
+
+	err = runtime.BindStyledParameterWithOptions("simple", "transactionId", ctx.Param("transactionId"), &transactionId, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "string", Format: "", ValueIsUnescaped: ctx.Request().URL.RawPath == ""})
+	if err != nil {
+		return echo.NewHTTPError(http.StatusBadRequest, fmt.Sprintf("Invalid format for parameter transactionId: %s", err))
+	}
+
+	// Invoke the callback with all the unmarshaled arguments
+	err = w.Handler.GetTransaction(ctx, transactionId)
+	return err
+}
+
+// AcknowledgeTransaction converts echo context to params.
+func (w *ServerInterfaceWrapper) AcknowledgeTransaction(ctx *echo.Context) error {
+	var err error
+	// ------------- Path parameter "transactionId" -------------
+	var transactionId TransactionId
+
+	err = runtime.BindStyledParameterWithOptions("simple", "transactionId", ctx.Param("transactionId"), &transactionId, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "string", Format: "", ValueIsUnescaped: ctx.Request().URL.RawPath == ""})
+	if err != nil {
+		return echo.NewHTTPError(http.StatusBadRequest, fmt.Sprintf("Invalid format for parameter transactionId: %s", err))
+	}
+
+	// Invoke the callback with all the unmarshaled arguments
+	err = w.Handler.AcknowledgeTransaction(ctx, transactionId)
+	return err
+}
+
+// ApproveTransaction converts echo context to params.
+func (w *ServerInterfaceWrapper) ApproveTransaction(ctx *echo.Context) error {
+	var err error
+	// ------------- Path parameter "transactionId" -------------
+	var transactionId TransactionId
+
+	err = runtime.BindStyledParameterWithOptions("simple", "transactionId", ctx.Param("transactionId"), &transactionId, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "string", Format: "", ValueIsUnescaped: ctx.Request().URL.RawPath == ""})
+	if err != nil {
+		return echo.NewHTTPError(http.StatusBadRequest, fmt.Sprintf("Invalid format for parameter transactionId: %s", err))
+	}
+
+	// Invoke the callback with all the unmarshaled arguments
+	err = w.Handler.ApproveTransaction(ctx, transactionId)
+	return err
+}
+
+// RejectTransaction converts echo context to params.
+func (w *ServerInterfaceWrapper) RejectTransaction(ctx *echo.Context) error {
+	var err error
+	// ------------- Path parameter "transactionId" -------------
+	var transactionId TransactionId
+
+	err = runtime.BindStyledParameterWithOptions("simple", "transactionId", ctx.Param("transactionId"), &transactionId, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "string", Format: "", ValueIsUnescaped: ctx.Request().URL.RawPath == ""})
+	if err != nil {
+		return echo.NewHTTPError(http.StatusBadRequest, fmt.Sprintf("Invalid format for parameter transactionId: %s", err))
+	}
+
+	// Invoke the callback with all the unmarshaled arguments
+	err = w.Handler.RejectTransaction(ctx, transactionId)
 	return err
 }
 
@@ -1562,7 +1847,13 @@ func RegisterHandlersWithOptions(router EchoRouter, si ServerInterface, options 
 	router.PUT(options.BaseURL+"/items/:itemId", wrapper.UpdateItem, options.OperationMiddlewares["updateItem"]...)
 	router.POST(options.BaseURL+"/items/:itemId/publish", wrapper.PublishItem, options.OperationMiddlewares["publishItem"]...)
 	router.POST(options.BaseURL+"/items/:itemId/withdraw", wrapper.WithdrawItem, options.OperationMiddlewares["withdrawItem"]...)
+	router.GET(options.BaseURL+"/items/:itemId/requests", wrapper.ListPurchaseRequests, options.OperationMiddlewares["listPurchaseRequests"]...)
 	router.GET(options.BaseURL+"/items/shared/:shareId", wrapper.GetPublicItem, options.OperationMiddlewares["getPublicItem"]...)
+	router.POST(options.BaseURL+"/items/shared/:shareId/requests", wrapper.CreatePurchaseRequest, options.OperationMiddlewares["createPurchaseRequest"]...)
+	router.GET(options.BaseURL+"/transactions/:transactionId", wrapper.GetTransaction, options.OperationMiddlewares["getTransaction"]...)
+	router.POST(options.BaseURL+"/transactions/:transactionId/approve", wrapper.ApproveTransaction, options.OperationMiddlewares["approveTransaction"]...)
+	router.POST(options.BaseURL+"/transactions/:transactionId/reject", wrapper.RejectTransaction, options.OperationMiddlewares["rejectTransaction"]...)
+	router.POST(options.BaseURL+"/transactions/:transactionId/acknowledge", wrapper.AcknowledgeTransaction, options.OperationMiddlewares["acknowledgeTransaction"]...)
 	router.GET(options.BaseURL+"/settings/fee-rate", wrapper.GetFeeRate, options.OperationMiddlewares["getFeeRate"]...)
 	router.GET(options.BaseURL+"/admin/session", wrapper.GetAdminSession, options.OperationMiddlewares["getAdminSession"]...)
 	router.GET(options.BaseURL+"/admin/student-cards", wrapper.ListPendingStudentCards, options.OperationMiddlewares["listPendingStudentCards"]...)
@@ -2465,6 +2756,46 @@ func (response GetPublicItemdefaultJSONResponse) VisitGetPublicItemResponse(w ht
 	return err
 }
 
+type CreatePurchaseRequestRequestObject struct {
+	ShareId ShareId `json:"shareId"`
+	Body    *CreatePurchaseRequestJSONRequestBody
+}
+
+type CreatePurchaseRequestResponseObject interface {
+	VisitCreatePurchaseRequestResponse(w http.ResponseWriter) error
+}
+
+type CreatePurchaseRequest201JSONResponse Transaction
+
+func (response CreatePurchaseRequest201JSONResponse) VisitCreatePurchaseRequestResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(201)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type CreatePurchaseRequestdefaultJSONResponse struct {
+	Body       Error
+	StatusCode int
+}
+
+func (response CreatePurchaseRequestdefaultJSONResponse) VisitCreatePurchaseRequestResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response.Body); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(response.StatusCode)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
 type GetOwnItemRequestObject struct {
 	ItemId ItemId `json:"itemId"`
 }
@@ -2572,6 +2903,45 @@ type PublishItemdefaultJSONResponse struct {
 }
 
 func (response PublishItemdefaultJSONResponse) VisitPublishItemResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response.Body); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(response.StatusCode)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type ListPurchaseRequestsRequestObject struct {
+	ItemId ItemId `json:"itemId"`
+}
+
+type ListPurchaseRequestsResponseObject interface {
+	VisitListPurchaseRequestsResponse(w http.ResponseWriter) error
+}
+
+type ListPurchaseRequests200JSONResponse PurchaseRequestList
+
+func (response ListPurchaseRequests200JSONResponse) VisitListPurchaseRequestsResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(200)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type ListPurchaseRequestsdefaultJSONResponse struct {
+	Body       Error
+	StatusCode int
+}
+
+func (response ListPurchaseRequestsdefaultJSONResponse) VisitListPurchaseRequestsResponse(w http.ResponseWriter) error {
 
 	var buf bytes.Buffer
 	if err := json.NewEncoder(&buf).Encode(response.Body); err != nil {
@@ -2814,6 +3184,162 @@ func (response CreateStudentCardUploaddefaultJSONResponse) VisitCreateStudentCar
 	return err
 }
 
+type GetTransactionRequestObject struct {
+	TransactionId TransactionId `json:"transactionId"`
+}
+
+type GetTransactionResponseObject interface {
+	VisitGetTransactionResponse(w http.ResponseWriter) error
+}
+
+type GetTransaction200JSONResponse Transaction
+
+func (response GetTransaction200JSONResponse) VisitGetTransactionResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(200)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type GetTransactiondefaultJSONResponse struct {
+	Body       Error
+	StatusCode int
+}
+
+func (response GetTransactiondefaultJSONResponse) VisitGetTransactionResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response.Body); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(response.StatusCode)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type AcknowledgeTransactionRequestObject struct {
+	TransactionId TransactionId `json:"transactionId"`
+}
+
+type AcknowledgeTransactionResponseObject interface {
+	VisitAcknowledgeTransactionResponse(w http.ResponseWriter) error
+}
+
+type AcknowledgeTransaction200JSONResponse Transaction
+
+func (response AcknowledgeTransaction200JSONResponse) VisitAcknowledgeTransactionResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(200)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type AcknowledgeTransactiondefaultJSONResponse struct {
+	Body       Error
+	StatusCode int
+}
+
+func (response AcknowledgeTransactiondefaultJSONResponse) VisitAcknowledgeTransactionResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response.Body); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(response.StatusCode)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type ApproveTransactionRequestObject struct {
+	TransactionId TransactionId `json:"transactionId"`
+}
+
+type ApproveTransactionResponseObject interface {
+	VisitApproveTransactionResponse(w http.ResponseWriter) error
+}
+
+type ApproveTransaction200JSONResponse Transaction
+
+func (response ApproveTransaction200JSONResponse) VisitApproveTransactionResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(200)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type ApproveTransactiondefaultJSONResponse struct {
+	Body       Error
+	StatusCode int
+}
+
+func (response ApproveTransactiondefaultJSONResponse) VisitApproveTransactionResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response.Body); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(response.StatusCode)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type RejectTransactionRequestObject struct {
+	TransactionId TransactionId `json:"transactionId"`
+}
+
+type RejectTransactionResponseObject interface {
+	VisitRejectTransactionResponse(w http.ResponseWriter) error
+}
+
+type RejectTransaction200JSONResponse Transaction
+
+func (response RejectTransaction200JSONResponse) VisitRejectTransactionResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(200)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type RejectTransactiondefaultJSONResponse struct {
+	Body       Error
+	StatusCode int
+}
+
+func (response RejectTransactiondefaultJSONResponse) VisitRejectTransactionResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response.Body); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(response.StatusCode)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
 type ReceivePaymentWebhookRequestObject struct {
 }
 
@@ -2914,6 +3440,9 @@ type StrictServerInterface interface {
 	// GetPublicItem 共有用IDで商品の詳細を取得する
 	// (GET /items/shared/{shareId})
 	GetPublicItem(ctx context.Context, request GetPublicItemRequestObject) (GetPublicItemResponseObject, error)
+	// CreatePurchaseRequest 購入希望を出す
+	// (POST /items/shared/{shareId}/requests)
+	CreatePurchaseRequest(ctx context.Context, request CreatePurchaseRequestRequestObject) (CreatePurchaseRequestResponseObject, error)
 	// GetOwnItem 自分の商品を取得する（編集用）
 	// (GET /items/{itemId})
 	GetOwnItem(ctx context.Context, request GetOwnItemRequestObject) (GetOwnItemResponseObject, error)
@@ -2923,6 +3452,9 @@ type StrictServerInterface interface {
 	// PublishItem 商品を公開する（再出品を含む）
 	// (POST /items/{itemId}/publish)
 	PublishItem(ctx context.Context, request PublishItemRequestObject) (PublishItemResponseObject, error)
+	// ListPurchaseRequests 自分の商品に届いている購入希望の一覧を取得する
+	// (GET /items/{itemId}/requests)
+	ListPurchaseRequests(ctx context.Context, request ListPurchaseRequestsRequestObject) (ListPurchaseRequestsResponseObject, error)
 	// WithdrawItem 商品を取り下げる
 	// (POST /items/{itemId}/withdraw)
 	WithdrawItem(ctx context.Context, request WithdrawItemRequestObject) (WithdrawItemResponseObject, error)
@@ -2941,6 +3473,18 @@ type StrictServerInterface interface {
 	// CreateStudentCardUpload 学生証画像のアップロード用の署名付きURLを発行する
 	// (POST /student-cards/uploads)
 	CreateStudentCardUpload(ctx context.Context, request CreateStudentCardUploadRequestObject) (CreateStudentCardUploadResponseObject, error)
+	// GetTransaction 取引の詳細を取得する
+	// (GET /transactions/{transactionId})
+	GetTransaction(ctx context.Context, request GetTransactionRequestObject) (GetTransactionResponseObject, error)
+	// AcknowledgeTransaction 取引成立の確認モーダルに同意する
+	// (POST /transactions/{transactionId}/acknowledge)
+	AcknowledgeTransaction(ctx context.Context, request AcknowledgeTransactionRequestObject) (AcknowledgeTransactionResponseObject, error)
+	// ApproveTransaction 購入希望を承認する
+	// (POST /transactions/{transactionId}/approve)
+	ApproveTransaction(ctx context.Context, request ApproveTransactionRequestObject) (ApproveTransactionResponseObject, error)
+	// RejectTransaction 購入希望を却下する
+	// (POST /transactions/{transactionId}/reject)
+	RejectTransaction(ctx context.Context, request RejectTransactionRequestObject) (RejectTransactionResponseObject, error)
 	// ReceivePaymentWebhook 決済サービスからの通知を受ける（枠だけ）
 	// (POST /webhooks/payment)
 	ReceivePaymentWebhook(ctx context.Context, request ReceivePaymentWebhookRequestObject) (ReceivePaymentWebhookResponseObject, error)
@@ -3674,6 +4218,47 @@ func (sh *strictHandler) GetPublicItem(ctx *echo.Context, shareId ShareId) error
 	return nil
 }
 
+// CreatePurchaseRequest operation middleware
+func (sh *strictHandler) CreatePurchaseRequest(ctx *echo.Context, shareId ShareId) error {
+	var request CreatePurchaseRequestRequestObject
+
+	request.ShareId = shareId
+
+	var body CreatePurchaseRequestJSONRequestBody
+	var err error
+	if _, ok := ctx.Echo().Binder.(*echo.DefaultBinder); ok {
+		// Bind only the request body, so that path and query parameters
+		// are not also bound into the body struct.
+		err = echo.BindBody(ctx, &body)
+	} else {
+		// A custom binder is installed on the Echo instance; defer to it
+		// entirely, since echo.Binder does not expose body-only binding.
+		err = ctx.Bind(&body)
+	}
+	if err != nil {
+		return err
+	}
+	request.Body = &body
+
+	handler := func(ctx *echo.Context, request interface{}) (interface{}, error) {
+		return sh.ssi.CreatePurchaseRequest(ctx.Request().Context(), request.(CreatePurchaseRequestRequestObject))
+	}
+	for _, middleware := range sh.middlewares {
+		handler = middleware(handler, "CreatePurchaseRequest")
+	}
+
+	response, err := handler(ctx, request)
+
+	if err != nil {
+		return err
+	} else if validResponse, ok := response.(CreatePurchaseRequestResponseObject); ok {
+		return validResponse.VisitCreatePurchaseRequestResponse(ctx.Response())
+	} else if response != nil {
+		return fmt.Errorf("unexpected response type: %T", response)
+	}
+	return nil
+}
+
 // GetOwnItem operation middleware
 func (sh *strictHandler) GetOwnItem(ctx *echo.Context, itemId ItemId) error {
 	var request GetOwnItemRequestObject
@@ -3759,6 +4344,31 @@ func (sh *strictHandler) PublishItem(ctx *echo.Context, itemId ItemId) error {
 		return err
 	} else if validResponse, ok := response.(PublishItemResponseObject); ok {
 		return validResponse.VisitPublishItemResponse(ctx.Response())
+	} else if response != nil {
+		return fmt.Errorf("unexpected response type: %T", response)
+	}
+	return nil
+}
+
+// ListPurchaseRequests operation middleware
+func (sh *strictHandler) ListPurchaseRequests(ctx *echo.Context, itemId ItemId) error {
+	var request ListPurchaseRequestsRequestObject
+
+	request.ItemId = itemId
+
+	handler := func(ctx *echo.Context, request interface{}) (interface{}, error) {
+		return sh.ssi.ListPurchaseRequests(ctx.Request().Context(), request.(ListPurchaseRequestsRequestObject))
+	}
+	for _, middleware := range sh.middlewares {
+		handler = middleware(handler, "ListPurchaseRequests")
+	}
+
+	response, err := handler(ctx, request)
+
+	if err != nil {
+		return err
+	} else if validResponse, ok := response.(ListPurchaseRequestsResponseObject); ok {
+		return validResponse.VisitListPurchaseRequestsResponse(ctx.Response())
 	} else if response != nil {
 		return fmt.Errorf("unexpected response type: %T", response)
 	}
@@ -3937,6 +4547,106 @@ func (sh *strictHandler) CreateStudentCardUpload(ctx *echo.Context) error {
 	return nil
 }
 
+// GetTransaction operation middleware
+func (sh *strictHandler) GetTransaction(ctx *echo.Context, transactionId TransactionId) error {
+	var request GetTransactionRequestObject
+
+	request.TransactionId = transactionId
+
+	handler := func(ctx *echo.Context, request interface{}) (interface{}, error) {
+		return sh.ssi.GetTransaction(ctx.Request().Context(), request.(GetTransactionRequestObject))
+	}
+	for _, middleware := range sh.middlewares {
+		handler = middleware(handler, "GetTransaction")
+	}
+
+	response, err := handler(ctx, request)
+
+	if err != nil {
+		return err
+	} else if validResponse, ok := response.(GetTransactionResponseObject); ok {
+		return validResponse.VisitGetTransactionResponse(ctx.Response())
+	} else if response != nil {
+		return fmt.Errorf("unexpected response type: %T", response)
+	}
+	return nil
+}
+
+// AcknowledgeTransaction operation middleware
+func (sh *strictHandler) AcknowledgeTransaction(ctx *echo.Context, transactionId TransactionId) error {
+	var request AcknowledgeTransactionRequestObject
+
+	request.TransactionId = transactionId
+
+	handler := func(ctx *echo.Context, request interface{}) (interface{}, error) {
+		return sh.ssi.AcknowledgeTransaction(ctx.Request().Context(), request.(AcknowledgeTransactionRequestObject))
+	}
+	for _, middleware := range sh.middlewares {
+		handler = middleware(handler, "AcknowledgeTransaction")
+	}
+
+	response, err := handler(ctx, request)
+
+	if err != nil {
+		return err
+	} else if validResponse, ok := response.(AcknowledgeTransactionResponseObject); ok {
+		return validResponse.VisitAcknowledgeTransactionResponse(ctx.Response())
+	} else if response != nil {
+		return fmt.Errorf("unexpected response type: %T", response)
+	}
+	return nil
+}
+
+// ApproveTransaction operation middleware
+func (sh *strictHandler) ApproveTransaction(ctx *echo.Context, transactionId TransactionId) error {
+	var request ApproveTransactionRequestObject
+
+	request.TransactionId = transactionId
+
+	handler := func(ctx *echo.Context, request interface{}) (interface{}, error) {
+		return sh.ssi.ApproveTransaction(ctx.Request().Context(), request.(ApproveTransactionRequestObject))
+	}
+	for _, middleware := range sh.middlewares {
+		handler = middleware(handler, "ApproveTransaction")
+	}
+
+	response, err := handler(ctx, request)
+
+	if err != nil {
+		return err
+	} else if validResponse, ok := response.(ApproveTransactionResponseObject); ok {
+		return validResponse.VisitApproveTransactionResponse(ctx.Response())
+	} else if response != nil {
+		return fmt.Errorf("unexpected response type: %T", response)
+	}
+	return nil
+}
+
+// RejectTransaction operation middleware
+func (sh *strictHandler) RejectTransaction(ctx *echo.Context, transactionId TransactionId) error {
+	var request RejectTransactionRequestObject
+
+	request.TransactionId = transactionId
+
+	handler := func(ctx *echo.Context, request interface{}) (interface{}, error) {
+		return sh.ssi.RejectTransaction(ctx.Request().Context(), request.(RejectTransactionRequestObject))
+	}
+	for _, middleware := range sh.middlewares {
+		handler = middleware(handler, "RejectTransaction")
+	}
+
+	response, err := handler(ctx, request)
+
+	if err != nil {
+		return err
+	} else if validResponse, ok := response.(RejectTransactionResponseObject); ok {
+		return validResponse.VisitRejectTransactionResponse(ctx.Response())
+	} else if response != nil {
+		return fmt.Errorf("unexpected response type: %T", response)
+	}
+	return nil
+}
+
 // ReceivePaymentWebhook operation middleware
 func (sh *strictHandler) ReceivePaymentWebhook(ctx *echo.Context) error {
 	var request ReceivePaymentWebhookRequestObject
@@ -3965,174 +4675,200 @@ func (sh *strictHandler) ReceivePaymentWebhook(ctx *echo.Context) error {
 // const string: with thousands of chunks the chained `+` fold is several
 // times slower for the Go compiler than parsing a slice literal.
 var swaggerSpec = []string{
-	"7H3rUxPZvui/0pV77pdzgiSA86BqV11H3bPZdx6W6Jm7azsXmqSRzJCEk3TG8VhWpTuC4TUgCoqgiIPA",
-	"yBCc0a0MQf1w/5SmO/CJf+HW77fW6l7dvToPAXX2nvkwJqR7PX/v55VQLJ0cSKeUlJoNtV8JDcgZOamo",
-	"Sga/nVK+S8SUjjh8jivZWCYxoCbSqVB7yCjMGIWfDH3Z0J8bWknqT8fk/k41nZEvKpKhre28vmeu3zG0",
-	"24a2UFnbsObXdtfvmMVH5vrk/nbxxPlzf/miqXV/ezgUDiVgvD5FjiuZUDiUkpNKqD30f5rI3E0d8VA4",
-	"lI31KUkZVqFeHoCfs2omkboYuno1HOpQlaRoheb0kHlTM7RSxyk2yYCs9jlTJMiL4VBG+a9cIqPEQ+1q",
-	"JqdUn62zT84oVaczB3+x5ocrt1Y7Tu1vFz85++VXnae5jbrXkKXDNbgINRdXUupJORMXLmV9uXJrYXd1",
-	"u8rms64hGpn+KjycHUinsgrCyOlMJp2BD7F0SlVSKnyUBwb6EzEZ1tP8TRYWdYUb8d8ySm+oPfQ/mh3Q",
-	"aya/ZpvJaDiLB+D0VQC4wjaeAH0cRjsRTyZS3In4z+PEqc87vpAqpcXK5NBuftDQ1naXRw1tztBHuaNa",
-	"teZ/3tnaMrSSVRg0H/yyv100N36yFsqGtgKP/TJemX5sTrww9KnK4Io5WTS0WUMfNfL6yRNnT5EbHsik",
-	"B5SMmiAnI8eTiWw2kU79TZEz3FEmUqpyUcmEcI8DckZNKin1C7wX79KtH1bN0l2CRub68l5h1SiUYTUr",
-	"NwyttLu4WlnaMifHjby+szlu3fnB0B4b+rCUyvX3w13n+vvlnn6FXarnKsMh5fuBREbJfokX1JvOJGU1",
-	"1B6Ky6oSEjydiAvgAaDhu4RySYmfUAWgSE8Q1m/dfmTN6kZeJ380h8cNbYMt1TV5k5pIKvWsP6vKai5b",
-	"C6Y44OgkL+Cr+McvcskeJSOib4tGYdsorBn6Q6MwbBR+NvTfALs5SBCdUTbXk0yoKjsN4bb8CO1g39/h",
-	"lO2NeZfpA5iwB8j4K3UvxnVPX9uLSPd8o8RUWPlJOTmQy/pPwpy4bWg3rM1FQ7ttbo5Z83OGvm4UfjQK",
-	"T43CDUP/DSZN5ZKw9r506ps0EpkeJduXSMqhr33bDYdO5jIZJaWez4oPft3Qnxj6klF4urO5Dujoxksj",
-	"r7O/rBnaA0O7sfv6lqHNHgz94Pea4OY8fjIdV4TI4Efo2kiYlBP9wsEOBT2zSn+/kumsD1P4Z+vGr/NZ",
-	"9zsexKoD3MkR+KHdC9yeC+D/IMINFy7YGMXvUYQIp2ExHamBHAKFG6bsu/LgyBKwCEMrCckGcBKObPwv",
-	"JZ47Fosdy8oX5abcMTl27JuB/e1hIIzD4+arMUMrVX7aqsy+NLRVc2nFmrlurt8Gsv9kgn7WSnvatKFd",
-	"M7SNyrXF3eUZwopwx3JyAGAt1PJBS+tHkUhUNFtNGkS2KTwcxu09WKvNGtpvhoZnwDi1+Xq+sn6LiER7",
-	"+bvmy4fm9oQPTWMUlTyM76cF6+ETYL3FJeSAyGu1BUPX+CkM/Sn8vzC8v13MpuRvla6YnFWAHb4alRKp",
-	"7+T+RLyLXH2XmpFT2QSMT08bV2WPYGilnc387vIKcKV4OpZtVpVYX7M8kDiWjEsg454409EUdR1y4Awi",
-	"/Ewq2ax8UbBXs/hT5dYqlUyQpRvaiqGNG/oo8Mz5n3cf32ewVTD0Mu5707UQQ7sJ5zwxY25PG9oGXseK",
-	"oa2ZpbGdrSHkv8sIMK8Ipax+/TGCXGzBIjj4s6KclVXBZs6c+FtTi2QNj1rTT6yZ2coP13033kve/UTO",
-	"JrJn0gmqeXjunxtgf7toFGZx1y+ACxfuEfZgFIpGXj8eiUh/ko7/TyKBJeXvE0lgRtFIJBIJh5KJFPke",
-	"Cfvov2fXgmUJd57LpBJqLqOcACFXTsWUU4oqJ/oFm+g4d/pzySw9NwdfAP6Wnu/NlUFse/3SHHmw92Cw",
-	"MleCvWk/GfqYoes75bJ1bUIkScJnlKZP9imxbxWRzD86vfNyvvJwa/fxOPLM4cq1Reeie9LpfkVOIX1O",
-	"/Lfg2gz9H3Co+hY5w8+U1EW1D09RBCy+Q/mLIverfX566TAQJiKkvxXIBJ6byAYT546kfFE5STSNc5cH",
-	"hDt5CGhSuA2SBMVsIB6VW2WzMAFYgnQIgYrXYVcqmyXzyQRc1Dx8JkKroeuAenm989yXZ098SjU5tpkE",
-	"rKb5mwHlYihMv1xSegaEUg+u/PxAf1oWXB8dXbIX6d+FOVj0wQVlcCLJu/LyV3NyfKd8x9DGz5/9jMCE",
-	"OfKbNb+wNzsZJHH7Vk30cipPxZG2yf1nXIsQyEAugnD+HBoEYCU3gIgX7uDO8kZhe3+7SNYJpGpyDciT",
-	"PkaVKnLHTXDJEqg12k/k7H0gkVTUvnSch7Ez588Jr4C887+Vy4Ljmi3vjf1qaCt7eQ0WoD8G6NA3DX3F",
-	"0DeMQtGcHN/fLnZfMQrLSImeG4XtjlNXm6+cP99x6mq3a23OjDm87/OZ/poXVJMoO4vnh7W371xVmAOL",
-	"QBQigBgg5cTc+FVN9vPho5+XOL8JV6MqyZOyqlxMZy6LkHnNKAwZ+jOj8JjDO1X5Xu1Jp78FMGbkuEtm",
-	"9DgUDl2Uk0pXWu1TMmJchEnTKQLPVWw5lZHn1uDo/nYxpVzq6k98q0jWzBPzpmZOjlkrd6Rm6WI6HZcq",
-	"c6XK2qih/QhKuv4CgfW21Cz1yomMZOjXDP0a/lk39BE3/WDDworTeInwTvCSM4rMViz393/ZG2r/e43r",
-	"ARsXXvLVsPeWB3I9/Ylsn3/7oKdIxJJgDv68NzMKelhe65X7s+zvO5uj1twmyCjaKpEudl7OExHUy3E8",
-	"8MBm9cPC12Eh+7y+xexqj8yROXYUCHfBdJTcoDk0W5lfMLTVvZlfd5dXKrdW4U59ePe2aWo1MvRidW9u",
-	"COg/nCuQRQnZypfslSzQUnPwEaGTQpJTB7HZ3y5+evqckGZVozpIb2oQFxvg2q9Uuc5C2d4puVe0YNkw",
-	"tWHor1HGKxoFquSbrwf3HhRBqs1rBCqZTrBKX+FUECLaEwkLtCiEg6h1/+5O+dHO5oihjdHh8vqFVDej",
-	"Jt0SiP4xSowkQxuT2E8SdyWwGiOvdff6BEEygIAieV9HJkMZ3YWUXyWyTTHVcJsabK6GQzGOftaiBjat",
-	"hfd4EljzRfthL4v3XvTu45+tOz9YM9fdsmRLRCBMhkP+Y6y1mmAJ/Go45EEX/+piQEQVm4YQRiiBpomG",
-	"LnNihlByoQiAYLpsaE8NbYyoansPhkJh9CWIhaGk/H0H+THq7F7OZGS8gYFMIiYgYzuvFq0HIB2ZQ0ME",
-	"S23KkkipH7T5FB1e04lGBLpO2OGZNU73HH2OO1M1ofbjKr2aQTKRsr/XoiRkEP8FBVGRzxJZAREh/hTJ",
-	"5tBUZS+UraX5yrOHQN//MWndn/fhlH1DHj1z5knlXt5zibVQoTOXTMoEhbwXmlK+V0/mMlmRkaTy/C5q",
-	"9VMAYw7lWpNi+IKLspv5JSOv0ze0MZQpbsBP2pO6rftqWpUFvMC6t7hTfo4Sd9HQhhxh58WENf1kf7vo",
-	"LGdv5uHOax0nh98MrWjooy62EaRMk7Nka3CdS9CFE+NjrSsv3CXmD1j/9S1DmyUcBa0njoXY5bDRNkC3",
-	"AMPRY0O7tr9dPHX6xGdN0bpcNh7BcPCRub5s/vbM3FoOhd/An+P34ZiT4+YwoSsNO3A8Z17DNxB47raO",
-	"HiAFo81lCI/9tdveH8/IvWoozIQ6hXkSlayKnxOprriC9w+Y1K+Qv15KqH3xjHyJuCiyA0oqrsQDhV6G",
-	"bEFw4aEABP1x1WtM/WeQghv6HXLbWDqXySpBHsKi9WidaKfW9Gxl5QYIUYWyOaHv5gvwGUSP1wTYa5KM",
-	"Pjn7VSahwjf/TCic7b7aNrTXtonpALNyNimbDfrYnB/FbFgTSejWfB4t6GtMRHQcj3WL59kaLn6HApXM",
-	"uS2zdPf82c+k7makeM3t9O1utHm8fG1oQ6E3dlxy2AnkvC+X7ElR/0MD6h9qSn7tCsRhFI9LRDz2XRTP",
-	"+GvY6+woBtvLwri9jSw8/LMLDzPc4zfnAncXRLrvXkTOPktfTKRO9sn9/UpKpB7SuBPJHBonplKiEvI+",
-	"R6OgoXPzZ/isbxp5nXg5jcIGIydjQHKuP6MGQrC8rxr61O4iasJ5jfcokFkAMYbGQejnYMJDhNiiz6W/",
-	"VVLV3aLeJcIGigiTG0bh6f52MXrcLA4R1dQolHc28+bWMlE8cHYfExf4Ij2zc1vay2s7rxfNwSJaULlV",
-	"0b2h7Cx2gw0fwEMFECdnaxNPBIGzSgwM5WfJGz6TlPus7ZHDVfxebsgKspv5LrGGn8X9fOC8h+mMfKdu",
-	"xnBoQM5mL6Uz8dqHw3zC9huBx+O+bf95MGQnav/uMgiClcmhyq1fXKFoRl4Hx1cXMXDEpT9JNjfh4H+F",
-	"jUVcaqOGPtwasW4/YpaFBYoBeQ2Me3EMYpP+JJnFeyiBLhP8JyFxqP3vbC5aM78By3p5E4fcQDO4Y9iQ",
-	"+FUxgwGTwPjfUMxmcwrlKf64/lPJJHppkNYbgHI4wHHrAJ22Yv4yguCz8IG1SARJeowuEIpEW1rbjtd2",
-	"SnqxFucXAcWXl1LA+KpaoHbzg3YUiRMNVktArI/rMlHxawFH5YXH+nm4I0YKx+QFywYGtV8Tj4p2kgbi",
-	"mHxWoZrSptj0U98OqhiBRLsJCI5BY4RA9xHaduqUtKpYeXzibcARHYK4ixolMn5d534lUQB+Y8Ibxt+9",
-	"r6IyZ+uqD5x8Vq+vGxCHwSEXlw8e9PfGYjR/+JxQTaE7LPSXneDcZTyQ8ZjPb0xEac9Q3nxWySoYklWD",
-	"qRwxx+Dk10MNhKrCawJOQIn7d59V1NxAoHjv0jF2V9fN0l2inOxs5gGdD0fC9ypuzpLq2BxacIQXy0t1",
-	"Hi0zQoRJIh5FWz7ivo7a4tdxO3jHNie3fOQ2L4tcB+4TrXurNWTKM4AMMbEEUcsWSf6e1wkCowuJ2sCM",
-	"Qtm2gTHn6o+/GvqIWbxu6GP728Xdp9tgXyQhttoGjjjHbJbDxFWVyH55KYVupuA42THOIjoKwUXaEHzI",
-	"690k4wFfZw+XbP8q759CMzRcj/0rc9dRQs0W9Pt3Xb1ToeStSB8IM40EWvMAhNZoWK4wlixRO/fGyOu4",
-	"AOJOJZEFflgbAbuJVkaALbHY7o26PR3vl/3Q9mPUFFjIk25B6vcoAAXaA+0cq3cr0dArYbggovqdnjB5",
-	"D0DzTqbh12A5xNAgPpYnncKJlVScGCvlgYFM+jvqE4FpApwcnYmLqdzAv6T05N26SGxSsmoiSUON68jy",
-	"Oc0e98kH75vEFXa2Vu1s/kWkLj6nsUZsF8vZs4NlSXgXiWvi0vzgcgxtrTK7tbs4RmyXIp/v0Qd8HTAk",
-	"KxwKTrDbXb2DcavAp8gxwCIbYVieG/MGeXGT17g2oJ2Ca4PsSMkRN7ncVJIHCIT0qd/odoCswkLZmn/M",
-	"Anp5d/qRJhl6U6fciYABYoY1MYlyvmsnh7h6cWB9g5mB/vzJqinHzrW6+OMbMEZu3lwPDWXwk8Eq4ZTE",
-	"ksGN01i0VwPRkTXOrVbcv5+m/ZEA8C4SACCNDFGDuzvQdavmBbilq54PYtHeD5WmaLxFbmqLHT/e9LF8",
-	"PNrU0hvp/aC3Nf5xLBpp/jD+Ye9xuUVpao1Fe5raeiNK00dyJNb0QSyqfNzTEm/rjUZ/L+kEPiivL6ng",
-	"95C002AqA3cS/5lQLgUVIgiSXwgrF4akpTpdibG+gRnnh81zAlDNbHWexb6BrGC/HhatssoRneZken+E",
-	"RlNLWMJ/2yR3HB84W/mKCCTc7yBBfJ7UXBT+R1qsRU36DwnilT0xCy2Rlg/CNfPIBTtqk0i5BuI/rlLS",
-	"wfE053V8fo1YAJ2/U7PI/naRRAz6wipaP6pHqvHnslePVOQSbT0n1mrk549bixpmM4rWUkeS/IGiJJ35",
-	"KpND5otH5HXJ/lJZudFwMQyvvOZwTlhN8Z41v2Dml+AwOGiS/kPaeV2CcLzfnu3NTsKdt1rzxdaodfuR",
-	"Z+1t5m/PfKcVaY00RVqbWqNe7iz2i3lIgl9pr62NHlW+vQj3vRYmsXs+KJqw8aTZuqIma6e7vkFQpNhW",
-	"msqqmVxMFUWGW6OD5sub1vSseXOxnhUlsj0CKO3o/OQLsFRE0PozGm2FfyF+bQKtvNMYpLWxN7uERqJl",
-	"VqLJ0YsdCPr4w4/aIuy/UF0pwFwVCIGxxUmatNPqOJYsx9TEd4orHJhBUxwBjYQOCzl0VonlMgn1cico",
-	"YszThkB8Mp3+NoGXjwWQYuSrXQKpq4s+5+xPHkiARITlhxKp3rR/J39OZJQeOatIf0lnASKwMEBGuZRJ",
-	"qAr4e1akbigZ0Pzv/94tGfqUdLI/nYtLZ3Ng/17bLT/EIEBy4kVBfQGpsvaA+VZ2H4+jQrUhddtL7ZbI",
-	"pva3i39R1YEvU/2Xw1InnIASljrlpNKZUJU/fSZ/TwbxVN7CsbjKWt0SL4vbQq69tJzaZ6+ND5O6kLIN",
-	"ue2hnZeTu0/z5tKKoY3sbI5CsoI+gtD22Cjch02BDUHJEOUtFDkWPRZBWXxASckDiVB7qPVY5Fgr2ofU",
-	"Pry/ZpQmmtn1tF8JXVTUAHEqLP35dDtf3Ak5Q0ukjSjS7rjJMvfciisMoi3SJqXSaldvOpeK22akyq3y",
-	"3r2HcGzwOxnbyI9xjr8xDB5aIrIJZdV5zPFAh6CR10+cOitFItHj3NHZ6fxg8Q99qqikhpUNja76Wi2R",
-	"NoG0z/ZB2GmvnOtXgywU9mh2cS3AMxpUH+JOhHMW6lOVh1v4QaNphvLFLGIqrDT0NYzBbonwkKaYnIln",
-	"a90VGIPaJWqqeTVoaBBATi0DRM+qvCwZ2rg1MYc21WG8Hjto5ZpjZ9CnjLzGzCclcwKI2t4D8FCSckAA",
-	"/Uy+liDsxJ8G4rMOgNQOOOyxGIqvDfKTzpCVc0Nk/dcXaag4Wl3+Pl/NM5/bz19AjT903hB3YAgKGtjQ",
-	"p1hBldmGgKj5iqs63dVmajBCnTKdbQS6GgIo4tghQdwe/7jf8wPEnRmyJBTTZ1k+p2cBZCIgPoKVLKC1",
-	"kvld8UV0xnqp08fB1WxouhPZhSdVzEXWxHB8gmyCh6awqwxkgOPQeaTZXY8QPIcHQoHGIN8P6eSaSIjz",
-	"IYK5AFIOCNfE+nnUYG2+ALOIVSw3ANnMLuuCbBIzDcEjYxoGOlM66uVwvy/4P4tb/ScCf/6+jxIJuHlm",
-	"D4AEYESqU24wtHseFxJl8foUbwGjPjF9ypp5gn/xCgYHARdg+x6RIfuuIaYumcGz6HpEBpdd8tBAR2j2",
-	"rC0shGsTybBEDb7t0t69+zSEpzBp6L+gklPkAUb69PQ5iUzm98Ryzn4gavoUkwiBgAYYW1ep/06fojvi",
-	"BAIvvCE1pMcwZg6P7M0uWZtFNCGg+lIHHJ4UCa+HD4jRQyNdPge/AOCcY2bebHBlHBXkgVdMeLXuKwyi",
-	"bTm1r7kfEmqqMHCw/UbDTHtmH463S9WSCvMa8w875mCWdWTnG1nzj62tPPxBWyK+KwZBJaL1Q7UqXtdH",
-	"9YoosBohpFgN8JU7hw9SBAT2BrBlEPK5v11sQbs4gqUg9QmFEEhfGrVznuw1OQtwopbWvMFKaMLy4B8a",
-	"JiBIsP7Mzbpjdtxba2FbC6wAjJ4omhnHhxoUyi5MLpQ9d2wn08E2xrbM4iOM770rtUWitnQTyyiAJQm5",
-	"PwtWCDIysysC0y0u4YvTvtjgqmmqkAUC02rz1vpDFLAonWmV5FgsnUupXbbpDZ5b+gWPvsgbvkmgMqwB",
-	"1Oi8DU+uUfg0NQLsHwiAnRX9KSzgmY6Zk2OGdsd90CvRiDl3HytgXEOfHsAN3ujezE1ISaRFuOEIoYhG",
-	"W8vHkppOdyXl1OUuWoQgi1sIuCCt5JpQ19kqimgEWaMFL7Rla/0hsYOQo66RD6wPm3P38d2NCIxSLDM2",
-	"0BJpAeuC48qhcM3VMOKyh0meLWbOwHBm8fneLNTOJ4Qni9FhzRBZl5WwpIheGVzBOyGJhAtkXPGxBIg2",
-	"SMwaZSF2jwDCPXCCT9Lxy4fGOLgU2KtuBwaNSj0yaZsvVC3gVj7KuRByxUt0KmqTY4P2vAtlXAtQ0LSw",
-	"gq+X3tDKW7U7Aqy5JdJyuFfh5NeLlA9/sm1ed0iptuaFfoy+eVMWT03/ofa/f80z/ADSverD3BX3FXq5",
-	"fU7t8zH75gxJnyWoV531f9HU2i65pvBm7o9R7sT4oq2x1OaGQFOI2ZP3DVPGhhV7cNRRyhy8E1euLRK2",
-	"6CLuhfLOy9eVW6seaTRi8yc8gy47F9dD5w+NdtGYrOFA8mXNrNOHGO3EfgKc/1wb46Ucm+EHGQGySirO",
-	"p0dTh+eRETRPLYG6KFtLtcoMR4dOHE6XfMxrpDL3zGMAqIo230Gg9+WaeBOW/FDl57S2nEzWZ2tg1twz",
-	"ikl5jcc/+NWWRfUpIhd45Ga0eKHIlNeqCcI0eX+cLWnDhSffcaH8XQDpGLrkKuANwkFpFDLAEEmIcFEN",
-	"Gwtlj9h03Jy7D1W6tFvsRLggEViNbxUu+exIiYIPxTDC/zKPYkeJXqIiB39ID41LD2+BjLgKajTIj9M5",
-	"tRYpAWWbVr4vec9Nn4JJtEnIEiCgT5A/CPOt50WC+X6lmZneJ4iyBR5oD60Qyduw/nr8vWy+hxD4WCg2",
-	"Ci/VdvM2QcC3jRo3zDJGmjJKVlHrE7na2iUPXXdLgfXbG4isUK/+iBmLrm4S5R8NfQLMFtqakR+jg2jT",
-	"nKvmFdYduQkRA1rJWiyaQ4MuYwdtoLHh3RCVeVapxsp8NHVaDCAoAY/KtnUQm4ahjaGNYsi/L1zSMDFW",
-	"OHQf87s8UC5S5Tf542ayISi7lVure/lboKTPPNldnrDP2SOom0PjJD8Lf+Ixr2QTFXJveKSrxOoUNYug",
-	"xkeBSRbKUWtWR8PBGuGar9DHBNWEd58PosgMAoW9z2oWBSqZ0BAbz4HDcYHxC68eRhJbFYIE0U4lFffV",
-	"FDgiRsk1unlT8ZNkUdDQfm3BBkAGqlxIScDBEBgHVnTYpCYAhLQSDazymWEaJER1irJt9YmyKKkeRUri",
-	"P5HAGiBTvi18qV7t5C1Ll8GFR4TNE4Xi1sK7xDm2jkZFAFJDo26sO94u+ZEHvI20VuGyY3Jxr55E0lZL",
-	"o0XUohu8bXtVuG5OJev2QwyxDRI8oVw9J3jaDkO+3hyJjqCnpU+Ri4MhkXnVpQHz3h7tJqfpuuxfNPqD",
-	"qb9SDeXXE0gK5haduNHtKetQtKnY4gkvdd3VG6ulmHzcpUL2sZ+6ghdw+gWKRWOVjWvm3K/m0oxgEAZ/",
-	"Xf0YkU1knIbcKMFeEvs8b4vWt2EuDTNb3jW3oc2BOsI7avhXqBnO0KeYR4IoMQBHD2AUXqbSp6i/g3ny",
-	"9mZu7m8X21o+RgvdBsuCAAGKPblAgUvsqaYo66JY75+bIajY0ftmNXBftT5lLg1bc8/8ti43Ov+zGxeC",
-	"qDhHomswGt4qXYu7tLRLNVs+/t8LF+JXProKhTMuXDgWi124QItnXLhwTIZv3wz8G7F5N6iQVtdu61FC",
-	"2bsYbFNL9+Sy0Q+qeP6hbr6P6qZThOUPPfONCI8DSm+kW/KEp06dsuVd65TaKsnDpd0W/ulVzCPHkYAi",
-	"UG9Z+BDUY3p32mRNzKpTg7Txqz7NkSWftxj5+fq1yAMrj/5Mdz6zmORCk6RoVzIyDFKslG6zKK+H0PZE",
-	"X6bdcfUp0paPKFUBQX8uQTGv/aH2Bal9gZoNQZv3T6XxlRCri5xE35ouI4JWqzj5r67LBKswgTiOp1Yf",
-	"HeTr6VWJWrZrcLRLPCFmGbHUwkAKh7Km5bQ4rK//FlAzRqZIz0ZSmg3E4apy3MbuyjISF9sEIg7t0qdo",
-	"iufa7vYwp24UIQlZ34B28XCgrF8JETK0afbYMG0sj8lR1sx1V3moINGZ1TChce3viewcOex4faeeoiDR",
-	"jpMBDzvmyM8O7aIgbr7oYYesPkwwMvTZvcppxpEvHZt2Mz/Cw6UziFIgVrfNwvjO5vohHygZl4hM3Llk",
-	"L2dVJUlPxs4jEqZikdrX7ZLTE7hQdtes1tHOUKLVf/Upzj4t6lCglYQJWk5G4UdEMOATFb3Uj0VQ7m8X",
-	"SREJkkVOsyDJQtyJ38SpT3sgOl1jSR0RalQfu86ZV3Wc1jHYY9rFglPtmxeOvlUug9SAJbZZd50VDPa/",
-	"TkLzdh/f58ciofRkICBXfNvbQtlupApgziqWwGeuXIhRKEPdD1JVGWuiaFS6tH54yFQy1kdyg1l1SlK3",
-	"05GRVKrojrEvdhtKbdkmgOzAxqCIzfqPkLWfScSUzxOksDP5In8vgeFBH8FqEON42Jr54wjJ9HTaXNJa",
-	"bpzY1SPHmckjOO2ug/aU9EhZXo5PCog5gji5B3oJAKAr0okvThGejoVB/iunZC47dUHoHbo4fo2KLNBc",
-	"WzQUV+S4PrrgLnN+NezdHd/tb6+wahaHiKodvBtXM7WGNiRqSYtmg1ESzGsODaHIDw4laFfKJYYErIWB",
-	"jGsl/s62rJFtRNRltMq6Rg62Lvn7g61LDAC0cHWdAjN5PHg4rlJ2AwBlvyU4PxI27dAFhyyAtXFeq0w/",
-	"shttm4PFvQfrhB0HgRu+WlVa9i0hSkw2hIrulJ9b008CRu9PJBOqa3CbQ7ZEuJ7Ix139kAXXdZQ52nbz",
-	"YlF6hLtv8cFTG21ezLFdu6cxSOTe/sgeuYiw/ODsWqjJ1S5103LqqPBLvXJ/VqHVcOym7V7uxTVtRy6u",
-	"0dr/j9GyYa96lSg1xEwBY7xBF3fbrUAsgYxHBbEXjQwkeo5p/3AqXVgasovUxqQGGpbEy+o/TLvLLjhp",
-	"5K0SKTnfBVm8rExItUReAJojUiGQBMAk78ACwFqxCVABrhxFIgK3B0cFBv6sZwm1MdkQChmpCHi0jKwH",
-	"A2wBuBkvvolcfBVXIKAGl3FO5mewVXLnna9V5p5ZPzySSC1cQk5R5dRKVbPPjbx2/PNPJOI/cqei02AR",
-	"dz3UDSSicKpSNzWRoHTHPCfLUrdd7BUlPScfniwNLC+OqVCHDMJuu1QsERSdBvpGoUz6Q8EXLBPW7enu",
-	"3u1qag7LFXbVh7pkV/gicR2nrjZfOX++49TVbl8G/dEgH+ak0zLNR4SHzgwNKPTRo5i/Vu69ByYPCTcd",
-	"3PBV+yUeKc+0HmCvirPYciTefIW2HrlaW4t1t3CCbHlvXzqakcZ3dtJKuz89rTx7wit9tfThNXPkAXjO",
-	"8po5MWNuT5MnyWezNLazNYTJ2WN8Oyj0ylPeKNFmUuRcDG0lQE2+kHJIHY5v6KQg3xR8xZAlR0rQVmE9",
-	"B1asfXXzvN017azqvE7/om1IFxWVMgaJ+VDsjlL8mjxd/HHf0/4u/oFl9bhOXg0XxiAwcLTVfLj1BcqK",
-	"hyAi/gKxArdWO06BLcIHxwCIr27XgWJXSDOfYNTyMkQPKLgNQ4GwStU1CKlwUIxSDowNwRodQoIhqtzi",
-	"lJ0nPjC+x1SpChyv3zHnVxmrdlVGZLUbbvNBLcy8xTEl1k8WaMXyqKujL20jx4p+2kgQCMlMjmoUjJGz",
-	"HTEUV5HxDgmEd68/xuAaB4B4oAUTD3anq9xaFYt20A4qULfhNQ6qa+hT7lJloxwIbghlnNLO5rKhgdPS",
-	"7t1GS3fjy6x7HlrFABBKkKrNYwDHQ1zY4MAodZk4ZJ9EBFFpTR/bKT9CV+ZG7WppfqWRM4Q2oHhVQ2Nt",
-	"I0gdbAARj1DtOm8LrgdDqqPR196Jx6cKIhMAptXkDllfY8hRNwNqptaI6qpZu+TApjYqRip9isMFJwC/",
-	"IYTyIiQaInj8GbXtDbvPn6JE6IJZr/H7nWPGGXK6v0t+g7d5NGDKODxlOebQODU0uO3LdYDvpYTaF8/I",
-	"l+qH30K5lpLhYo2cMEWqhASoHY5a8BgFnMYhvV5gFcHZV/QYfpeAxh3yEYGb+xoDICupBErj7tpzx9td",
-	"gS+ClCRO4aPxVkODpL4ZqwY2TLyj7mL+zlsUlgpl8rydLm1rjbbLz1YISAMXXplGy9OQv/5rVMqlwIef",
-	"ziT+O4hwfaqonyuhd5eb4dnWgWEhuEOvc3AB2hsX7pBVVGhUkG3uVZSmjKwGQ8yZE3+DzIbKxCtUfUrW",
-	"8Kg1/cSama38cB1jaWbx3l9gLM09VtGo6MkxJVTRiRNyAmlGdpdH7U4Z/pihCyl7QqAgBBOIe0/6f7cl",
-	"sg6A3Kg5NETLH+pTxKlrja8i21vYWxx3yNSHVDdDmodBwT+h3giHRYYDlzj9dcwqTlbWWITCrF4hmVP5",
-	"JXu8SGs1Y8OfFeUsadVyZPDHphAJaKJLO3hzANGowVDHQI1BnrczgJjZeSq3+i3ESGQo4NNwDEKIfGZE",
-	"Oyj8r2dOfyoZ2qj0ldJzxiiUwYhOIm+pB8qRnaiVjcUZ3/bYxTyVse0S1Z6+Ba7szQAaxoWokpPpgpOx",
-	"PUy6PTaQTr5ot5N4AwkorOkBrXjFl2T2qK1AlPEZZuXXMe6N60rR5jDyWVzwGtmvJ7i2uj4pyivxNtE7",
-	"qrB5YYvIt2xY9/VAFVrXAbyoqMD3PT0wkxB0zqOtxVxFb1k0NoF2d4n2NT8mu1BXgM7NMcILA5kJqdgt",
-	"bHQa1AOW5yLeHqjUBo7dz9Iphe/u4RTz9ZmI7fLMJ850MAvKmMeB5vQIDCTtlO97wfloAy+rgtOhglDN",
-	"5rxVKH5NOKnpRq2vcPebOlDfE59pt6+rKI5kZ3W+oVv0kKn2SXG73KOn3e/QK+rf7dv2jdbR+rdB96gI",
-	"Ky8pPX3p9LegRF9mjSrFCPnXLz/pBD3Amv+5Mv0YRKBftgCy9H/gYm6S9OZONZMYUKST6VRKialGoXzm",
-	"xN+O/fUMH91JWmKV9vJ3KwuPkIbcJq4Yc+JHxMJpgHaA7a0oJBqTabQxo4D71zdwLCrsXUjR2Hx9avfx",
-	"OgZE3EXtYRpFQiyk7a25Zu/ALC3s/jgIrlgiVs2xYqBUrFqDRATah7hkLc0TwZBOiCW/MWgXIwof3ag8",
-	"uwbhas+f8l7YlmBP5FklpiS+U86Qg/+KXERdZd/8aa/eQ2P7d5xRh52F57v8KhcLtoP7DwindZvDGPgB",
-	"NLpn87Xr+/vXYNXJKpnvmC0I++eHoFUeGnzomFeEkfMsKRCg0AkcpGHugoBabya4q11cUGI4TV2zzStk",
-	"r3Qu1L39M7nalpD5tFWey+5vF1280DWoG6UFoxNbZKFMreleb8wqH4Kxv110+WpdMxHzkuCkeBWQGgxL",
-	"9nGg7cC9YqYM+oeyxTJz8gZCShGbeLBs33qb9tkuK5/3lutIxN0LNm8QbCyYznlAfX+7SIgjKwTvIWAM",
-	"9J05bbC/+vXV/z8A",
+	"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",
 }
 
 // decodeSpec returns the embedded OpenAPI spec as raw JSON bytes,

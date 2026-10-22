@@ -467,6 +467,27 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/items/{itemId}/requests": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * 自分の商品に届いている購入希望の一覧を取得する
+         * @description DEAL-1: 出品者が承認する相手を選ぶための、承認待ち（status が requested）の購入希望を希望の古い順に返す。
+         *     購入者の学籍番号は返さない（承認前は開示しない）。ほかの人の商品は 404 not_found。
+         */
+        get: operations["listPurchaseRequests"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/items/shared/{shareId}": {
         parameters: {
             query?: never;
@@ -483,6 +504,115 @@ export interface paths {
         get: operations["getPublicItem"];
         put?: never;
         post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/items/shared/{shareId}/requests": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * 購入希望を出す
+         * @description DEAL-1, JOBS-2: 公開中・購入希望ありの商品に購入希望を出し、支払い方法の枠を確保する（フェーズ1はモックで記録するだけ）。
+         *     金額は購入希望の時点の商品価格、承認期限は購入希望から48時間（ADR 0022）。商品は購入希望ありになる。
+         *     商品ページで見られない商品は 404 not_found、自分の商品は 403 forbidden、
+         *     取引中・取引完了の商品と、同じ商品に承認待ちの購入希望をすでに出しているときは 409 invalid_status_transition。
+         */
+        post: operations["createPurchaseRequest"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/transactions/{transactionId}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * 取引の詳細を取得する
+         * @description DEAL-1, DEAL-2: ログイン中の本人が購入者か出品者の取引を返す。相手の学籍番号は承認（取引成立）の後だけ入る。
+         *     当事者でない取引は 404 not_found（存在するかどうかを区別しない）。
+         */
+        get: operations["getTransaction"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/transactions/{transactionId}/approve": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * 購入希望を承認する
+         * @description DEAL-1, PAY-2, JOBS-2: 出品者が購入希望を1件承認して取引を成立させる。代金を預かり、その時点の手数料率・手数料・出品者の売上を記録し（ADR 0003）、
+         *     双方の学籍番号を開示する。同じ商品のほかの購入希望は却下して枠を解放する。商品は取引中になる。
+         *     承認待ちでない・承認期限を過ぎた・同じ商品の取引がすでに成立しているときは 409 invalid_status_transition。
+         *     出品者でなければ 404 not_found。
+         */
+        post: operations["approveTransaction"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/transactions/{transactionId}/reject": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * 購入希望を却下する
+         * @description DEAL-1, JOBS-2: 出品者が購入希望を却下し、枠を解放する。承認待ちの購入希望がなくなったら商品を公開中に戻す（ADR 0022）。
+         *     承認待ちでなければ 409 invalid_status_transition。出品者でなければ 404 not_found。
+         */
+        post: operations["rejectTransaction"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/transactions/{transactionId}/acknowledge": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * 取引成立の確認モーダルに同意する
+         * @description DEAL-2: 出品者が「確認しました」を押した日時を記録する。すでに記録済みなら最初の日時のまま 200 を返す。
+         *     取引中でなければ 409 invalid_status_transition。出品者でなければ 404 not_found。
+         */
+        post: operations["acknowledgeTransaction"];
         delete?: never;
         options?: never;
         head?: never;
@@ -1074,6 +1204,109 @@ export interface components {
             /** @description 入学年度 */
             admissionYear: number;
         };
+        /**
+         * @description 支払い方法（ADR 0021）
+         * @enum {string}
+         */
+        PaymentMethod: "card" | "paypay";
+        /**
+         * @description 取引のステータス。requested は購入希望（承認待ち）
+         * @enum {string}
+         */
+        TransactionStatus: "requested" | "rejected" | "expired" | "in_deal" | "cancelled" | "completed";
+        /**
+         * @description ログイン中の本人がその取引の購入者か出品者か
+         * @enum {string}
+         */
+        TransactionRole: "buyer" | "seller";
+        /** @description DEAL-1 購入希望の入力 */
+        PurchaseRequestInput: {
+            paymentMethod: components["schemas"]["PaymentMethod"];
+        };
+        /**
+         * @description DEAL 取引（購入希望の段階を含む）。`counterpartStudentNumber` は承認（取引成立）の後だけ入り、それより前は null（DEAL-1）。
+         *     手数料の3項目は出品者にだけ、取引成立の後に入る（PAY-2, ADR 0003）。
+         */
+        Transaction: {
+            id: string;
+            role: components["schemas"]["TransactionRole"];
+            status: components["schemas"]["TransactionStatus"];
+            item: components["schemas"]["TransactionItem"];
+            /**
+             * Format: int64
+             * @description 金額（購入希望の時点の商品価格。円）
+             */
+            price: number;
+            paymentMethod: components["schemas"]["PaymentMethod"];
+            /**
+             * Format: date-time
+             * @description 承認期限（購入希望から48時間）
+             */
+            approvalDeadline: string;
+            /** @description 適用した手数料率（ベーシスポイント）。出品者で取引成立後だけ入る */
+            feeRateBasisPoints: number | null;
+            /**
+             * Format: int64
+             * @description 手数料（円）。出品者で取引成立後だけ入る
+             */
+            fee: number | null;
+            /**
+             * Format: int64
+             * @description 出品者の売上（円）。出品者で取引成立後だけ入る
+             */
+            sellerProceeds: number | null;
+            /**
+             * Format: date-time
+             * @description 学籍番号を開示した日時（承認時）
+             */
+            identityDisclosedAt: string | null;
+            /**
+             * Format: date-time
+             * @description 出品者が確認モーダルに同意した日時（DEAL-2）
+             */
+            sellerAcknowledgedAt: string | null;
+            /** @description 相手の学籍番号。承認の後だけ入る（DEAL-1） */
+            counterpartStudentNumber: string | null;
+            /**
+             * Format: date-time
+             * @description 購入希望を出した日時
+             */
+            createdAt: string;
+        };
+        /** @description 取引に出す商品の情報 */
+        TransactionItem: {
+            shareId: string;
+            title: string;
+            status: components["schemas"]["ItemStatus"];
+        };
+        PurchaseRequestList: {
+            /** @description 希望の古い順 */
+            requests: components["schemas"]["PurchaseRequest"][];
+        };
+        /** @description DEAL-1 出品者に見せる承認待ちの購入希望。購入者の学籍番号は含めない */
+        PurchaseRequest: {
+            transactionId: string;
+            /**
+             * Format: date-time
+             * @description 購入希望を出した日時
+             */
+            requestedAt: string;
+            /**
+             * Format: date-time
+             * @description 承認期限
+             */
+            approvalDeadline: string;
+            buyer: components["schemas"]["RequestBuyer"];
+        };
+        /** @description 購入希望の一覧に出す購入者の情報。学籍番号は含めない（DEAL-1） */
+        RequestBuyer: {
+            /** @description 学部・学科の名前。不明なら null */
+            departmentName: string | null;
+            /** @description 入学年度 */
+            admissionYear: number;
+            /** @description 購入者・出品者として取引を完了した回数 */
+            completedDealCount: number;
+        };
         Health: {
             /** @enum {string} */
             status: "ok";
@@ -1110,6 +1343,8 @@ export interface components {
         ItemId: string;
         /** @description 商品の共有用ID（BROWSE） */
         ShareId: string;
+        /** @description 取引のID */
+        TransactionId: string;
         /** @description ブラウザの localStorage に保存した端末識別子（AUTHN-3） */
         DeviceId: string;
     };
@@ -1710,6 +1945,30 @@ export interface operations {
             default: components["responses"]["Error"];
         };
     };
+    listPurchaseRequests: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description 商品のID */
+                itemId: components["parameters"]["ItemId"];
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description 購入希望の一覧 */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PurchaseRequestList"];
+                };
+            };
+            default: components["responses"]["Error"];
+        };
+    };
     getPublicItem: {
         parameters: {
             query?: never;
@@ -1729,6 +1988,130 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["PublicItem"];
+                };
+            };
+            default: components["responses"]["Error"];
+        };
+    };
+    createPurchaseRequest: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description 商品の共有用ID（BROWSE） */
+                shareId: components["parameters"]["ShareId"];
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["PurchaseRequestInput"];
+            };
+        };
+        responses: {
+            /** @description 作った取引（購入希望） */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Transaction"];
+                };
+            };
+            default: components["responses"]["Error"];
+        };
+    };
+    getTransaction: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description 取引のID */
+                transactionId: components["parameters"]["TransactionId"];
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description 取引 */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Transaction"];
+                };
+            };
+            default: components["responses"]["Error"];
+        };
+    };
+    approveTransaction: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description 取引のID */
+                transactionId: components["parameters"]["TransactionId"];
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description 成立した取引（購入者の学籍番号を含む） */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Transaction"];
+                };
+            };
+            default: components["responses"]["Error"];
+        };
+    };
+    rejectTransaction: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description 取引のID */
+                transactionId: components["parameters"]["TransactionId"];
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description 却下した取引 */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Transaction"];
+                };
+            };
+            default: components["responses"]["Error"];
+        };
+    };
+    acknowledgeTransaction: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description 取引のID */
+                transactionId: components["parameters"]["TransactionId"];
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description 同意を記録した取引 */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Transaction"];
                 };
             };
             default: components["responses"]["Error"];
