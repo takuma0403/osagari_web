@@ -60,20 +60,30 @@ function detailRows(item: PublicItem): DefinitionItem[] {
   return rows.filter((row): row is DefinitionItem => !!row)
 }
 
-/** 下部の主ボタン。本人の出品と売り切れは押せない（編集の導線は商品IDが要るため別 issue） */
+/**
+ * 下部の主ボタン。売り切れは本人でも押せない（取引中・取引完了は編集できない。ADR 0016）。
+ * 本人の出品なら編集画面へ進める。商品IDがない応答では編集先が分からないので押せなくする。
+ */
 function PrimaryAction({ item }: { item: PublicItem }) {
-  if (item.isOwn) {
-    return (
-      <Button className={styles.primary} disabled>
-        自分の出品です
-      </Button>
-    )
-  }
   if (isSoldOut(item)) {
     return (
       <Button className={styles.primary} disabled>
         売り切れ
       </Button>
+    )
+  }
+  if (item.isOwn) {
+    if (!item.itemId) {
+      return (
+        <Button className={styles.primary} disabled>
+          自分の出品です
+        </Button>
+      )
+    }
+    return (
+      <ButtonLink to={`/sell/${item.itemId}`} className={styles.primary}>
+        出品を編集する
+      </ButtonLink>
     )
   }
   return (
