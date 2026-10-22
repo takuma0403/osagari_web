@@ -16,6 +16,8 @@ type Deps struct {
 	StudentCard   StudentCardService
 	// Item は出品・編集・取り下げ（ITEM）
 	Item ItemService
+	// Deal は購入希望・承認・却下と取引の詳細（DEAL-1, DEAL-2）
+	Deal DealService
 	// Setting は手数料率などの設定（PAY-2）
 	Setting SettingService
 	// AdminStudentCard は管理者による学生証の審査（ADMIN）

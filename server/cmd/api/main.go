@@ -17,6 +17,7 @@ import (
 	"github.com/takuma0403/osagari_web/server/internal/handler"
 	"github.com/takuma0403/osagari_web/server/internal/logging"
 	"github.com/takuma0403/osagari_web/server/internal/mail"
+	"github.com/takuma0403/osagari_web/server/internal/payment"
 	"github.com/takuma0403/osagari_web/server/internal/repository"
 	"github.com/takuma0403/osagari_web/server/internal/server"
 	"github.com/takuma0403/osagari_web/server/internal/service"
@@ -153,13 +154,29 @@ func wire(cfg config, gdb *gorm.DB, clk clock.Clock, mailer mail.Mailer, store s
 		Admins:  cfg.Admins,
 		Clock:   clk,
 	})
+	items := repository.NewItemRepository(gdb)
+	transactions := repository.NewTransactionRepository(gdb)
+	settings := repository.NewSettingRepository(gdb)
+	// フェーズ1の決済はモック。payments に記録するだけで外部の決済APIは呼ばない（JOBS-2）
+	payments := payment.NewMock(repository.NewPaymentRepository(gdb), clk)
 	item := service.NewItemService(service.ItemDeps{
-		Tx:      tx,
-		Items:   repository.NewItemRepository(gdb),
-		Users:   users,
-		Storage: store,
-		Bucket:  cfg.ItemImageBucket,
-		Clock:   clk,
+		Tx:           tx,
+		Items:        items,
+		Users:        users,
+		Transactions: transactions,
+		Payments:     payments,
+		Storage:      store,
+		Bucket:       cfg.ItemImageBucket,
+		Clock:        clk,
+	})
+	deal := service.NewDealService(service.DealDeps{
+		Tx:           tx,
+		Items:        items,
+		Users:        users,
+		Transactions: transactions,
+		Settings:     settings,
+		Payments:     payments,
+		Clock:        clk,
 	})
 	return handler.New(handler.Deps{
 		Signup:        signup,
@@ -168,7 +185,8 @@ func wire(cfg config, gdb *gorm.DB, clk clock.Clock, mailer mail.Mailer, store s
 		PasswordReset: reset,
 		StudentCard:   studentCard,
 		Item:          item,
-		Setting:       service.NewSettingService(service.SettingDeps{Settings: repository.NewSettingRepository(gdb)}),
+		Deal:          deal,
+		Setting:       service.NewSettingService(service.SettingDeps{Settings: settings}),
 
 		AdminStudentCard: adminStudentCard,
 	}), session

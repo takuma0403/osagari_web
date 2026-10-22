@@ -282,6 +282,18 @@ func Test商品の閲覧はログインが必要(t *testing.T) {
 	})
 }
 
+// 購入希望・承認・却下と取引の詳細はセッション必須（DEAL-1, DEAL-2）。ログインしていなければ service を呼ばずに 401 を返す。
+func Test取引の操作はログインが必要(t *testing.T) {
+	assertLoginRequired(t, []struct{ method, target string }{
+		{http.MethodPost, "/api/items/shared/share0000001/requests"},
+		{http.MethodGet, "/api/items/item-1/requests"},
+		{http.MethodGet, "/api/transactions/tx-1"},
+		{http.MethodPost, "/api/transactions/tx-1/approve"},
+		{http.MethodPost, "/api/transactions/tx-1/reject"},
+		{http.MethodPost, "/api/transactions/tx-1/acknowledge"},
+	})
+}
+
 // assertLoginRequired は、ログインしていないと各操作が 401 unauthorized になることを確かめる。
 // handler の service は空なので、呼ばれれば panic して 500 になる。
 func assertLoginRequired(t *testing.T, ops []struct{ method, target string }) {
