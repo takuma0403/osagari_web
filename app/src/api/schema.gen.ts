@@ -617,6 +617,27 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/webhooks/payment": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * 決済サービスからの通知を受ける（枠だけ）
+         * @description JOBS-2: 本番の決済サービス（Stripe Connect・PAY.JP など）からの通知を受ける口。フェーズ1は決済がモックなので、
+         *     本文を読まずに何もせず 204 を返す。本番の実装に差し替えるときに、署名の検証と本文の形をこの契約に足す（ADR 0021）。
+         */
+        post: operations["receivePaymentWebhook"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
 }
 export type webhooks = Record<string, never>;
 export interface components {
@@ -1866,6 +1887,25 @@ export interface operations {
                 content: {
                     "application/json": components["schemas"]["AdminStudentCard"];
                 };
+            };
+            default: components["responses"]["Error"];
+        };
+    };
+    receivePaymentWebhook: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description 受け付けた（フェーズ1は何もしない） */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
             };
             default: components["responses"]["Error"];
         };

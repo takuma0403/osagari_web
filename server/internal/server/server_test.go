@@ -235,6 +235,23 @@ func Testセッションの検証はAPI契約に従う(t *testing.T) {
 	}
 }
 
+// 決済サービスからの通知の受け口はセッションなしで受け付け、フェーズ1は何もせず 204 を返す（JOBS-2）。
+func Test決済のWebhookは枠だけ(t *testing.T) {
+	authn := &stubAuthenticator{}
+	srv, _ := newServerWithSessions(t, handler.New(handler.Deps{}), authn)
+
+	req := httptest.NewRequest(http.MethodPost, "/api/webhooks/payment", strings.NewReader(`{"type":"payment_intent.succeeded"}`))
+	req.Header.Set("Content-Type", "application/json")
+	rec := httptest.NewRecorder()
+	srv.ServeHTTP(rec, req)
+	if rec.Code != http.StatusNoContent || rec.Body.Len() != 0 {
+		t.Fatalf("status=%d body=%s", rec.Code, rec.Body.String())
+	}
+	if len(authn.tokens) != 0 {
+		t.Errorf("セッションを確かめた: %v", authn.tokens)
+	}
+}
+
 // 学生証の操作はすべてセッション必須（CARD）。ログインしていなければ service を呼ばずに 401 を返す。
 func Test学生証の操作はログインが必要(t *testing.T) {
 	assertLoginRequired(t, []struct{ method, target string }{

@@ -26,6 +26,8 @@ tags:
     description: 手数料率などの設定（PAY-2）
   - name: admin
     description: 管理者向け（ADMIN）。未ログイン・管理者でなければすべて 404 not_found（ADR 0015）
+  - name: webhooks
+    description: 本番の決済サービスからの通知（JOBS-2）。フェーズ1は枠だけ
 paths:
   /health:
     get:
@@ -762,6 +764,20 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/AdminStudentCard'
+        default:
+          $ref: '#/components/responses/Error'
+  /webhooks/payment:
+    post:
+      tags: [webhooks]
+      operationId: receivePaymentWebhook
+      summary: 決済サービスからの通知を受ける（枠だけ）
+      description: |
+        JOBS-2: 本番の決済サービス（Stripe Connect・PAY.JP など）からの通知を受ける口。フェーズ1は決済がモックなので、
+        本文を読まずに何もせず 204 を返す。本番の実装に差し替えるときに、署名の検証と本文の形をこの契約に足す（ADR 0021）。
+      security: []
+      responses:
+        '204':
+          description: 受け付けた（フェーズ1は何もしない）
         default:
           $ref: '#/components/responses/Error'
 components:
