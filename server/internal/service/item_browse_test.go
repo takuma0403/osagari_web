@@ -138,6 +138,10 @@ func TestItemGetPublic(t *testing.T) {
 				if got.ID != v.ID || got.Status != tt.status || len(got.ImageURLs) != 1 || got.IsOwn != (u.ID == f.seller.ID) {
 					t.Errorf("got = %+v", got)
 				}
+				// 商品IDは本人の出品のときだけ返す
+				if got.IsOwn != (got.OwnItemID != nil) || (got.OwnItemID != nil && *got.OwnItemID != v.ID) {
+					t.Errorf("OwnItemID = %v, IsOwn = %v", got.OwnItemID, got.IsOwn)
+				}
 			}
 		})
 	}
@@ -171,7 +175,7 @@ func TestItemGetPublicSeller(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if got.Seller.DepartmentName == nil || *got.Seller.DepartmentName != "理工学部 理工学科" || got.Seller.AdmissionYear != 2025 || got.IsOwn {
+	if got.Seller.DepartmentName == nil || *got.Seller.DepartmentName != "理工学部 理工学科" || got.Seller.AdmissionYear != 2025 || got.IsOwn || got.OwnItemID != nil {
 		t.Errorf("出品者: got = %+v", got.Seller)
 	}
 
