@@ -79,14 +79,13 @@ func (s *DealService) CreateRequest(ctx context.Context, u *domain.User, shareID
 	if it.SellerID == u.ID {
 		return nil, errOwnItemRequest
 	}
-	if !it.CanRequest() || it.Price == nil {
+	if !it.CanRequest() {
 		return nil, errTransactionConflict
 	}
 	tr := &domain.Transaction{
 		ItemID:           it.ID,
 		BuyerID:          u.ID,
 		SellerID:         it.SellerID,
-		Price:            *it.Price,
 		PaymentMethod:    method,
 		Status:           domain.TransactionStatusRequested,
 		ApprovalDeadline: now.Add(domain.ApprovalTTL),
@@ -99,6 +98,15 @@ func (s *DealService) CreateRequest(ctx context.Context, u *domain.User, shareID
 		if err := s.d.Items.UpdateDealStatus(ctx, it.ID, it.SellerID, from, domain.ItemStatusRequested, now); err != nil {
 			return err
 		}
+		// 価格はトランザクションの中で読み直す。読んだ後に公開中のまま編集されても、記録する金額と食い違わせない
+		cur, err := s.d.Items.FindByID(ctx, it.ID)
+		if err != nil {
+			return err
+		}
+		if cur.Price == nil {
+			return repository.ErrConflict
+		}
+		tr.Price = *cur.Price
 		if err := s.d.Transactions.Create(ctx, tr); err != nil {
 			return err
 		}
