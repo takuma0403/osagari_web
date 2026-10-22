@@ -2,6 +2,9 @@ package domain
 
 import "time"
 
+// ApprovalTTL は購入希望の承認期限（購入希望から48時間。DEAL-1, ADR 0022）。
+const ApprovalTTL = 48 * time.Hour
+
 // Transaction は取引（transactions）。購入希望の段階から1件の取引として作る（DEAL-1, DATA）。
 // 受け渡しトークンは HandoverToken として別に持つ。
 type Transaction struct {
@@ -33,3 +36,30 @@ type Transaction struct {
 	CreatedAt      time.Time
 	UpdatedAt      time.Time
 }
+
+// RoleOf は userID がこの取引の購入者か出品者かを返す。どちらでもなければ ok が false。
+func (t Transaction) RoleOf(userID string) (role TransactionRole, ok bool) {
+	switch userID {
+	case t.BuyerID:
+		return TransactionRoleBuyer, true
+	case t.SellerID:
+		return TransactionRoleSeller, true
+	}
+	return "", false
+}
+
+// CounterpartID は userID から見た取引の相手のユーザーIDを返す。
+func (t Transaction) CounterpartID(userID string) string {
+	if userID == t.BuyerID {
+		return t.SellerID
+	}
+	return t.BuyerID
+}
+
+// TransactionRole はログイン中の本人がその取引の購入者か出品者か。
+type TransactionRole string
+
+const (
+	TransactionRoleBuyer  TransactionRole = "buyer"
+	TransactionRoleSeller TransactionRole = "seller"
+)

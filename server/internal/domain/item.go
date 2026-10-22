@@ -145,6 +145,9 @@ func (i Item) CanPublish() bool { return slices.Contains(ItemPublishableStatuses
 // IsViewable は商品ページでほかの利用者に見せるステータスかを返す（ADR 0018）。
 func (i Item) IsViewable() bool { return slices.Contains(ItemViewableStatuses, i.Status) }
 
+// CanRequest は購入希望を出せるステータスかを返す。一覧に出す商品と同じで、購入希望ありの間も出せる（DEAL-1）。
+func (i Item) CanRequest() bool { return slices.Contains(ItemListableStatuses, i.Status) }
+
 // Normalize は前後の空白を除き、空の任意項目を nil にし、ISBN からハイフンと空白を除いて大文字にする（末尾の X）。
 func (c ItemContent) Normalize() ItemContent {
 	c.Title = strings.TrimSpace(c.Title)
