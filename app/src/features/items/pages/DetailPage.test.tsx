@@ -7,7 +7,7 @@ import { DetailPage } from './DetailPage'
 function setup(at = '/items/abc123') {
   const view = renderRoute('/items/:shareId', <DetailPage />, {
     at,
-    destinations: ['/', '/items/:shareId/request'],
+    destinations: ['/', '/items/:shareId/request', '/sell/:itemId'],
   })
   // user-event はクリップボードを差し替えるので、コピーした文は navigator.clipboard.readText で読む
   return { ...view, user: userEvent.setup() }
@@ -82,11 +82,35 @@ describe('DetailPage', () => {
     )
   })
 
-  it('自分の出品では購入希望を出せない', async () => {
+  it('自分の出品では購入希望の代わりに編集画面へ進める', async () => {
+    stubItemsFetch({
+      '/api/items/shared/abc123': () => json(publicItem({ isOwn: true, itemId: 'item1' })),
+    })
+    const { user, router } = setup()
+    const edit = await screen.findByRole('link', { name: '出品を編集する' })
+    expect(edit).toHaveAttribute('href', '/sell/item1')
+    expect(screen.queryByRole('link', { name: '購入希望を出す' })).not.toBeInTheDocument()
+
+    await user.click(edit)
+    expect(router.state.location.pathname).toBe('/sell/item1')
+  })
+
+  it('自分の出品でも商品IDがなければ押せない', async () => {
     stubItemsFetch({ '/api/items/shared/abc123': () => json(publicItem({ isOwn: true })) })
     setup()
     expect(await screen.findByRole('button', { name: '自分の出品です' })).toBeDisabled()
+    expect(screen.queryByRole('link', { name: '出品を編集する' })).not.toBeInTheDocument()
     expect(screen.queryByRole('link', { name: '購入希望を出す' })).not.toBeInTheDocument()
+  })
+
+  it('売り切れの自分の出品は編集へ進めない', async () => {
+    stubItemsFetch({
+      '/api/items/shared/abc123': () =>
+        json(publicItem({ isOwn: true, itemId: 'item1', status: 'in_deal' })),
+    })
+    setup()
+    expect(await screen.findByRole('button', { name: '売り切れ' })).toBeDisabled()
+    expect(screen.queryByRole('link', { name: '出品を編集する' })).not.toBeInTheDocument()
   })
 
   it.each(['in_deal', 'completed'] as const)(
