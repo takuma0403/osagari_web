@@ -337,6 +337,12 @@ func (r *ItemRepository) UpdateStatus(ctx context.Context, id, sellerID string, 
 	return r.conditionalUpdate(ctx, id, sellerID, from, unchangedSince, cols)
 }
 
+// UpdateDealStatus は取引の進み具合に合わせて商品のステータスを変える（購入希望あり・取引中・公開中に戻す。DEAL-1）。
+// ステータスが from のどれかのときだけ変え、違えば ErrConflict。UpdateStatus と違い公開日時は変えない（新着順を保つ。ADR 0022）。
+func (r *ItemRepository) UpdateDealStatus(ctx context.Context, id, sellerID string, from []domain.ItemStatus, to domain.ItemStatus, now time.Time) error {
+	return r.conditionalUpdate(ctx, id, sellerID, from, nil, map[string]any{"status": string(to), "updated_at": formatTime(now)})
+}
+
 func (r *ItemRepository) conditionalUpdate(ctx context.Context, id, sellerID string, from []domain.ItemStatus, unchangedSince *time.Time, cols map[string]any) error {
 	q := conn(ctx, r.db).Model(&itemRow{}).
 		Where("id = ? AND seller_id = ? AND status IN ?", id, sellerID, enumStrings(from))
