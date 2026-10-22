@@ -33,6 +33,8 @@ func TestEnums(t *testing.T) {
 			func(s string) bool { return domain.PaymentKind(s).Valid() }},
 		{"PaymentMethod", strs(domain.PaymentMethods), []string{"card", "paypay"},
 			func(s string) bool { return domain.PaymentMethod(s).Valid() }},
+		{"PaymentStatus", strs(domain.PaymentStatuses), []string{"pending", "succeeded", "failed"},
+			func(s string) bool { return domain.PaymentStatus(s).Valid() }},
 		{"ItemCategory", strs(domain.ItemCategories), []string{"textbook", "furniture_appliance", "game_other"},
 			func(s string) bool { return domain.ItemCategory(s).Valid() }},
 		{"ItemCondition", strs(domain.ItemConditions), []string{"new_like", "good", "fair"},

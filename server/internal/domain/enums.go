@@ -147,6 +147,20 @@ var PaymentMethods = []PaymentMethod{PaymentMethodCard, PaymentMethodPayPay}
 
 func (v PaymentMethod) Valid() bool { return enumValid(v, PaymentMethods) }
 
+// PaymentStatus は決済のステータス（ADR 0021）。mock は常に succeeded で記録する。
+type PaymentStatus string
+
+const (
+	PaymentStatusPending   PaymentStatus = "pending"   // 処理中
+	PaymentStatusSucceeded PaymentStatus = "succeeded" // 成功
+	PaymentStatusFailed    PaymentStatus = "failed"    // 失敗
+)
+
+// PaymentStatuses は PaymentStatus のすべての値。
+var PaymentStatuses = []PaymentStatus{PaymentStatusPending, PaymentStatusSucceeded, PaymentStatusFailed}
+
+func (v PaymentStatus) Valid() bool { return enumValid(v, PaymentStatuses) }
+
 // ItemCategory は商品のカテゴリ（ITEM）。
 type ItemCategory string
 
