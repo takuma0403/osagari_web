@@ -1019,10 +1019,12 @@ export interface components {
         };
         /**
          * @description BROWSE 商品ページに出す商品。status が in_deal・completed なら売り切れ（購入希望は出せない）。
-         *     `isOwn` はログイン中の本人が出品者かどうか。
+         *     `isOwn` はログイン中の本人が出品者かどうか。`itemId` は本人の出品のときだけ入る（出品の編集に使う）。
          */
         PublicItem: {
             shareId: string;
+            /** @description 商品のID。isOwn が true のときだけ入り、ほかの人には null */
+            itemId: string | null;
             status: components["schemas"]["ItemStatus"];
             title: string;
             category: components["schemas"]["ItemCategory"];

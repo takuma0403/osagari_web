@@ -22,6 +22,7 @@ export function summary(overrides: Partial<ItemSummary> = {}): ItemSummary {
 export function publicItem(overrides: Partial<PublicItem> = {}): PublicItem {
   return {
     shareId: 'abc123',
+    itemId: null,
     status: 'published',
     title: '線形代数入門',
     category: 'textbook',

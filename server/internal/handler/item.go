@@ -220,6 +220,7 @@ func toItemSummary(v *service.ItemView) api.ItemSummary {
 func toPublicItem(v *service.PublicItemView) api.PublicItem {
 	return api.PublicItem{
 		ShareId:            v.ShareID,
+		ItemId:             v.OwnItemID,
 		Status:             api.ItemStatus(v.Status),
 		Title:              v.Title,
 		Category:           api.ItemCategory(deref(v.Category)),

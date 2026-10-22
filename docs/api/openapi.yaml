@@ -1371,11 +1371,15 @@ components:
       type: object
       description: |
         BROWSE 商品ページに出す商品。status が in_deal・completed なら売り切れ（購入希望は出せない）。
-        `isOwn` はログイン中の本人が出品者かどうか。
-      required: [shareId, status, title, category, condition, price, description, campus, images, textbook, furnitureAppliance, publishedAt, seller, isOwn]
+        `isOwn` はログイン中の本人が出品者かどうか。`itemId` は本人の出品のときだけ入る（出品の編集に使う）。
+      required: [shareId, itemId, status, title, category, condition, price, description, campus, images, textbook, furnitureAppliance, publishedAt, seller, isOwn]
       properties:
         shareId:
           type: string
+        itemId:
+          type: string
+          nullable: true
+          description: 商品のID。isOwn が true のときだけ入り、ほかの人には null
         status:
           $ref: '#/components/schemas/ItemStatus'
         title:

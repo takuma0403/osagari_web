@@ -50,6 +50,8 @@ type PublicItemView struct {
 	Seller SellerProfile
 	// IsOwn は見ている本人が出品者かどうか
 	IsOwn bool
+	// OwnItemID は本人の出品のときだけ入る商品ID（出品の編集に使う）。ほかの人には nil
+	OwnItemID *string
 }
 
 // SellerProfile は商品ページに出す出品者の情報。
@@ -128,11 +130,15 @@ func (s *ItemService) GetPublic(ctx context.Context, u *domain.User, shareID str
 	if err != nil {
 		return nil, err
 	}
-	return &PublicItemView{
+	out := &PublicItemView{
 		ItemView: v,
 		Seller:   SellerProfile{DepartmentName: seller.DepartmentName(), AdmissionYear: seller.AdmissionYear},
 		IsOwn:    it.SellerID == u.ID,
-	}, nil
+	}
+	if out.IsOwn {
+		out.OwnItemID = &it.ID
+	}
+	return out, nil
 }
 
 // itemFilter は入力を確かめて検索の条件にする。キーワードは空白で区切り、前後の空白を除いて空なら条件にしない。
