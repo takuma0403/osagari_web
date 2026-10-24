@@ -52,6 +52,14 @@ type PublicItemView struct {
 	IsOwn bool
 	// OwnItemID は本人の出品のときだけ入る商品ID（出品の編集に使う）。ほかの人には nil
 	OwnItemID *string
+	// MyRequest は見ている本人がこの商品に出している承認待ちの購入希望（DEAL-1）。なければ nil
+	MyRequest *MyRequestView
+}
+
+// MyRequestView は購入者本人に見せる、自分の承認待ちの購入希望。
+type MyRequestView struct {
+	TransactionID    string
+	ApprovalDeadline time.Time
 }
 
 // SellerProfile は商品ページに出す出品者の情報。
@@ -108,6 +116,7 @@ func (s *ItemService) List(ctx context.Context, q ItemListQuery) (*ItemListPage,
 
 // GetPublic は共有用IDで商品ページに出す商品を返す（BROWSE, ADR 0018）。公開中・購入希望ありに加え、
 // 取引中・取引完了は売り切れとして返す。それ以外のステータスと、出品者のアカウントが使えない商品は 404（出品者本人も同じ）。
+// 本人が承認待ちの購入希望を出していれば MyRequest に入れる（DEAL-1）。承認期限を過ぎても、期限切れになるまでは入れる（その間は出し直せないため）。
 func (s *ItemService) GetPublic(ctx context.Context, u *domain.User, shareID string) (*PublicItemView, error) {
 	it, seller, err := findPublicItem(ctx, s.d.Items, s.d.Users, shareID, s.d.Clock.Now())
 	if err != nil {
@@ -124,6 +133,15 @@ func (s *ItemService) GetPublic(ctx context.Context, u *domain.User, shareID str
 	}
 	if out.IsOwn {
 		out.OwnItemID = &it.ID
+		return out, nil
+	}
+	tr, err := s.d.Transactions.FindRequestedByItemAndBuyer(ctx, it.ID, u.ID)
+	switch {
+	case errors.Is(err, repository.ErrNotFound):
+	case err != nil:
+		return nil, apperr.Internal(err)
+	default:
+		out.MyRequest = &MyRequestView{TransactionID: tr.ID, ApprovalDeadline: tr.ApprovalDeadline}
 	}
 	return out, nil
 }

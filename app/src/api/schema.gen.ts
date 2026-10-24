@@ -500,6 +500,7 @@ export interface paths {
          * @description BROWSE: 商品ページ（`/items/:shareId`）に出す商品の詳細を返す。公開中・購入希望ありに加え、取引中・取引完了も「売り切れ」として status 付きで返す（ADR 0018）。
          *     下書き・取り下げ・停止の商品と、出品者のアカウントが有効（active）でない商品は 404 not_found（出品者本人も同じ。本人は getOwnItem を使う）。
          *     出品者の学籍番号は返さない（DEAL-1）。
+         *     DEAL-1: ログイン中の本人がこの商品に承認待ち（status が requested）の購入希望を出していれば、`myRequest` にその取引IDと承認期限を入れる。
          */
         get: operations["getPublicItem"];
         put?: never;
@@ -1171,6 +1172,7 @@ export interface components {
         /**
          * @description BROWSE 商品ページに出す商品。status が in_deal・completed なら売り切れ（購入希望は出せない）。
          *     `isOwn` はログイン中の本人が出品者かどうか。`itemId` は本人の出品のときだけ入る（出品の編集に使う）。
+         *     `myRequest` は本人が出している承認待ちの購入希望（DEAL-1）。
          */
         PublicItem: {
             shareId: string;
@@ -1196,6 +1198,20 @@ export interface components {
             seller: components["schemas"]["ItemSeller"];
             /** @description ログイン中の本人が出品者なら true */
             isOwn: boolean;
+            /** @description ログイン中の本人がこの商品に出している承認待ちの購入希望。なければ null（出品者本人も null） */
+            myRequest: components["schemas"]["MyPurchaseRequest"] | null;
+        };
+        /**
+         * @description DEAL-1 購入者本人に見せる、自分が出している承認待ちの購入希望。
+         *     承認期限を過ぎても、定期処理で期限切れになるまでは承認待ちのまま返す（その間は出し直しもできない）。
+         */
+        MyPurchaseRequest: {
+            transactionId: string;
+            /**
+             * Format: date-time
+             * @description 承認期限（購入希望から48時間）
+             */
+            approvalDeadline: string;
         };
         /** @description BROWSE 商品ページに出す出品者の情報。学籍番号は含めない（DEAL-1） */
         ItemSeller: {

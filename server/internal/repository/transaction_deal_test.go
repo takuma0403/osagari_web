@@ -134,6 +134,14 @@ func TestTransactionRepository_一覧と件数(t *testing.T) {
 		t.Errorf("購入希望の件数 = %d, %v, want 2", n, err)
 	}
 
+	// 購入者ごとの承認待ちの購入希望。却下した購入希望だけの人は見つからない
+	if mine, err := txs.FindRequestedByItemAndBuyer(ctx, f.item.ID, f.buyer.ID); err != nil || mine.ID != late.ID {
+		t.Errorf("購入者の購入希望: got = %+v, %v, want %s", mine, err, late.ID)
+	}
+	if _, err := txs.FindRequestedByItemAndBuyer(ctx, f.item.ID, f.seller.ID); !errors.Is(err, repository.ErrNotFound) {
+		t.Errorf("購入希望を出していない人: err = %v, want ErrNotFound", err)
+	}
+
 	// 取引完了の回数は購入者・出品者の両方で数える
 	done := f.newRequest(f.buyer)
 	done.Status = domain.TransactionStatusCompleted
