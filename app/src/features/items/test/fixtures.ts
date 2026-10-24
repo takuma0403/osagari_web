@@ -41,6 +41,7 @@ export function publicItem(overrides: Partial<PublicItem> = {}): PublicItem {
     publishedAt: '2026-10-22T04:00:00Z',
     seller: { departmentName: '理工学部', admissionYear: 2025 },
     isOwn: false,
+    myRequest: null,
     ...overrides,
   }
 }
