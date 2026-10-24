@@ -92,6 +92,61 @@ func wantUndisclosed(t *testing.T, v *service.TransactionView) {
 	}
 }
 
+// 商品ページには、見ている本人の承認待ちの購入希望だけを出す（DEAL-1）。
+func TestItemGetPublicMyRequest(t *testing.T) {
+	ctx := context.Background()
+	f := newDealFixture(t)
+	mine := f.request(t, f.buyer)
+	other := f.request(t, f.buyer2)
+
+	myRequest := func(u *domain.User) *service.MyRequestView {
+		t.Helper()
+		v, err := f.svc.GetPublic(ctx, u, f.item.ShareID)
+		if err != nil {
+			t.Fatal(err)
+		}
+		return v.MyRequest
+	}
+
+	if got := myRequest(f.buyer); got == nil || got.TransactionID != mine.ID || !got.ApprovalDeadline.Equal(mine.ApprovalDeadline) {
+		t.Errorf("出している: got = %+v, want %s", got, mine.ID)
+	}
+	if got := myRequest(f.stranger); got != nil {
+		t.Errorf("出していない: got = %+v", got)
+	}
+	if got := myRequest(f.seller); got != nil {
+		t.Errorf("出品者本人: got = %+v", got)
+	}
+
+	// 承認期限を過ぎても、期限切れになるまでは承認待ちとして出す
+	f.clock.Set(mine.ApprovalDeadline.Add(time.Minute))
+	if got := myRequest(f.buyer); got == nil || got.TransactionID != mine.ID {
+		t.Errorf("承認期限の後: got = %+v", got)
+	}
+
+	// 却下された購入希望は出さない
+	if _, err := f.deals.Reject(ctx, f.seller, other.ID); err != nil {
+		t.Fatal(err)
+	}
+	if got := myRequest(f.buyer2); got != nil {
+		t.Errorf("却下済み: got = %+v", got)
+	}
+
+	// 却下の後に出し直したら、過去の却下ではなくいまの購入希望を出す
+	again := f.request(t, f.buyer2)
+	if got := myRequest(f.buyer2); got == nil || got.TransactionID != again.ID {
+		t.Errorf("出し直した後: got = %+v, want %s", got, again.ID)
+	}
+
+	// 承認されて取引中になったら、承認待ちではないので出さない
+	if _, err := f.deals.Approve(ctx, f.seller, again.ID); err != nil {
+		t.Fatal(err)
+	}
+	if got := myRequest(f.buyer2); got != nil {
+		t.Errorf("取引中: got = %+v", got)
+	}
+}
+
 func TestDealCreateRequest(t *testing.T) {
 	ctx := context.Background()
 

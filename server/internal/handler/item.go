@@ -234,7 +234,16 @@ func toPublicItem(v *service.PublicItemView) api.PublicItem {
 		PublishedAt:        deref(v.PublishedAt),
 		Seller:             api.ItemSeller{DepartmentName: v.Seller.DepartmentName, AdmissionYear: v.Seller.AdmissionYear},
 		IsOwn:              v.IsOwn,
+		MyRequest:          toMyPurchaseRequest(v.MyRequest),
 	}
+}
+
+// toMyPurchaseRequest は本人の承認待ちの購入希望を返す。なければ nil（DEAL-1）。
+func toMyPurchaseRequest(r *service.MyRequestView) *api.MyPurchaseRequest {
+	if r == nil {
+		return nil
+	}
+	return &api.MyPurchaseRequest{TransactionId: r.TransactionID, ApprovalDeadline: r.ApprovalDeadline}
 }
 
 // toItemImages は写真を表示順に、閲覧用の署名付きURLを付けて返す。
