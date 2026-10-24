@@ -30,6 +30,7 @@ const paymentOptions: { value: PaymentMethod; label: string; note?: string }[] =
 function blockedReason(item: PublicItem): string | null {
   if (item.isOwn) return '自分の出品には購入希望を出せません'
   if (isSoldOut(item)) return 'この商品は売り切れです'
+  if (item.myRequest) return 'この商品にはすでに購入希望を出しています'
   return null
 }
 

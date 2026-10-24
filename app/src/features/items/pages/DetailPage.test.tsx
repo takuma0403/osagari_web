@@ -109,6 +109,23 @@ describe('DetailPage', () => {
     expect(screen.queryByRole('link', { name: '出品を編集する' })).not.toBeInTheDocument()
   })
 
+  it('承認待ちの購入希望を出している商品は「購入希望済み」にし、承認期限を出す', async () => {
+    const deadline = new Date(2026, 9, 9, 12, 40)
+    stubItemsFetch({
+      '/api/items/shared/abc123': () =>
+        json(
+          publicItem({
+            status: 'requested',
+            myRequest: { transactionId: 'tx1', approvalDeadline: deadline.toISOString() },
+          }),
+        ),
+    })
+    setup()
+    expect(await screen.findByRole('button', { name: '購入希望済み' })).toBeDisabled()
+    expect(screen.getByText('出品者の承認待ち · 10/9 12:40まで')).toBeInTheDocument()
+    expect(screen.queryByRole('link', { name: '購入希望を出す' })).not.toBeInTheDocument()
+  })
+
   it('購入希望を送って戻ってきたらトーストで知らせる', async () => {
     stubItemsFetch({ '/api/items/shared/abc123': () => json(publicItem()) })
     setup('/items/abc123', { requestSent: true })

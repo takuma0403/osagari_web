@@ -11,7 +11,7 @@ import {
 import { Icon } from '../../../components/Icon/Icon'
 import { InfoBox } from '../../../components/InfoBox/InfoBox'
 import { Toast } from '../../../components/Toast/Toast'
-import { formatPrice } from '../../../lib/format'
+import { formatPrice, formatShortDateTime } from '../../../lib/format'
 import {
   campusOptions,
   categoryOptions,
@@ -93,6 +93,14 @@ function PrimaryAction({ item }: { item: PublicItem }) {
       </ButtonLink>
     )
   }
+  // 同じ商品に承認待ちの購入希望を出している間は、もう出せない（DEAL-1）
+  if (item.myRequest) {
+    return (
+      <Button className={styles.primary} disabled>
+        購入希望済み
+      </Button>
+    )
+  }
   return (
     <ButtonLink to={`${itemPath(item.shareId)}/request`} className={styles.primary}>
       購入希望を出す
@@ -105,6 +113,8 @@ function PrimaryAction({ item }: { item: PublicItem }) {
  * 「リンクをコピー」で共有シートを開き、商品名・価格・状態を添えた文をコピーする（FE）。
  * 出品者は学部・学科と入学年度だけを出し、学籍番号は取引成立まで出さない（DEAL-1）。
  * 「購入希望 n件」は件数が API にまだないため出さない（ADR 0018）。
+ * 自分が承認待ちの購入希望を出している商品は「購入希望済み」にし、承認期限を出す（DEAL-1）。
+ * 期限を過ぎても、定期処理で期限切れになるまでは同じ表示のままにする。
  */
 export function DetailPage() {
   const { shareId = '' } = useParams()
@@ -200,6 +210,11 @@ export function DetailPage() {
           <h1 className={styles.title}>{item.title}</h1>
           <p className={styles.price}>{formatPrice(item.price)}</p>
         </div>
+        {item.myRequest && !isSoldOut(item) && (
+          <InfoBox tone="warning" icon="clock">
+            出品者の承認待ち · {formatShortDateTime(item.myRequest.approvalDeadline)}まで
+          </InfoBox>
+        )}
         <DefinitionList items={detailRows(item)} boxed />
         {item.description && <p className={styles.description}>{item.description}</p>}
         <div className={styles.seller}>

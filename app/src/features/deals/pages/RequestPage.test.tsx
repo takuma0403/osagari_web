@@ -78,6 +78,14 @@ describe('RequestPage', () => {
     ['自分の出品', publicItem({ isOwn: true, itemId: 'i1' }), '自分の出品には購入希望を出せません'],
     ['取引中', publicItem({ status: 'in_deal' }), 'この商品は売り切れです'],
     ['取引完了', publicItem({ status: 'completed' }), 'この商品は売り切れです'],
+    [
+      '購入希望済み',
+      publicItem({
+        status: 'requested',
+        myRequest: { transactionId: 'tx1', approvalDeadline: '2026-10-09T03:40:00Z' },
+      }),
+      'この商品にはすでに購入希望を出しています',
+    ],
   ])('%sの商品には送れない', async (_, item, reason) => {
     stubDealsFetch({ 'GET /api/items/shared/abc123': () => json(item) })
     setup()
