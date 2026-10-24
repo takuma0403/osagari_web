@@ -131,6 +131,20 @@ func TestItemGetPublicMyRequest(t *testing.T) {
 	if got := myRequest(f.buyer2); got != nil {
 		t.Errorf("却下済み: got = %+v", got)
 	}
+
+	// 却下の後に出し直したら、過去の却下ではなくいまの購入希望を出す
+	again := f.request(t, f.buyer2)
+	if got := myRequest(f.buyer2); got == nil || got.TransactionID != again.ID {
+		t.Errorf("出し直した後: got = %+v, want %s", got, again.ID)
+	}
+
+	// 承認されて取引中になったら、承認待ちではないので出さない
+	if _, err := f.deals.Approve(ctx, f.seller, again.ID); err != nil {
+		t.Fatal(err)
+	}
+	if got := myRequest(f.buyer2); got != nil {
+		t.Errorf("取引中: got = %+v", got)
+	}
 }
 
 func TestDealCreateRequest(t *testing.T) {
