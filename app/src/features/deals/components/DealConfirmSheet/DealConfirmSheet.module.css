@@ -1,0 +1,50 @@
+.check {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 52px;
+  height: 52px;
+  border-radius: var(--radius-pill);
+  background: var(--color-primary-soft);
+  color: var(--color-primary);
+}
+
+.studentNumber {
+  display: flex;
+  align-items: center;
+  gap: var(--space-gap);
+  padding: 14px;
+  border-radius: var(--radius-card);
+  background: var(--color-bg);
+}
+
+.numberText {
+  display: flex;
+  flex-direction: column;
+  flex-grow: 1;
+  gap: 2px;
+}
+
+.numberLabel {
+  color: var(--color-text-muted);
+  font-size: var(--text-note);
+}
+
+.number {
+  font-family: var(--font-num);
+  font-size: var(--text-code);
+  font-weight: 700;
+  letter-spacing: 0.06em;
+}
+
+/* DEAL-2 の文言は本文の大きさで読ませる */
+.notice {
+  font-size: var(--text-body);
+  line-height: 1.75;
+}
+
+.error {
+  color: var(--color-danger);
+  font-size: var(--text-label);
+  font-weight: 700;
+}
