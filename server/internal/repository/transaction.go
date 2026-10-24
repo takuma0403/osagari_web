@@ -155,6 +155,21 @@ func (r *TransactionRepository) ListRequestedByItem(ctx context.Context, itemID 
 	return out, nil
 }
 
+// FindRequestedByItemAndBuyer は、購入者が商品に出している承認待ちの購入希望（requested）を返す（DEAL-1）。
+// 一意インデックスにより高々1件。なければ ErrNotFound。
+func (r *TransactionRepository) FindRequestedByItemAndBuyer(ctx context.Context, itemID, buyerID string) (*domain.Transaction, error) {
+	var rows []transactionRow
+	err := conn(ctx, r.db).Where("item_id = ? AND buyer_id = ? AND status = ?", itemID, buyerID, string(domain.TransactionStatusRequested)).
+		Limit(1).Find(&rows).Error
+	if err != nil {
+		return nil, err
+	}
+	if len(rows) == 0 {
+		return nil, ErrNotFound
+	}
+	return rows[0].toDomain()
+}
+
 // CountRequestedByItem は商品の承認待ちの購入希望の件数を返す。
 func (r *TransactionRepository) CountRequestedByItem(ctx context.Context, itemID string) (int, error) {
 	var n int64

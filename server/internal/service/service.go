@@ -108,6 +108,7 @@ type TransactionStore interface {
 	FindByID(ctx context.Context, id string) (*domain.Transaction, error)
 	ListRequestedByItem(ctx context.Context, itemID string) ([]*domain.Transaction, error)
 	CountRequestedByItem(ctx context.Context, itemID string) (int, error)
+	FindRequestedByItemAndBuyer(ctx context.Context, itemID, buyerID string) (*domain.Transaction, error)
 	CountCompletedByUsers(ctx context.Context, userIDs []string) (map[string]int, error)
 	Approve(ctx context.Context, id, sellerID string, feeRateBP int, fee, proceeds int64, now time.Time) error
 	UpdateStatus(ctx context.Context, id string, from, to domain.TransactionStatus, now time.Time) error
