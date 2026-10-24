@@ -96,9 +96,22 @@ type ItemStore interface {
 	FindByID(ctx context.Context, id string) (*domain.Item, error)
 	UpdateContent(ctx context.Context, id, sellerID string, status domain.ItemStatus, updatedAt time.Time, c domain.ItemContent, now time.Time) error
 	UpdateStatus(ctx context.Context, id, sellerID string, from []domain.ItemStatus, unchangedSince *time.Time, to domain.ItemStatus, now time.Time) error
+	UpdateDealStatus(ctx context.Context, id, sellerID string, from []domain.ItemStatus, to domain.ItemStatus, now time.Time) error
 	ReplaceImages(ctx context.Context, itemID string, images []domain.ItemImage, now time.Time) error
 	FindByShareID(ctx context.Context, shareID string) (*domain.Item, error)
 	ListPublic(ctx context.Context, f domain.ItemFilter, after *domain.ItemCursor, limit int, now time.Time) ([]*domain.Item, int, error)
+}
+
+// TransactionStore は transactions の読み書き（repository.TransactionRepository）。
+type TransactionStore interface {
+	Create(ctx context.Context, tr *domain.Transaction) error
+	FindByID(ctx context.Context, id string) (*domain.Transaction, error)
+	ListRequestedByItem(ctx context.Context, itemID string) ([]*domain.Transaction, error)
+	CountRequestedByItem(ctx context.Context, itemID string) (int, error)
+	CountCompletedByUsers(ctx context.Context, userIDs []string) (map[string]int, error)
+	Approve(ctx context.Context, id, sellerID string, feeRateBP int, fee, proceeds int64, now time.Time) error
+	UpdateStatus(ctx context.Context, id string, from, to domain.TransactionStatus, now time.Time) error
+	Acknowledge(ctx context.Context, id, sellerID string, now time.Time) error
 }
 
 // SettingStore は settings の読み書き（repository.SettingRepository）。

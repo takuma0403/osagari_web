@@ -34,6 +34,7 @@
 | 学生証の審査状態 | `StudentCardStatus` | `pending` / `approved` / `rejected` |
 | 商品のステータス | `ItemStatus` | `draft` 下書き / `published` 公開中 / `requested` 購入希望あり / `in_deal` 取引中 / `completed` 取引完了 / `withdrawn` 取り下げ / `suspended` 停止（管理者） |
 | 取引のステータス | `TransactionStatus` | `requested` 購入希望 / `rejected` 却下 / `expired` 期限切れ / `in_deal` 取引中 / `cancelled` キャンセル / `completed` 完了 |
+| 取引での立場 | `TransactionRole` | `buyer` 購入者 / `seller` 出品者（API の取引で、ログイン中の本人がどちらか） |
 | 受け渡しの完了方法 | `HandoverMethod` | `qr` / `link` / `code` / `auto` |
 | 受け渡しトークンの種類 | `HandoverTokenKind` | `qr` / `link` / `code` |
 | 決済の種別 | `PaymentKind` | `authorize` 枠の確保 / `capture` 預かり / `release` 枠の解放 / `refund` 返金 / `settle` 売上の確定 / `payout` 出金 |

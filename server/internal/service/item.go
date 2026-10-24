@@ -9,6 +9,7 @@ import (
 	"github.com/takuma0403/osagari_web/server/internal/apperr"
 	"github.com/takuma0403/osagari_web/server/internal/clock"
 	"github.com/takuma0403/osagari_web/server/internal/domain"
+	"github.com/takuma0403/osagari_web/server/internal/payment"
 	"github.com/takuma0403/osagari_web/server/internal/repository"
 	"github.com/takuma0403/osagari_web/server/internal/storage"
 )
@@ -40,8 +41,11 @@ type ItemDeps struct {
 	Tx    Transactor
 	Items ItemStore
 	// Users は商品ページに出品者の情報を出すのに使う（BROWSE）
-	Users   UserStore
-	Storage storage.Storage
+	Users UserStore
+	// Transactions・Payments は購入希望ありの商品を取り下げるときに、購入希望の却下と枠の解放に使う（ADR 0022）
+	Transactions TransactionStore
+	Payments     payment.Gateway
+	Storage      storage.Storage
 	// Bucket は商品写真のバケットの名前
 	Bucket string
 	Clock  clock.Clock
@@ -208,8 +212,14 @@ func (s *ItemService) Withdraw(ctx context.Context, u *domain.User, id string) (
 	if !it.CanWithdraw() {
 		return nil, errItemConflict
 	}
-	// TODO(#25): 購入希望ありの商品を取り下げたときは、その購入希望を却下して枠を解放する（同じトランザクションで行う）
-	err = s.d.Items.UpdateStatus(ctx, it.ID, u.ID, domain.ItemWithdrawableStatuses, nil, domain.ItemStatusWithdrawn, s.d.Clock.Now())
+	now := s.d.Clock.Now()
+	// 購入希望ありの商品なら、購入希望をすべて却下して枠を解放する（ADR 0022）
+	err = s.d.Tx.Do(ctx, func(ctx context.Context) error {
+		if err := s.d.Items.UpdateStatus(ctx, it.ID, u.ID, domain.ItemWithdrawableStatuses, nil, domain.ItemStatusWithdrawn, now); err != nil {
+			return err
+		}
+		return rejectRequests(ctx, s.d.Transactions, s.d.Payments, it.ID, now)
+	})
 	if errors.Is(err, repository.ErrConflict) {
 		return nil, errItemConflict
 	}

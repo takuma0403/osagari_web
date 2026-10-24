@@ -13,6 +13,7 @@ import (
 	"github.com/takuma0403/osagari_web/server/internal/apperr"
 	"github.com/takuma0403/osagari_web/server/internal/clock"
 	"github.com/takuma0403/osagari_web/server/internal/domain"
+	"github.com/takuma0403/osagari_web/server/internal/payment"
 	"github.com/takuma0403/osagari_web/server/internal/repository"
 	"github.com/takuma0403/osagari_web/server/internal/service"
 	"github.com/takuma0403/osagari_web/server/internal/storage"
@@ -22,30 +23,49 @@ import (
 const itemBucket = "item-images"
 
 type itemFixture struct {
-	svc     *service.ItemService
-	users   *repository.UserRepository
-	items   *repository.ItemRepository
-	storage *storage.Memory
-	clock   *clock.Fake
-	seller  *domain.User
+	svc *service.ItemService
+	// deals は購入希望・承認・却下（DEAL-1）。商品のテストと同じ DB・時計を使う
+	deals    *service.DealService
+	users    *repository.UserRepository
+	items    *repository.ItemRepository
+	txs      *repository.TransactionRepository
+	payments *repository.PaymentRepository
+	storage  *storage.Memory
+	clock    *clock.Fake
+	seller   *domain.User
 }
 
 func newItemFixture(t *testing.T) *itemFixture {
 	t.Helper()
 	gdb := testdb.New(t)
 	f := &itemFixture{
-		users:   repository.NewUserRepository(gdb),
-		items:   repository.NewItemRepository(gdb),
-		storage: storage.NewMemory(),
-		clock:   clock.NewFake(t0),
+		users:    repository.NewUserRepository(gdb),
+		items:    repository.NewItemRepository(gdb),
+		txs:      repository.NewTransactionRepository(gdb),
+		payments: repository.NewPaymentRepository(gdb),
+		storage:  storage.NewMemory(),
+		clock:    clock.NewFake(t0),
 	}
+	tx := repository.NewTransactor(gdb)
+	gw := payment.NewMock(f.payments, f.clock)
 	f.svc = service.NewItemService(service.ItemDeps{
-		Tx:      repository.NewTransactor(gdb),
-		Items:   f.items,
-		Users:   f.users,
-		Storage: f.storage,
-		Bucket:  itemBucket,
-		Clock:   f.clock,
+		Tx:           tx,
+		Items:        f.items,
+		Users:        f.users,
+		Transactions: f.txs,
+		Payments:     gw,
+		Storage:      f.storage,
+		Bucket:       itemBucket,
+		Clock:        f.clock,
+	})
+	f.deals = service.NewDealService(service.DealDeps{
+		Tx:           tx,
+		Items:        f.items,
+		Users:        f.users,
+		Transactions: f.txs,
+		Settings:     repository.NewSettingRepository(gdb),
+		Payments:     gw,
+		Clock:        f.clock,
 	})
 	f.seller = f.createUser(t, email, "26238001", domain.SellerStatusApproved)
 	return f

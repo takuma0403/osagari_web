@@ -109,22 +109,9 @@ func (s *ItemService) List(ctx context.Context, q ItemListQuery) (*ItemListPage,
 // GetPublic は共有用IDで商品ページに出す商品を返す（BROWSE, ADR 0018）。公開中・購入希望ありに加え、
 // 取引中・取引完了は売り切れとして返す。それ以外のステータスと、出品者のアカウントが使えない商品は 404（出品者本人も同じ）。
 func (s *ItemService) GetPublic(ctx context.Context, u *domain.User, shareID string) (*PublicItemView, error) {
-	it, err := s.d.Items.FindByShareID(ctx, shareID)
-	if errors.Is(err, repository.ErrNotFound) {
-		return nil, errItemNotFound
-	}
+	it, seller, err := findPublicItem(ctx, s.d.Items, s.d.Users, shareID, s.d.Clock.Now())
 	if err != nil {
-		return nil, apperr.Internal(err)
-	}
-	if !it.IsViewable() {
-		return nil, errItemNotFound
-	}
-	seller, err := s.d.Users.FindByID(ctx, it.SellerID)
-	if err != nil {
-		return nil, apperr.Internal(err)
-	}
-	if !seller.IsActive(s.d.Clock.Now()) {
-		return nil, errItemNotFound
+		return nil, err
 	}
 	v, err := s.view(ctx, it)
 	if err != nil {
@@ -139,6 +126,29 @@ func (s *ItemService) GetPublic(ctx context.Context, u *domain.User, shareID str
 		out.OwnItemID = &it.ID
 	}
 	return out, nil
+}
+
+// findPublicItem は共有用IDで、商品ページに出せる商品とその出品者を返す（BROWSE, ADR 0018）。
+// 商品ページで見せないステータスと、出品者のアカウントが now の時点で使えない商品は 404。
+func findPublicItem(ctx context.Context, items ItemStore, users UserStore, shareID string, now time.Time) (*domain.Item, *domain.User, error) {
+	it, err := items.FindByShareID(ctx, shareID)
+	if errors.Is(err, repository.ErrNotFound) {
+		return nil, nil, errItemNotFound
+	}
+	if err != nil {
+		return nil, nil, apperr.Internal(err)
+	}
+	if !it.IsViewable() {
+		return nil, nil, errItemNotFound
+	}
+	seller, err := users.FindByID(ctx, it.SellerID)
+	if err != nil {
+		return nil, nil, apperr.Internal(err)
+	}
+	if !seller.IsActive(now) {
+		return nil, nil, errItemNotFound
+	}
+	return it, seller, nil
 }
 
 // itemFilter は入力を確かめて検索の条件にする。キーワードは空白で区切り、前後の空白を除いて空なら条件にしない。

@@ -135,3 +135,104 @@ func (r *TransactionRepository) FindByID(ctx context.Context, id string) (*domai
 	}
 	return rows[0].toDomain()
 }
+
+// ListRequestedByItem は商品の承認待ちの購入希望（requested）を、希望の古い順に返す（DEAL-1）。
+func (r *TransactionRepository) ListRequestedByItem(ctx context.Context, itemID string) ([]*domain.Transaction, error) {
+	var rows []transactionRow
+	err := conn(ctx, r.db).Where("item_id = ? AND status = ?", itemID, string(domain.TransactionStatusRequested)).
+		Order("created_at ASC, id ASC").Find(&rows).Error
+	if err != nil {
+		return nil, err
+	}
+	out := make([]*domain.Transaction, 0, len(rows))
+	for _, row := range rows {
+		tr, err := row.toDomain()
+		if err != nil {
+			return nil, err
+		}
+		out = append(out, tr)
+	}
+	return out, nil
+}
+
+// CountRequestedByItem は商品の承認待ちの購入希望の件数を返す。
+func (r *TransactionRepository) CountRequestedByItem(ctx context.Context, itemID string) (int, error) {
+	var n int64
+	err := conn(ctx, r.db).Model(&transactionRow{}).
+		Where("item_id = ? AND status = ?", itemID, string(domain.TransactionStatusRequested)).Count(&n).Error
+	return int(n), err
+}
+
+// CountCompletedByUsers はユーザーごとに、購入者・出品者として完了した取引の件数を返す（DEAL-1 の購入希望一覧）。
+// 完了した取引がないユーザーは結果に含めない。
+func (r *TransactionRepository) CountCompletedByUsers(ctx context.Context, userIDs []string) (map[string]int, error) {
+	out := make(map[string]int, len(userIDs))
+	if len(userIDs) == 0 {
+		return out, nil
+	}
+	for _, col := range []string{"buyer_id", "seller_id"} {
+		var rows []struct {
+			UserID string
+			N      int
+		}
+		err := conn(ctx, r.db).Model(&transactionRow{}).Select(col+" AS user_id, COUNT(*) AS n").
+			Where(col+" IN ? AND status = ?", userIDs, string(domain.TransactionStatusCompleted)).
+			Group(col).Scan(&rows).Error
+		if err != nil {
+			return nil, err
+		}
+		for _, row := range rows {
+			out[row.UserID] += row.N
+		}
+	}
+	return out, nil
+}
+
+// Approve は出品者 sellerID の承認待ちの購入希望を、承認期限 now より前のときだけ取引中にする（DEAL-1, DB）。
+// 適用した手数料率・手数料・出品者の売上と、学籍番号を開示した日時を同時に記録する（PAY-2, ADR 0003）。
+// 状態が違う・期限切れなら ErrConflict、同じ商品の取引がすでに成立していれば ErrDuplicate。
+func (r *TransactionRepository) Approve(ctx context.Context, id, sellerID string, feeRateBP int, fee, proceeds int64, now time.Time) error {
+	ts := formatTime(now)
+	res := conn(ctx, r.db).Model(&transactionRow{}).
+		Where("id = ? AND seller_id = ? AND status = ? AND approval_deadline > ?", id, sellerID, string(domain.TransactionStatusRequested), ts).
+		Updates(map[string]any{
+			"status":                string(domain.TransactionStatusInDeal),
+			"fee_rate_bp":           feeRateBP,
+			"fee":                   fee,
+			"seller_proceeds":       proceeds,
+			"identity_disclosed_at": ts,
+			"updated_at":            ts,
+		})
+	if isUniqueViolation(res.Error) {
+		return ErrDuplicate
+	}
+	return rowsAffected(res)
+}
+
+// UpdateStatus は取引のステータスが from のときだけ to にする（却下・期限切れなど。DB）。違えば ErrConflict。
+func (r *TransactionRepository) UpdateStatus(ctx context.Context, id string, from, to domain.TransactionStatus, now time.Time) error {
+	res := conn(ctx, r.db).Model(&transactionRow{}).Where("id = ? AND status = ?", id, string(from)).
+		Updates(map[string]any{"status": string(to), "updated_at": formatTime(now)})
+	return rowsAffected(res)
+}
+
+// Acknowledge は出品者 sellerID の取引中の取引に、確認モーダルに同意した日時を記録する（DEAL-2）。
+// 取引中でない・記録済みなら ErrConflict。
+func (r *TransactionRepository) Acknowledge(ctx context.Context, id, sellerID string, now time.Time) error {
+	ts := formatTime(now)
+	res := conn(ctx, r.db).Model(&transactionRow{}).
+		Where("id = ? AND seller_id = ? AND status = ? AND seller_acknowledged_at IS NULL", id, sellerID, string(domain.TransactionStatusInDeal)).
+		Updates(map[string]any{"seller_acknowledged_at": ts, "updated_at": ts})
+	return rowsAffected(res)
+}
+
+// rowsAffected は条件付きUPDATE の結果を返す。更新件数が0なら ErrConflict。
+func rowsAffected(res *gorm.DB) error {
+	if res.Error != nil {
+		return res.Error
+	}
+	if res.RowsAffected == 0 {
+		return ErrConflict
+	}
+	return nil
+}
