@@ -30,3 +30,16 @@ export function formatCountdown(seconds: number): string {
   const s = Math.max(0, Math.ceil(seconds))
   return `${Math.floor(s / 60)}:${String(s % 60).padStart(2, '0')}`
 }
+
+const HOUR_MS = 60 * 60 * 1000
+const MINUTE_MS = 60 * 1000
+
+/**
+ * 期限までの残りを `24時間` の形にする（端数は切り捨て）。1時間未満は `42分`、過ぎていたら `0分`。
+ * 購入希望の承認期限（DEAL-1、48時間）の表示に使う。
+ */
+export function formatRemaining(deadline: string, now: number = Date.now()): string {
+  const ms = Math.max(0, new Date(deadline).getTime() - now)
+  if (ms >= HOUR_MS) return `${Math.floor(ms / HOUR_MS)}時間`
+  return `${Math.floor(ms / MINUTE_MS)}分`
+}
