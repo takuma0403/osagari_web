@@ -4,10 +4,11 @@ import { renderRoute } from '../../../test/renderRoute'
 import { json, publicItem, stubItemsFetch } from '../test/fixtures'
 import { DetailPage } from './DetailPage'
 
-function setup(at = '/items/abc123') {
+function setup(at = '/items/abc123', state?: unknown) {
   const view = renderRoute('/items/:shareId', <DetailPage />, {
     at,
-    destinations: ['/', '/items/:shareId/request', '/sell/:itemId'],
+    state,
+    destinations: ['/', '/items/:shareId/request', '/sell/:itemId', '/sell/:itemId/requests'],
   })
   // user-event はクリップボードを差し替えるので、コピーした文は navigator.clipboard.readText で読む
   return { ...view, user: userEvent.setup() }
@@ -93,6 +94,42 @@ describe('DetailPage', () => {
 
     await user.click(edit)
     expect(router.state.location.pathname).toBe('/sell/item1')
+  })
+
+  it('購入希望ありの自分の出品では、編集の代わりに購入希望の一覧へ進める', async () => {
+    stubItemsFetch({
+      '/api/items/shared/abc123': () =>
+        json(publicItem({ isOwn: true, itemId: 'item1', status: 'requested' })),
+    })
+    setup()
+    expect(await screen.findByRole('link', { name: '購入希望を見る' })).toHaveAttribute(
+      'href',
+      '/sell/item1/requests',
+    )
+    expect(screen.queryByRole('link', { name: '出品を編集する' })).not.toBeInTheDocument()
+  })
+
+  it('承認待ちの購入希望を出している商品は「購入希望済み」にし、承認期限を出す', async () => {
+    const deadline = new Date(2026, 9, 9, 12, 40)
+    stubItemsFetch({
+      '/api/items/shared/abc123': () =>
+        json(
+          publicItem({
+            status: 'requested',
+            myRequest: { transactionId: 'tx1', approvalDeadline: deadline.toISOString() },
+          }),
+        ),
+    })
+    setup()
+    expect(await screen.findByRole('button', { name: '購入希望済み' })).toBeDisabled()
+    expect(screen.getByText('出品者の承認待ち · 10/9 12:40まで')).toBeInTheDocument()
+    expect(screen.queryByRole('link', { name: '購入希望を出す' })).not.toBeInTheDocument()
+  })
+
+  it('購入希望を送って戻ってきたらトーストで知らせる', async () => {
+    stubItemsFetch({ '/api/items/shared/abc123': () => json(publicItem()) })
+    setup('/items/abc123', { requestSent: true })
+    expect(await screen.findByText('購入希望を送りました')).toBeInTheDocument()
   })
 
   it('自分の出品でも商品IDがなければ押せない', async () => {

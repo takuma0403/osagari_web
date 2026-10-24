@@ -14,6 +14,10 @@ type ItemCondition = ItemSummary['condition']
 /** 商品ページの固定URL（BROWSE） */
 export const itemPath = (shareId: string) => `/items/${encodeURIComponent(shareId)}`
 
+/** 取引中・取引完了は売り切れ（購入希望は出せない。ADR 0018） */
+export const isSoldOut = (item: Pick<PublicItem, 'status'>) =>
+  item.status === 'in_deal' || item.status === 'completed'
+
 /**
  * 価格の横に添える状態の注記。教科書で書き込みの有無が分かればそれを、ほかは状態を出す。
  * 検索結果の行と共有文（FE の例「（書き込みなし）」）で使う。

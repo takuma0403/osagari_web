@@ -141,7 +141,7 @@ Google Fonts から `Zen+Kaku+Gothic+New:wght@400;500;700` と `Outfit:wght@500;
 | `Toast` | 紺地・白文字・pill、`role="status"` | DetailShare |
 | `StepIndicator` | `STEP n / 3`（Outfit 13px / primary） | SignUp, Code, Password |
 
-DS-3 の部品を作るために足した補助の部品（画面からも使える）：`Icon`（デザインの線画アイコンを名前で呼ぶ）、`ItemPhoto`（ItemCard・ItemRow の写真枠。写真がないときは `--color-cat-*` の地）、`Modal`（BottomSheet・ConfirmDialog の土台。幕・Esc・フォーカスの閉じ込めと復帰）、`SelectField`・`TextAreaField`（Sell のカテゴリ・状態の選択と説明。TextField と同じ枠・ラベル・エラーの形）。
+DS-3 の部品を作るために足した補助の部品（画面からも使える）：`Icon`（デザインの線画アイコンを名前で呼ぶ）、`ItemPhoto`（ItemCard・ItemRow の写真枠。写真がないときは `--color-cat-*` の地）、`Modal`（BottomSheet・ConfirmDialog の土台。幕・Esc・フォーカスの閉じ込めと復帰）、`SelectField`・`TextAreaField`（Sell のカテゴリ・状態の選択と説明。TextField と同じ枠・ラベル・エラーの形）、`Avatar`（学部の頭文字の丸いアイコン。Detail の出品者、DealRequests の購入者）。
 
 ## DS-4 画面 ↔ アートボード ↔ 要件 の対応
 

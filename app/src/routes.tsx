@@ -9,6 +9,8 @@ import { LoginPage } from './features/auth/pages/LoginPage'
 import { PasswordPage } from './features/auth/pages/PasswordPage'
 import { RecheckPage } from './features/auth/pages/RecheckPage'
 import { SignUpPage } from './features/auth/pages/SignUpPage'
+import { DealRequestsPage } from './features/deals/pages/DealRequestsPage'
+import { RequestPage } from './features/deals/pages/RequestPage'
 import { DetailPage } from './features/items/pages/DetailPage'
 import { MainPage } from './features/items/pages/MainPage'
 import { SearchPage } from './features/items/pages/SearchPage'
@@ -73,9 +75,10 @@ export const routes: RouteObject[] = [
         element: <MobileLayout />,
         children: [
           { path: '/items/:shareId', element: <DetailPage /> },
-          placeholder('/items/:shareId/request', '購入希望・決済'),
+          { path: '/items/:shareId/request', element: <RequestPage /> },
           { path: '/sell', element: <SellPage /> },
           { path: '/sell/:itemId', element: <SellPage /> },
+          { path: '/sell/:itemId/requests', element: <DealRequestsPage /> },
           placeholder('/deals/:dealId', '取引詳細'),
           placeholder('/deals/:dealId/scan', 'QR読み取り'),
           placeholder('/deals/:dealId/complete', '受け渡しの完了'),

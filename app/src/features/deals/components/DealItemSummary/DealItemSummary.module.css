@@ -1,0 +1,53 @@
+.summary {
+  display: flex;
+  align-items: center;
+  gap: var(--space-gap);
+}
+
+.photo {
+  flex-shrink: 0;
+  border-radius: var(--radius-sm);
+}
+
+.lg .photo {
+  width: 64px;
+  height: 64px;
+}
+
+.sm .photo {
+  width: 52px;
+  height: 52px;
+}
+
+.text {
+  display: flex;
+  flex-direction: column;
+  flex-grow: 1;
+  gap: 4px;
+  min-width: 0;
+}
+
+.sm .text {
+  gap: 2px;
+}
+
+.title {
+  font-size: var(--text-body);
+  font-weight: 700;
+  overflow-wrap: anywhere;
+}
+
+.note {
+  color: var(--color-text-muted);
+  font-size: var(--text-note);
+}
+
+.price {
+  font-family: var(--font-num);
+  font-size: var(--text-header);
+  font-weight: 700;
+}
+
+.sm .price {
+  font-size: var(--text-button);
+}

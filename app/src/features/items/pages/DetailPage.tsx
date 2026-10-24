@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react'
 import { Link, useLocation, useNavigate, useParams } from 'react-router'
 import { AppHeader } from '../../../components/AppHeader/AppHeader'
+import { Avatar } from '../../../components/Avatar/Avatar'
 import { Badge } from '../../../components/Badge/Badge'
 import { Button, ButtonLink } from '../../../components/Button/Button'
 import {
@@ -10,7 +11,7 @@ import {
 import { Icon } from '../../../components/Icon/Icon'
 import { InfoBox } from '../../../components/InfoBox/InfoBox'
 import { Toast } from '../../../components/Toast/Toast'
-import { formatPrice } from '../../../lib/format'
+import { formatPrice, formatShortDateTime } from '../../../lib/format'
 import {
   campusOptions,
   categoryOptions,
@@ -22,16 +23,14 @@ import { copyText } from '../../../lib/share'
 import type { PublicItem } from '../api'
 import { ItemGallery } from '../components/ItemGallery/ItemGallery'
 import { ShareSheet } from '../components/ShareSheet/ShareSheet'
+import type { RequestSentState } from '../../deals/pages/RequestPage'
 import { useItem } from '../hooks/useItem'
-import { itemPath, itemShareText } from '../itemDisplay'
+import { isSoldOut, itemPath, itemShareText } from '../itemDisplay'
 import styles from './DetailPage.module.css'
 
-/** コピーできたことを知らせるトーストを出しておく時間 */
+/** コピーできた・購入希望を送れたことを知らせるトーストを出しておく時間 */
 const TOAST_MS = 2000
 const copyFailedMessage = 'コピーできませんでした。お使いのブラウザでは使えない可能性があります'
-
-/** 取引中・取引完了は売り切れ（購入希望は出せない。ADR 0018） */
-const isSoldOut = (item: PublicItem) => item.status === 'in_deal' || item.status === 'completed'
 
 /** 商品の情報の表。値のない項目は出さない */
 function detailRows(item: PublicItem): DefinitionItem[] {
@@ -62,7 +61,7 @@ function detailRows(item: PublicItem): DefinitionItem[] {
 
 /**
  * 下部の主ボタン。売り切れは本人でも押せない（取引中・取引完了は編集できない。ADR 0016）。
- * 本人の出品なら編集画面へ進める。商品IDがない応答では編集先が分からないので押せなくする。
+ * 本人の出品なら編集画面（購入希望ありなら購入希望の一覧）へ進める。商品IDがない応答では行き先が分からないので押せなくする。
  */
 function PrimaryAction({ item }: { item: PublicItem }) {
   if (isSoldOut(item)) {
@@ -80,10 +79,26 @@ function PrimaryAction({ item }: { item: PublicItem }) {
         </Button>
       )
     }
+    // 購入希望ありの間は編集できない（ADR 0016）ので、届いている購入希望を見る画面へ進める（DEAL-1）
+    if (item.status === 'requested') {
+      return (
+        <ButtonLink to={`/sell/${item.itemId}/requests`} className={styles.primary}>
+          購入希望を見る
+        </ButtonLink>
+      )
+    }
     return (
       <ButtonLink to={`/sell/${item.itemId}`} className={styles.primary}>
         出品を編集する
       </ButtonLink>
+    )
+  }
+  // 同じ商品に承認待ちの購入希望を出している間は、もう出せない（DEAL-1）
+  if (item.myRequest) {
+    return (
+      <Button className={styles.primary} disabled>
+        購入希望済み
+      </Button>
     )
   }
   return (
@@ -98,6 +113,8 @@ function PrimaryAction({ item }: { item: PublicItem }) {
  * 「リンクをコピー」で共有シートを開き、商品名・価格・状態を添えた文をコピーする（FE）。
  * 出品者は学部・学科と入学年度だけを出し、学籍番号は取引成立まで出さない（DEAL-1）。
  * 「購入希望 n件」は件数が API にまだないため出さない（ADR 0018）。
+ * 自分が承認待ちの購入希望を出している商品は「購入希望済み」にし、承認期限を出す（DEAL-1）。
+ * 期限を過ぎても、定期処理で期限切れになるまでは同じ表示のままにする。
  */
 export function DetailPage() {
   const { shareId = '' } = useParams()
@@ -106,14 +123,28 @@ export function DetailPage() {
   const { state, reload } = useItem(shareId)
   const [shareOpen, setShareOpen] = useState(false)
   const [copyError, setCopyError] = useState<string | null>(null)
-  const [copiedAt, setCopiedAt] = useState<number | null>(null)
+  // 購入希望を送って戻ってきたとき（RequestPage）は、送れたことをトーストで知らせる
+  // コピーし直したときも消すまでの時間を数え直すよう、毎回新しいオブジェクトにする
+  const [toast, setToast] = useState<{ message: string } | null>(() =>
+    (location.state as RequestSentState | null)?.requestSent
+      ? { message: '購入希望を送りました' }
+      : null,
+  )
 
-  // コピーできたことのトーストは少しして消す
+  // 再読み込みでトーストをもう一度出さないよう、履歴の state を消しておく
   useEffect(() => {
-    if (copiedAt === null) return
-    const timer = setTimeout(() => setCopiedAt(null), TOAST_MS)
+    if ((location.state as RequestSentState | null)?.requestSent) {
+      navigate(location.pathname, { replace: true, state: null })
+    }
+  }, [location.state, location.pathname, navigate])
+
+  // トーストは商品を出してから少しして消す
+  const ready = state.status === 'ready'
+  useEffect(() => {
+    if (toast === null || !ready) return
+    const timer = setTimeout(() => setToast(null), TOAST_MS)
     return () => clearTimeout(timer)
-  }, [copiedAt])
+  }, [toast, ready])
 
   // 共有リンクから直接開いたとき（アプリ内の履歴がない）は一覧へ戻る
   const back = () => (location.key === 'default' ? navigate('/') : navigate(-1))
@@ -149,7 +180,7 @@ export function DetailPage() {
   const copy = () => {
     setCopyError(null)
     copyText(itemShareText(item, window.location.origin)).then(
-      () => setCopiedAt(Date.now()),
+      () => setToast({ message: 'リンクをコピーしました' }),
       () => setCopyError(copyFailedMessage),
     )
   }
@@ -179,12 +210,15 @@ export function DetailPage() {
           <h1 className={styles.title}>{item.title}</h1>
           <p className={styles.price}>{formatPrice(item.price)}</p>
         </div>
+        {item.myRequest && !isSoldOut(item) && (
+          <InfoBox tone="warning" icon="clock">
+            出品者の承認待ち · {formatShortDateTime(item.myRequest.approvalDeadline)}まで
+          </InfoBox>
+        )}
         <DefinitionList items={detailRows(item)} boxed />
         {item.description && <p className={styles.description}>{item.description}</p>}
         <div className={styles.seller}>
-          <span className={styles.avatar} aria-hidden="true">
-            {item.seller.departmentName?.charAt(0) ?? '?'}
-          </span>
+          <Avatar departmentName={item.seller.departmentName} />
           <div className={styles.sellerText}>
             <span className={styles.sellerName}>
               {item.seller.departmentName ?? '学部不明'} · {item.seller.admissionYear}年度入学
@@ -200,7 +234,7 @@ export function DetailPage() {
         <PrimaryAction item={item} />
       </div>
       <ShareSheet open={shareOpen} onCopy={copy} onClose={closeShare} error={copyError} />
-      <Toast message={copiedAt !== null ? 'リンクをコピーしました' : undefined} />
+      <Toast message={toast?.message} />
     </div>
   )
 }

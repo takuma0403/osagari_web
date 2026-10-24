@@ -1,4 +1,10 @@
-import { formatCountdown, formatDate, formatPrice, formatShortDateTime } from './format'
+import {
+  formatCountdown,
+  formatDate,
+  formatPrice,
+  formatRemaining,
+  formatShortDateTime,
+} from './format'
 
 describe('formatPrice', () => {
   it.each([
@@ -41,5 +47,22 @@ describe('formatCountdown', () => {
     [-5, '0:00'],
   ])('%d 秒を %s と表示する', (seconds, expected) => {
     expect(formatCountdown(seconds)).toBe(expected)
+  })
+})
+
+describe('formatRemaining', () => {
+  const now = Date.parse('2026-10-08T00:00:00Z')
+  const after = (ms: number) => new Date(now + ms).toISOString()
+  const hour = 60 * 60 * 1000
+  it.each([
+    [48 * hour, '48時間'],
+    [24 * hour + 59 * 60 * 1000, '24時間'],
+    [hour, '1時間'],
+    [hour - 1, '59分'],
+    [42 * 60 * 1000, '42分'],
+    [30 * 1000, '0分'],
+    [-hour, '0分'],
+  ])('残り %d ミリ秒を %s と表示する', (ms, expected) => {
+    expect(formatRemaining(after(ms), now)).toBe(expected)
   })
 })
