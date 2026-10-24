@@ -43,9 +43,10 @@ describe('routes', () => {
   it.each([
     ['/', '新着の出品'],
     ['/search', '検索結果'],
-    ['/items/abc123/request', '購入希望・決済'],
+    ['/items/abc123/request', '購入希望を出す'],
     ['/sell', '出品する'],
     ['/sell/i1', '出品を編集'],
+    ['/sell/i1/requests', '取引詳細'],
     ['/deals', '取引一覧'],
     ['/deals/42', '取引詳細'],
     ['/deals/42/scan', 'QR読み取り'],
