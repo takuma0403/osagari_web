@@ -8,7 +8,7 @@ import (
 	"github.com/takuma0403/osagari_web/server/internal/service"
 )
 
-// DealService は購入希望・承認・却下・受け渡し完了の業務ロジック（service.DealService）。
+// DealService は購入希望・承認・却下・受け渡し完了・キャンセルの業務ロジック（service.DealService）。
 type DealService interface {
 	CreateRequest(ctx context.Context, u *domain.User, shareID string, method domain.PaymentMethod) (*service.TransactionView, error)
 	ListRequests(ctx context.Context, u *domain.User, itemID string) ([]*service.PurchaseRequestView, error)
@@ -19,6 +19,8 @@ type DealService interface {
 	IssueHandoverToken(ctx context.Context, u *domain.User, id string, kind domain.HandoverTokenKind) (*service.IssuedHandoverToken, error)
 	VerifyHandover(ctx context.Context, u *domain.User, id string, cred service.HandoverCredential) error
 	Complete(ctx context.Context, u *domain.User, id string, cred service.HandoverCredential) (*service.TransactionView, error)
+	Cancel(ctx context.Context, u *domain.User, id string) (*service.TransactionView, error)
+	WithdrawCancel(ctx context.Context, u *domain.User, id string) (*service.TransactionView, error)
 }
 
 // CreatePurchaseRequest は購入希望を出す（POST /api/items/shared/{shareId}/requests。DEAL-1）。
@@ -97,6 +99,24 @@ func (h *Handler) AcknowledgeTransaction(ctx context.Context, req api.Acknowledg
 		return nil, err
 	}
 	return api.AcknowledgeTransaction200JSONResponse(v), nil
+}
+
+// CancelTransaction は取引のキャンセルを申請する・申請に同意する（POST /api/transactions/{transactionId}/cancel。DEAL-4）。
+func (h *Handler) CancelTransaction(ctx context.Context, req api.CancelTransactionRequestObject) (api.CancelTransactionResponseObject, error) {
+	v, err := h.transaction(ctx, req.TransactionId, h.d.Deal.Cancel)
+	if err != nil {
+		return nil, err
+	}
+	return api.CancelTransaction200JSONResponse(v), nil
+}
+
+// WithdrawCancelRequest はキャンセルの申請を取り下げる（POST /api/transactions/{transactionId}/cancel/withdraw。DEAL-4）。
+func (h *Handler) WithdrawCancelRequest(ctx context.Context, req api.WithdrawCancelRequestRequestObject) (api.WithdrawCancelRequestResponseObject, error) {
+	v, err := h.transaction(ctx, req.TransactionId, h.d.Deal.WithdrawCancel)
+	if err != nil {
+		return nil, err
+	}
+	return api.WithdrawCancelRequest200JSONResponse(v), nil
 }
 
 // CreateHandoverToken は受け渡しトークンを発行する（POST /api/transactions/{transactionId}/handover-tokens。DEAL-3）。
@@ -181,6 +201,8 @@ func toTransaction(v *service.TransactionView) api.Transaction {
 		SellerProceeds:           v.SellerProceeds,
 		IdentityDisclosedAt:      v.IdentityDisclosedAt,
 		SellerAcknowledgedAt:     v.SellerAcknowledgedAt,
+		BuyerCancelAgreedAt:      v.BuyerCancelAgreedAt,
+		SellerCancelAgreedAt:     v.SellerCancelAgreedAt,
 		CompletedAt:              v.CompletedAt,
 		HandoverMethod:           (*api.HandoverMethod)(v.HandoverMethod),
 		CounterpartStudentNumber: v.CounterpartStudentNumber,
