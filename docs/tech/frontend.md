@@ -43,7 +43,7 @@ Vite + React のSPAを Firebase Hosting に置きます。ログイン必須の�
   | `/deals` | 取引一覧（下部ナビの「取引」） | スマホ＋下部ナビ |
   | `/deals/:dealId` | 取引詳細（取引成立後の確認、受け渡しQR、キャンセル。購入希望の承認は `/sell/:itemId/requests`） | スマホ |
   | `/deals/:dealId/scan` | QR読み取り（購入者） | スマホ |
-  | `/deals/:dealId/complete` | 完了リンク・完了コードの入力（購入者、DEAL-3）。トークンの載せ方は DEAL-3 の実装で決める | スマホ |
+  | `/deals/:dealId/complete` | 完了リンク・完了コードの入力（購入者、DEAL-3）。完了リンクと受け渡しQRの中身は `/deals/:dealId/complete#t=<トークン>`（フラグメント。[ADR 0024](../decisions/0024-handover-token-flow.md)） | スマホ |
   | `/mypage` | マイページ | スマホ＋下部ナビ |
   | `/mypage/student-card`、`/mypage/sales` | 学生証登録、売上管理 | スマホ |
   | `/admin`（→ `/admin/student-cards`）、`/admin/users`、`/admin/items`、`/admin/settings` | 管理：学生証審査、ユーザー、出品・取引、設定 | PC |

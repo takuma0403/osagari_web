@@ -19,7 +19,7 @@ APIが担当する主な処理は次のとおりです。
 - 新規登録、パスワードによるログイン、認証コードの発行と照合、パスワードの再設定、セッション管理
 - 商品の登録、一覧、検索
 - 購入希望、承認、キャンセルなどの取引の状態遷移
-- 受け渡しトークン（QR・リンク・コード）の発行と照合
+- 受け渡しトークン（QR・リンク・コード）の発行と照合。照合（使用済みにしない）と受け渡し完了（使用済みにして完了）は別の API に分ける（[ADR 0024](../decisions/0024-handover-token-flow.md)）
 - 画像アップロード用の署名付きURLの発行
 - 決済処理（当面はモック）
 - 管理者向けの処理（学生証の審査、ユーザーの停止、手数料率の設定など）
@@ -63,6 +63,7 @@ APIが担当する主な処理は次のとおりです。
   | `invalid_student_card_upload` | 400 | 学生証の登録で、オブジェクトが本人のものでない・アップロードされていない・JPEG/WebP でない・5MB を超える・登録済み（[STORAGE](storage.md)） |
   | `seller_not_approved` | 403 | 学生証が承認されていない利用者が出品・編集しようとした（[ITEM](../product/03-listing.md)） |
   | `invalid_item_image_upload` | 400 | 商品写真の登録で、オブジェクトが本人のものでない・アップロードされていない・JPEG/WebP でない・5MB を超える・ほかの商品で使われている（[STORAGE](storage.md)） |
+  | `invalid_handover_token` | 400 | 受け渡しの QR・完了リンク・完了コードが違う・期限切れ・使用済み（[DEAL-3](../product/05-deal-flow.md)、[ADR 0024](../decisions/0024-handover-token-flow.md)） |
 
   管理API（`/api/admin/**`）は、未ログインでも管理者でなくても 404 `not_found` を返し、存在しないパスと区別できないようにする。管理者は環境変数 `ADMIN_STUDENT_NUMBERS`（学籍番号の許可リスト）で決める（[ADR 0015](../decisions/0015-admin-authorization.md)）。
 
