@@ -72,6 +72,17 @@ export function approvedTransaction(overrides: Partial<Transaction> = {}): Trans
   })
 }
 
+/** 購入者から見た取引中の取引（出品者の学籍番号を含む） */
+export function buyerDealTransaction(overrides: Partial<Transaction> = {}): Transaction {
+  return transaction({
+    status: 'in_deal',
+    item: { shareId: 'abc123', title: '線形代数入門', status: 'in_deal' },
+    identityDisclosedAt: '2026-10-08T03:40:00Z',
+    counterpartStudentNumber: '25238117',
+    ...overrides,
+  })
+}
+
 type Handler = (init?: RequestInit) => Response | Promise<Response>
 
 /** 「メソッド URL」（例 `POST /api/transactions/tx1/approve`）ごとに応答を返し分ける fetch を差し込む */
