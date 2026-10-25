@@ -170,13 +170,14 @@ func wire(cfg config, gdb *gorm.DB, clk clock.Clock, mailer mail.Mailer, store s
 		Clock:        clk,
 	})
 	deal := service.NewDealService(service.DealDeps{
-		Tx:           tx,
-		Items:        items,
-		Users:        users,
-		Transactions: transactions,
-		Settings:     settings,
-		Payments:     payments,
-		Clock:        clk,
+		Tx:             tx,
+		Items:          items,
+		Users:          users,
+		Transactions:   transactions,
+		HandoverTokens: repository.NewHandoverTokenRepository(gdb),
+		Settings:       settings,
+		Payments:       payments,
+		Clock:          clk,
 	})
 	return handler.New(handler.Deps{
 		Signup:        signup,
