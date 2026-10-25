@@ -102,6 +102,106 @@ func TestTransactionRepository_UpdateStatusとAcknowledge(t *testing.T) {
 	}
 }
 
+// キャンセルの条件付きUPDATE：片方の同意だけではキャンセルにならない、取り下げは相手が同意する前だけ（DEAL-4, DB）。
+func TestTransactionRepository_キャンセル(t *testing.T) {
+	ctx := context.Background()
+	gdb := testdb.New(t)
+	f := newDealFixture(t, gdb)
+	txs := repository.NewTransactionRepository(gdb)
+	req := f.newRequest(f.buyer)
+	if err := txs.Create(ctx, req); err != nil {
+		t.Fatal(err)
+	}
+	t1, t2, t3 := t0.Add(time.Hour), t0.Add(2*time.Hour), t0.Add(3*time.Hour)
+
+	if err := txs.AgreeCancel(ctx, req.ID, f.buyer.ID, domain.TransactionRoleBuyer, t1); !errors.Is(err, repository.ErrConflict) {
+		t.Errorf("承認前の申請: err = %v, want ErrConflict", err)
+	}
+	if err := txs.Approve(ctx, req.ID, f.seller.ID, 500, 77, 1473, t0); err != nil {
+		t.Fatal(err)
+	}
+	if err := txs.AgreeCancel(ctx, req.ID, f.buyer2.ID, domain.TransactionRoleBuyer, t1); !errors.Is(err, repository.ErrConflict) {
+		t.Errorf("当事者でない申請: err = %v, want ErrConflict", err)
+	}
+	if err := txs.AgreeCancel(ctx, req.ID, f.buyer.ID, domain.TransactionRoleSeller, t1); !errors.Is(err, repository.ErrConflict) {
+		t.Errorf("役割違いの申請: err = %v, want ErrConflict", err)
+	}
+	if err := txs.WithdrawCancel(ctx, req.ID, f.buyer.ID, domain.TransactionRoleBuyer, t1); !errors.Is(err, repository.ErrConflict) {
+		t.Errorf("申請前の取り下げ: err = %v, want ErrConflict", err)
+	}
+
+	// 購入者の申請 → 取り下げ
+	if err := txs.AgreeCancel(ctx, req.ID, f.buyer.ID, domain.TransactionRoleBuyer, t1); err != nil {
+		t.Fatalf("購入者の申請: %v", err)
+	}
+	if got, _ := txs.FindByID(ctx, req.ID); got.Status != domain.TransactionStatusInDeal || !got.BuyerCancelAgreedAt.Equal(t1) || got.SellerCancelAgreedAt != nil {
+		t.Errorf("申請後: got = %+v", got)
+	}
+	if err := txs.AgreeCancel(ctx, req.ID, f.buyer.ID, domain.TransactionRoleBuyer, t2); !errors.Is(err, repository.ErrConflict) {
+		t.Errorf("二重の申請: err = %v, want ErrConflict", err)
+	}
+	if err := txs.Cancel(ctx, req.ID, t1); !errors.Is(err, repository.ErrConflict) {
+		t.Errorf("片方だけの同意でキャンセル: err = %v, want ErrConflict", err)
+	}
+	if err := txs.WithdrawCancel(ctx, req.ID, f.buyer.ID, domain.TransactionRoleBuyer, t2); err != nil {
+		t.Fatalf("取り下げ: %v", err)
+	}
+	if got, _ := txs.FindByID(ctx, req.ID); got.BuyerCancelAgreedAt != nil || !got.UpdatedAt.Equal(t2) {
+		t.Errorf("取り下げ後: got = %+v", got)
+	}
+
+	// 出品者の申請 → 購入者の同意 → キャンセル。相手が同意した後は取り下げられない
+	if err := txs.AgreeCancel(ctx, req.ID, f.seller.ID, domain.TransactionRoleSeller, t2); err != nil {
+		t.Fatalf("出品者の申請: %v", err)
+	}
+	if err := txs.AgreeCancel(ctx, req.ID, f.buyer.ID, domain.TransactionRoleBuyer, t3); err != nil {
+		t.Fatalf("購入者の同意: %v", err)
+	}
+	if err := txs.WithdrawCancel(ctx, req.ID, f.seller.ID, domain.TransactionRoleSeller, t3); !errors.Is(err, repository.ErrConflict) {
+		t.Errorf("相手の同意後の取り下げ: err = %v, want ErrConflict", err)
+	}
+	if err := txs.Cancel(ctx, req.ID, t3); err != nil {
+		t.Fatalf("キャンセル: %v", err)
+	}
+	got, err := txs.FindByID(ctx, req.ID)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if got.Status != domain.TransactionStatusCancelled || !got.SellerCancelAgreedAt.Equal(t2) || !got.BuyerCancelAgreedAt.Equal(t3) || !got.UpdatedAt.Equal(t3) {
+		t.Errorf("キャンセル後: got = %+v", got)
+	}
+	if err := txs.Cancel(ctx, req.ID, t3); !errors.Is(err, repository.ErrConflict) {
+		t.Errorf("二重のキャンセル: err = %v, want ErrConflict", err)
+	}
+}
+
+// 受け渡し完了後はキャンセルに同意できない（DEAL-4）。
+func TestTransactionRepository_完了後のキャンセル(t *testing.T) {
+	ctx := context.Background()
+	gdb := testdb.New(t)
+	f := newDealFixture(t, gdb)
+	txs := repository.NewTransactionRepository(gdb)
+	req := f.newRequest(f.buyer)
+	if err := txs.Create(ctx, req); err != nil {
+		t.Fatal(err)
+	}
+	if err := txs.Approve(ctx, req.ID, f.seller.ID, 500, 77, 1473, t0); err != nil {
+		t.Fatal(err)
+	}
+	if err := txs.AgreeCancel(ctx, req.ID, f.seller.ID, domain.TransactionRoleSeller, t0); err != nil {
+		t.Fatal(err)
+	}
+	if err := txs.Complete(ctx, req.ID, f.buyer.ID, domain.HandoverMethodQR, t0); err != nil {
+		t.Fatal(err)
+	}
+	if err := txs.AgreeCancel(ctx, req.ID, f.buyer.ID, domain.TransactionRoleBuyer, t0); !errors.Is(err, repository.ErrConflict) {
+		t.Errorf("完了後の同意: err = %v, want ErrConflict", err)
+	}
+	if err := txs.WithdrawCancel(ctx, req.ID, f.seller.ID, domain.TransactionRoleSeller, t0); !errors.Is(err, repository.ErrConflict) {
+		t.Errorf("完了後の取り下げ: err = %v, want ErrConflict", err)
+	}
+}
+
 func TestTransactionRepository_一覧と件数(t *testing.T) {
 	ctx := context.Background()
 	gdb := testdb.New(t)

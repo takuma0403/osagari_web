@@ -772,6 +772,46 @@ paths:
                 $ref: '#/components/schemas/Transaction'
         default:
           $ref: '#/components/responses/Error'
+  /transactions/{transactionId}/cancel:
+    post:
+      tags: [transactions]
+      operationId: cancelTransaction
+      summary: 取引のキャンセルを申請する・申請に同意する
+      description: |
+        DEAL-4, JOBS-2: 当事者が取引のキャンセルを申請する、または相手の申請に同意する（どちらも自分の同意日時を記録する同じ操作）。
+        双方の同意がそろったら取引をキャンセルにし、代金を購入者に返金し（モック）、商品を公開中に戻す。片方だけでは取引中のまま。
+        自分がすでに同意済みなら、最初の日時のまま 200 を返す。相手の申請を断る操作はない（同意しなければ取引は続く）。
+        取引中でない（受け渡し完了後・キャンセル済み・承認前）なら 409 invalid_status_transition。当事者でなければ 404 not_found。
+      parameters:
+        - $ref: '#/components/parameters/TransactionId'
+      responses:
+        '200':
+          description: 同意を記録した取引（双方がそろったらキャンセル済み）
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Transaction'
+        default:
+          $ref: '#/components/responses/Error'
+  /transactions/{transactionId}/cancel/withdraw:
+    post:
+      tags: [transactions]
+      operationId: withdrawCancelRequest
+      summary: 取引のキャンセルの申請を取り下げる
+      description: |
+        DEAL-4: 自分が出したキャンセルの申請を取り下げる（自分の同意日時を消す）。
+        取引中でない（相手が同意してキャンセル済みの場合を含む）・自分が申請していないなら 409 invalid_status_transition。当事者でなければ 404 not_found。
+      parameters:
+        - $ref: '#/components/parameters/TransactionId'
+      responses:
+        '200':
+          description: 申請を取り下げた取引
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Transaction'
+        default:
+          $ref: '#/components/responses/Error'
   /transactions/{transactionId}/handover-tokens:
     post:
       tags: [handover]
@@ -1747,7 +1787,7 @@ components:
       description: |
         DEAL 取引（購入希望の段階を含む）。`counterpartStudentNumber` は承認（取引成立）の後だけ入り、それより前は null（DEAL-1）。
         手数料の3項目は出品者にだけ、取引成立の後に入る（PAY-2, ADR 0003）。
-      required: [id, role, status, item, price, paymentMethod, approvalDeadline, feeRateBasisPoints, fee, sellerProceeds, identityDisclosedAt, sellerAcknowledgedAt, completedAt, handoverMethod, counterpartStudentNumber, createdAt]
+      required: [id, role, status, item, price, paymentMethod, approvalDeadline, feeRateBasisPoints, fee, sellerProceeds, identityDisclosedAt, sellerAcknowledgedAt, buyerCancelAgreedAt, sellerCancelAgreedAt, completedAt, handoverMethod, counterpartStudentNumber, createdAt]
       properties:
         id:
           type: string
@@ -1791,6 +1831,16 @@ components:
           format: date-time
           nullable: true
           description: 出品者が確認モーダルに同意した日時（DEAL-2）
+        buyerCancelAgreedAt:
+          type: string
+          format: date-time
+          nullable: true
+          description: 購入者がキャンセルに同意（申請）した日時（DEAL-4）。取り下げたら null
+        sellerCancelAgreedAt:
+          type: string
+          format: date-time
+          nullable: true
+          description: 出品者がキャンセルに同意（申請）した日時（DEAL-4）。取り下げたら null
         completedAt:
           type: string
           format: date-time

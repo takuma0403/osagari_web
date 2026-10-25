@@ -620,6 +620,50 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/transactions/{transactionId}/cancel": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * 取引のキャンセルを申請する・申請に同意する
+         * @description DEAL-4, JOBS-2: 当事者が取引のキャンセルを申請する、または相手の申請に同意する（どちらも自分の同意日時を記録する同じ操作）。
+         *     双方の同意がそろったら取引をキャンセルにし、代金を購入者に返金し（モック）、商品を公開中に戻す。片方だけでは取引中のまま。
+         *     自分がすでに同意済みなら、最初の日時のまま 200 を返す。相手の申請を断る操作はない（同意しなければ取引は続く）。
+         *     取引中でない（受け渡し完了後・キャンセル済み・承認前）なら 409 invalid_status_transition。当事者でなければ 404 not_found。
+         */
+        post: operations["cancelTransaction"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/transactions/{transactionId}/cancel/withdraw": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * 取引のキャンセルの申請を取り下げる
+         * @description DEAL-4: 自分が出したキャンセルの申請を取り下げる（自分の同意日時を消す）。
+         *     取引中でない（相手が同意してキャンセル済みの場合を含む）・自分が申請していないなら 409 invalid_status_transition。当事者でなければ 404 not_found。
+         */
+        post: operations["withdrawCancelRequest"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/transactions/{transactionId}/handover-tokens": {
         parameters: {
             query?: never;
@@ -1388,6 +1432,16 @@ export interface components {
              * @description 出品者が確認モーダルに同意した日時（DEAL-2）
              */
             sellerAcknowledgedAt: string | null;
+            /**
+             * Format: date-time
+             * @description 購入者がキャンセルに同意（申請）した日時（DEAL-4）。取り下げたら null
+             */
+            buyerCancelAgreedAt: string | null;
+            /**
+             * Format: date-time
+             * @description 出品者がキャンセルに同意（申請）した日時（DEAL-4）。取り下げたら null
+             */
+            sellerCancelAgreedAt: string | null;
             /**
              * Format: date-time
              * @description 受け渡しが完了した日時（DEAL-3）
@@ -2236,6 +2290,54 @@ export interface operations {
         requestBody?: never;
         responses: {
             /** @description 同意を記録した取引 */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Transaction"];
+                };
+            };
+            default: components["responses"]["Error"];
+        };
+    };
+    cancelTransaction: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description 取引のID */
+                transactionId: components["parameters"]["TransactionId"];
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description 同意を記録した取引（双方がそろったらキャンセル済み） */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Transaction"];
+                };
+            };
+            default: components["responses"]["Error"];
+        };
+    };
+    withdrawCancelRequest: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description 取引のID */
+                transactionId: components["parameters"]["TransactionId"];
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description 申請を取り下げた取引 */
             200: {
                 headers: {
                     [name: string]: unknown;

@@ -256,6 +256,44 @@ func (r *TransactionRepository) Complete(ctx context.Context, id, buyerID string
 	return rowsAffected(res)
 }
 
+// AgreeCancel は role として当事者 userID の取引中の取引に、キャンセルへの同意（申請）日時を記録する（DEAL-4, DB）。
+// 取引中でない・当事者でない・同意済みなら ErrConflict。
+func (r *TransactionRepository) AgreeCancel(ctx context.Context, id, userID string, role domain.TransactionRole, now time.Time) error {
+	party, own, _ := cancelColumns(role)
+	ts := formatTime(now)
+	res := conn(ctx, r.db).Model(&transactionRow{}).
+		Where("id = ? AND "+party+" = ? AND status = ? AND "+own+" IS NULL", id, userID, string(domain.TransactionStatusInDeal)).
+		Updates(map[string]any{own: ts, "updated_at": ts})
+	return rowsAffected(res)
+}
+
+// Cancel は取引中の取引を、双方がキャンセルに同意しているときだけキャンセルにする（DEAL-4, DB）。
+// 取引中でない・どちらかが同意していないなら ErrConflict。
+func (r *TransactionRepository) Cancel(ctx context.Context, id string, now time.Time) error {
+	res := conn(ctx, r.db).Model(&transactionRow{}).
+		Where("id = ? AND status = ? AND buyer_cancel_agreed_at IS NOT NULL AND seller_cancel_agreed_at IS NOT NULL", id, string(domain.TransactionStatusInDeal)).
+		Updates(map[string]any{"status": string(domain.TransactionStatusCancelled), "updated_at": formatTime(now)})
+	return rowsAffected(res)
+}
+
+// WithdrawCancel は role として当事者 userID が出したキャンセルの申請を取り下げる（同意日時を消す。DEAL-4, DB）。
+// 取引中でない・当事者でない・申請していない・相手が同意済みなら ErrConflict。
+func (r *TransactionRepository) WithdrawCancel(ctx context.Context, id, userID string, role domain.TransactionRole, now time.Time) error {
+	party, own, other := cancelColumns(role)
+	res := conn(ctx, r.db).Model(&transactionRow{}).
+		Where("id = ? AND "+party+" = ? AND status = ? AND "+own+" IS NOT NULL AND "+other+" IS NULL", id, userID, string(domain.TransactionStatusInDeal)).
+		Updates(map[string]any{own: nil, "updated_at": formatTime(now)})
+	return rowsAffected(res)
+}
+
+// cancelColumns は role から見た当事者の列、自分と相手のキャンセルへの同意日時の列を返す（DEAL-4）。
+func cancelColumns(role domain.TransactionRole) (party, own, other string) {
+	if role == domain.TransactionRoleSeller {
+		return "seller_id", "seller_cancel_agreed_at", "buyer_cancel_agreed_at"
+	}
+	return "buyer_id", "buyer_cancel_agreed_at", "seller_cancel_agreed_at"
+}
+
 // rowsAffected は条件付きUPDATE の結果を返す。更新件数が0なら ErrConflict。
 func rowsAffected(res *gorm.DB) error {
 	if res.Error != nil {

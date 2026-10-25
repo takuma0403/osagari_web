@@ -48,6 +48,14 @@ func (t Transaction) RoleOf(userID string) (role TransactionRole, ok bool) {
 	return "", false
 }
 
+// CancelAgreedAt は role の当事者がキャンセルに同意（申請）した日時を返す。同意していなければ nil（DEAL-4）。
+func (t Transaction) CancelAgreedAt(role TransactionRole) *time.Time {
+	if role == TransactionRoleSeller {
+		return t.SellerCancelAgreedAt
+	}
+	return t.BuyerCancelAgreedAt
+}
+
 // CounterpartID は userID から見た取引の相手のユーザーIDを返す。
 func (t Transaction) CounterpartID(userID string) string {
 	if userID == t.BuyerID {

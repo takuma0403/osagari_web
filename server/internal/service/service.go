@@ -114,6 +114,9 @@ type TransactionStore interface {
 	UpdateStatus(ctx context.Context, id string, from, to domain.TransactionStatus, now time.Time) error
 	Acknowledge(ctx context.Context, id, sellerID string, now time.Time) error
 	Complete(ctx context.Context, id, buyerID string, method domain.HandoverMethod, now time.Time) error
+	AgreeCancel(ctx context.Context, id, userID string, role domain.TransactionRole, now time.Time) error
+	Cancel(ctx context.Context, id string, now time.Time) error
+	WithdrawCancel(ctx context.Context, id, userID string, role domain.TransactionRole, now time.Time) error
 }
 
 // HandoverTokenStore は handover_tokens の読み書き（repository.HandoverTokenRepository）。

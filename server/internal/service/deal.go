@@ -32,7 +32,7 @@ type DealDeps struct {
 	Clock          clock.Clock
 }
 
-// DealService は購入希望・承認・却下・受け渡し完了と取引の詳細を扱う（DEAL-1, DEAL-2, DEAL-3）。
+// DealService は購入希望・承認・却下・受け渡し完了・キャンセルと取引の詳細を扱う（DEAL-1, DEAL-2, DEAL-3, DEAL-4）。
 // 状態遷移は条件付きUPDATE で行い、決済は payment.Gateway に同じトランザクションで記録する（DB, JOBS-2）。
 type DealService struct {
 	d DealDeps
@@ -255,17 +255,30 @@ func (s *DealService) findAsSeller(ctx context.Context, u *domain.User, id strin
 
 // findAs は本人が role として当事者の取引を返す。ないか、role でなければ 404（相手にも存在を区別させない）。
 func (s *DealService) findAs(ctx context.Context, u *domain.User, id string, role domain.TransactionRole) (*domain.Transaction, error) {
-	tr, err := s.d.Transactions.FindByID(ctx, id)
-	if errors.Is(err, repository.ErrNotFound) {
-		return nil, errTransactionNotFound
-	}
+	tr, r, err := s.findAsParty(ctx, u, id)
 	if err != nil {
-		return nil, apperr.Internal(err)
+		return nil, err
 	}
-	if r, ok := tr.RoleOf(u.ID); !ok || r != role {
+	if r != role {
 		return nil, errTransactionNotFound
 	}
 	return tr, nil
+}
+
+// findAsParty は本人が当事者の取引と、本人が購入者か出品者かを返す。ないか、当事者でなければ 404。
+func (s *DealService) findAsParty(ctx context.Context, u *domain.User, id string) (*domain.Transaction, domain.TransactionRole, error) {
+	tr, err := s.d.Transactions.FindByID(ctx, id)
+	if errors.Is(err, repository.ErrNotFound) {
+		return nil, "", errTransactionNotFound
+	}
+	if err != nil {
+		return nil, "", apperr.Internal(err)
+	}
+	r, ok := tr.RoleOf(u.ID)
+	if !ok {
+		return nil, "", errTransactionNotFound
+	}
+	return tr, r, nil
 }
 
 // view は取引を読み直し、本人から見た形にする。当事者でなければ 404。
