@@ -99,3 +99,9 @@
   font-size: var(--text-heading);
   font-weight: 700;
 }
+
+/* キャンセルの申請（DealQR）。主な操作ではないので小さく目立たせない */
+.cancelLink {
+  align-self: center;
+  font-size: var(--text-label);
+}

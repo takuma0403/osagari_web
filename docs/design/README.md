@@ -162,7 +162,7 @@ DS-3 の部品を作るために足した補助の部品（画面からも使え
 | 〃 | [DealConfirm](screens/DealConfirm.dc.html) | — | DEAL-1・2 |
 | 〃 | [DealQR](screens/DealQR.dc.html) | — | DEAL-3・4 |
 | 〃 | [DealScan](screens/DealScan.dc.html) | — | DEAL-3 |
-| 〃 | [DealCancel](screens/DealCancel.dc.html) | `side`：申請する／同意を求められた／申請中 | DEAL-4 |
+| 〃 | [DealCancel](screens/DealCancel.dc.html) | `side`：申請する／同意を求められた／申請中。実装では、相手の申請が届いていたらシートを一度だけ自動で開き、閉じた後は上部の warning の案内（「相手からキャンセルの申請が届いています。同意しなければ取引は続きます。」＋「内容を確認する」）から開き直せるようにする。キャンセル済みの取引詳細は「この取引はキャンセルされました。代金は購入者に返金されました。」 | DEAL-4, [ADR 0026](../decisions/0026-cancel-request-api.md) |
 | 〃 | [DealCompleteIssue](screens/DealCompleteIssue.dc.html) | `kind`：完了リンク／完了コード（出品者） | DEAL-3 |
 | 〃 | [DealCompleteEnter](screens/DealCompleteEnter.dc.html) | `via`：コード入力／完了リンク、`state`：入力／受け取り確認／エラー（購入者） | DEAL-3 |
 | 取引一覧 | [DealList](screens/DealList.dc.html) | `tab`：購入／出品、`empty` | DEAL-1・3・4 |

@@ -1,0 +1,18 @@
+.text {
+  font-size: var(--text-body);
+  line-height: 1.75;
+}
+
+.num {
+  font-family: var(--font-num);
+}
+
+/* デザイン（DealCancel）どおり、補足（neutral）より一回り大きい 13px で読ませる */
+.notice {
+  font-size: var(--text-label);
+  line-height: 1.7;
+}
+
+.dismiss {
+  align-self: center;
+}
