@@ -1323,7 +1323,7 @@ export interface components {
         };
         /**
          * @description DEAL-3 発行した受け渡しトークン。qr は token と code、link は token、code は code だけが入る。
-         *     完了リンクと QR の中身は `/deals/{transactionId}/complete#t=<token>`（ADR 0024）。
+         *     完了リンクの中身は `/deals/{transactionId}/complete#t=<token>`、QR の中身は `/deals/{transactionId}/complete#q=<token>`（ADR 0024, ADR 0025）。
          */
         HandoverToken: {
             kind: components["schemas"]["HandoverTokenKind"];
