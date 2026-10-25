@@ -196,6 +196,159 @@ describe('DealDetailPage', () => {
     expect(fetchMock).toHaveBeenCalledTimes(1)
   })
 
+  describe('キャンセル（DEAL-4）', () => {
+    const cancelled = (overrides: Parameters<typeof buyerDealTransaction>[0] = {}) =>
+      buyerDealTransaction({
+        status: 'cancelled',
+        item: { shareId: 'abc123', title: '線形代数入門', status: 'published' },
+        buyerCancelAgreedAt: inMinutes(1),
+        sellerCancelAgreedAt: inMinutes(-10),
+        ...overrides,
+      })
+
+    it('出品者がリンクから申請すると、申請中の案内を出し、取り下げるとリンクに戻る', async () => {
+      const fetchMock = stubDealsFetch({
+        'GET /api/transactions/tx1': () => json(approvedTransaction({ id: 'tx1' })),
+        'POST /api/transactions/tx1/handover-tokens': () => qrToken(),
+        'POST /api/transactions/tx1/cancel': () =>
+          json(approvedTransaction({ id: 'tx1', sellerCancelAgreedAt: inMinutes(0) })),
+        'POST /api/transactions/tx1/cancel/withdraw': () =>
+          json(approvedTransaction({ id: 'tx1' })),
+      })
+      const { user } = setup()
+      await screen.findByText('381 902')
+      await user.click(
+        screen.getByRole('button', { name: '取引のキャンセルを申請（相手の同意が必要）' }),
+      )
+      const sheet = screen.getByRole('dialog', { name: '取引のキャンセルを申請' })
+      expect(sheet).toHaveTextContent('¥1,500')
+      await user.click(screen.getByRole('button', { name: 'キャンセルを申請する' }))
+
+      expect(
+        await screen.findByText('キャンセルを申請しました。相手が同意するまで取引は続いています。'),
+      ).toBeInTheDocument()
+      expect(screen.queryByRole('dialog')).not.toBeInTheDocument()
+      expect(
+        screen.queryByRole('button', { name: '取引のキャンセルを申請（相手の同意が必要）' }),
+      ).not.toBeInTheDocument()
+      // 申請中も受け渡しは続けられる（ADR 0026）
+      expect(screen.getByRole('img', { name: '受け渡し用QRコード' })).toBeInTheDocument()
+
+      await user.click(screen.getByRole('button', { name: '申請を取り下げる' }))
+      expect(
+        await screen.findByRole('button', { name: '取引のキャンセルを申請（相手の同意が必要）' }),
+      ).toBeInTheDocument()
+      expect(bodyOf(fetchMock, 'POST /api/transactions/tx1/cancel')).toEqual({})
+      expect(bodyOf(fetchMock, 'POST /api/transactions/tx1/cancel/withdraw')).toEqual({})
+    })
+
+    it('「やめる」で閉じ、申請しない', async () => {
+      const fetchMock = stubDealsFetch({
+        'GET /api/transactions/tx1': () => json(buyerDealTransaction()),
+      })
+      const { user } = setup()
+      await user.click(
+        await screen.findByRole('button', { name: '取引のキャンセルを申請（相手の同意が必要）' }),
+      )
+      await user.click(screen.getByRole('button', { name: 'やめる' }))
+      expect(screen.queryByRole('dialog')).not.toBeInTheDocument()
+      expect(fetchMock).toHaveBeenCalledTimes(1)
+    })
+
+    it('相手の申請が届いていたらシートを開き、「同意しない」で閉じても案内から開き直せる', async () => {
+      const fetchMock = stubDealsFetch({
+        'GET /api/transactions/tx1': () =>
+          json(buyerDealTransaction({ sellerCancelAgreedAt: inMinutes(-10) })),
+      })
+      const { user } = setup()
+      expect(
+        await screen.findByRole('dialog', { name: 'キャンセルの申請が届いています' }),
+      ).toBeInTheDocument()
+      await user.click(screen.getByRole('button', { name: '同意しない' }))
+      expect(screen.queryByRole('dialog')).not.toBeInTheDocument()
+      expect(fetchMock).toHaveBeenCalledTimes(1)
+      // 申請された側は申請のリンクを出さず、受け渡しの導線はそのまま
+      expect(
+        screen.queryByRole('button', { name: '取引のキャンセルを申請（相手の同意が必要）' }),
+      ).not.toBeInTheDocument()
+      expect(screen.getByRole('link', { name: 'QRを読み取る' })).toBeInTheDocument()
+
+      await user.click(screen.getByRole('button', { name: '内容を確認する' }))
+      expect(
+        screen.getByRole('dialog', { name: 'キャンセルの申請が届いています' }),
+      ).toBeInTheDocument()
+    })
+
+    it('出品者が同意シートを閉じたら、完了リンクの画面から戻っても開き直さない', async () => {
+      stubDealsFetch({
+        'GET /api/transactions/tx1': () =>
+          json(approvedTransaction({ id: 'tx1', buyerCancelAgreedAt: inMinutes(-10) })),
+        'POST /api/transactions/tx1/handover-tokens': (init) =>
+          JSON.parse(String(init?.body)).kind === 'link'
+            ? json(
+                { kind: 'link', token: 'link-token', code: null, expiresAt: inMinutes(24 * 60) },
+                201,
+              )
+            : qrToken(),
+      })
+      const { user } = setup()
+      await screen.findByRole('dialog', { name: 'キャンセルの申請が届いています' })
+      await user.click(screen.getByRole('button', { name: '同意しない' }))
+      await user.click(await screen.findByRole('button', { name: '完了リンクを発行' }))
+      await screen.findByRole('heading', { name: '完了リンクを発行しました' })
+      // 発行画面でも申請が届いていることは出したまま
+      expect(screen.getByRole('button', { name: '内容を確認する' })).toBeInTheDocument()
+      await user.click(screen.getByRole('button', { name: '受け渡し画面に戻る' }))
+      await screen.findByText('381 902')
+      expect(screen.queryByRole('dialog')).not.toBeInTheDocument()
+    })
+
+    it('同意すると、キャンセルと返金の表示になる', async () => {
+      const fetchMock = stubDealsFetch({
+        'GET /api/transactions/tx1': () =>
+          json(buyerDealTransaction({ sellerCancelAgreedAt: inMinutes(-10) })),
+        'POST /api/transactions/tx1/cancel': () => json(cancelled()),
+      })
+      const { user } = setup()
+      await screen.findByRole('dialog', { name: 'キャンセルの申請が届いています' })
+      await user.click(screen.getByRole('button', { name: 'キャンセルに同意する' }))
+      expect(
+        await screen.findByText('この取引はキャンセルされました。代金は購入者に返金されました。'),
+      ).toBeInTheDocument()
+      expect(screen.queryByRole('dialog')).not.toBeInTheDocument()
+      expect(screen.queryByRole('link', { name: 'QRを読み取る' })).not.toBeInTheDocument()
+      expect(fetchMock).toHaveBeenCalledTimes(2)
+    })
+
+    it('取引中でなくなっていたら（409）エラーを出して取り直す', async () => {
+      let count = 0
+      stubDealsFetch({
+        'GET /api/transactions/tx1': () =>
+          json(
+            ++count === 1
+              ? buyerDealTransaction({ sellerCancelAgreedAt: inMinutes(-10) })
+              : buyerDealTransaction({
+                  status: 'completed',
+                  item: { shareId: 'abc123', title: '線形代数入門', status: 'completed' },
+                  completedAt: inMinutes(1),
+                }),
+          ),
+        'POST /api/transactions/tx1/cancel': () =>
+          json(
+            { code: 'invalid_status_transition', message: 'この取引はキャンセルできません' },
+            409,
+          ),
+      })
+      const { user } = setup()
+      await screen.findByRole('dialog', { name: 'キャンセルの申請が届いています' })
+      await user.click(screen.getByRole('button', { name: 'キャンセルに同意する' }))
+      expect(
+        await screen.findByRole('heading', { name: '受け渡しが完了しました' }),
+      ).toBeInTheDocument()
+      expect(count).toBe(2)
+    })
+  })
+
   it('取引中でない取引は、ステータスの説明だけを出す', async () => {
     stubDealsFetch({ 'GET /api/transactions/tx1': () => json(transaction()) })
     setup()

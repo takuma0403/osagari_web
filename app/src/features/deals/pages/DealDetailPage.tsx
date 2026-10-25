@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useState, type ReactNode } from 'react'
 import { Link, useLocation, useNavigate, useParams } from 'react-router'
 import { isApiError } from '../../../api/client'
 import { AppHeader } from '../../../components/AppHeader/AppHeader'
@@ -14,10 +14,13 @@ import {
   type HandoverTokenKind,
   type Transaction,
 } from '../api'
+import { CancelSheet } from '../components/CancelSheet/CancelSheet'
+import { CancelStatus } from '../components/CancelStatus/CancelStatus'
 import { DealItemSummary } from '../components/DealItemSummary/DealItemSummary'
 import { DealSteps } from '../components/DealSteps/DealSteps'
 import { HandoverIssued } from '../components/HandoverIssued/HandoverIssued'
 import { HandoverPanel } from '../components/HandoverPanel/HandoverPanel'
+import { useCancelRequest } from '../hooks/useCancelRequest'
 import { useTransaction } from '../hooks/useTransaction'
 import styles from './DealDetailPage.module.css'
 
@@ -32,22 +35,22 @@ const statusText: Record<Exclude<Transaction['status'], 'in_deal' | 'completed'>
   requested: '出品者の承認を待っています。',
   rejected: 'この購入希望は成立しませんでした。',
   expired: '承認期限を過ぎたため、この購入希望は成立しませんでした。',
-  cancelled: 'この取引はキャンセルされました。',
+  cancelled: 'この取引はキャンセルされました。代金は購入者に返金されました。',
 }
 
 /**
- * 取引詳細（DEAL-1〜3）。見る人と取引のステータスで出し分ける。
+ * 取引詳細（DEAL-1〜4）。見る人と取引のステータスで出し分ける。
  * - 出品者・取引中：受け渡しQR（DealQR）と、読み取ってもらい忘れたときの完了リンク・完了コードの発行（DealCompleteIssue）
  * - 購入者・取引中：QRの読み取り・完了コードの入力への導線
  * - 受け渡し完了：完了の表示（出品者・取引中の間は5秒ごとに取り直し、購入者が完了したら切り替える）
- * キャンセルの申請（DEAL-4）は #30 で足す。
+ * - 取引中：キャンセルの申請・同意・取り下げ（DEAL-4、DealCancel）。申請中も受け渡しは続けられる（ADR 0026）
  */
 export function DealDetailPage() {
   const { dealId = '' } = useParams()
   const navigate = useNavigate()
   const location = useLocation()
   const [issued, setIssued] = useState<HandoverToken | null>(null)
-  const { state, reload } = useTransaction(dealId)
+  const { state, reload, replace } = useTransaction(dealId)
   const transaction = state.status === 'ready' ? state.transaction : null
   // 出品者・取引中の間（受け渡しQR・完了リンク・完了コードの表示中）は、購入者が完了したかを取り直す
   const awaitsBuyer = transaction?.role === 'seller' && transaction.status === 'in_deal'
@@ -102,25 +105,35 @@ export function DealDetailPage() {
             <DealSteps status={transaction.item.status} />
             <p className={styles.text}>{statusText[transaction.status]}</p>
           </section>
-        ) : transaction.role === 'buyer' ? (
-          <BuyerView transaction={transaction} />
-        ) : issued ? (
-          <>
-            <HandoverIssued
-              kind={issued.kind === 'link' ? 'link' : 'code'}
-              value={
-                issued.kind === 'link'
-                  ? buildHandoverUrl(window.location.origin, dealId, 'link', issued.token ?? '')
-                  : (issued.code ?? '')
-              }
-              expiresAt={issued.expiresAt}
-            />
-            <Button variant="text" size="sm" onClick={() => setIssued(null)}>
-              受け渡し画面に戻る
-            </Button>
-          </>
         ) : (
-          <SellerHandover dealId={dealId} onIssued={setIssued} onExpired={reload} />
+          // 完了リンク・完了コードの表示中も残し、閉じた同意シートが戻ったときに開き直さないようにする
+          <CancelRequestFrame
+            transaction={transaction}
+            replace={replace}
+            reload={reload}
+            canRequest={!issued}
+          >
+            {transaction.role === 'buyer' ? (
+              <BuyerView transaction={transaction} />
+            ) : issued ? (
+              <>
+                <HandoverIssued
+                  kind={issued.kind === 'link' ? 'link' : 'code'}
+                  value={
+                    issued.kind === 'link'
+                      ? buildHandoverUrl(window.location.origin, dealId, 'link', issued.token ?? '')
+                      : (issued.code ?? '')
+                  }
+                  expiresAt={issued.expiresAt}
+                />
+                <Button variant="text" size="sm" onClick={() => setIssued(null)}>
+                  受け渡し画面に戻る
+                </Button>
+              </>
+            ) : (
+              <SellerHandover dealId={dealId} onIssued={setIssued} onExpired={reload} />
+            )}
+          </CancelRequestFrame>
         )}
       </main>
       {awaitsBuyer && <CompletionWatcher onTick={reload} />}
@@ -137,6 +150,58 @@ function CompletionWatcher({ onTick }: { onTick: () => void }) {
     return () => clearInterval(timer)
   }, [onTick])
   return null
+}
+
+/**
+ * 取引中の画面の上下にキャンセルの案内・申請のリンク・シートを置く（DEAL-4、DealQR・DealCancel）。
+ * 相手の申請が届いていたらシートを一度だけ自動で開く。
+ */
+function CancelRequestFrame({
+  transaction,
+  replace,
+  reload,
+  canRequest,
+  children,
+}: {
+  transaction: Transaction
+  replace: (transaction: Transaction) => void
+  reload: () => void
+  /** 申請のリンクを出すか（完了リンク・完了コードの表示中は出さない） */
+  canRequest: boolean
+  children: ReactNode
+}) {
+  const cancel = useCancelRequest(transaction, { replace, reload })
+  return (
+    <>
+      {cancel.side !== 'none' && (
+        <CancelStatus
+          kind={cancel.side}
+          onAction={cancel.side === 'requested' ? cancel.withdraw : cancel.open}
+          busy={cancel.submitting}
+        />
+      )}
+      {cancel.error && !cancel.sheetOpen && (
+        <InfoBox tone="danger" icon="alert" role="alert">
+          {cancel.error}
+        </InfoBox>
+      )}
+      {children}
+      {canRequest && cancel.side === 'none' && (
+        <Button variant="text" size="sm" className={styles.cancelLink} onClick={cancel.open}>
+          取引のキャンセルを申請（相手の同意が必要）
+        </Button>
+      )}
+      <CancelSheet
+        open={cancel.sheetOpen}
+        side={cancel.side === 'received' ? 'agree' : 'request'}
+        price={transaction.price}
+        onSubmit={cancel.submit}
+        onClose={cancel.close}
+        submitting={cancel.submitting}
+        error={cancel.error}
+      />
+    </>
+  )
 }
 
 function Summary({ transaction }: { transaction: Transaction }) {
