@@ -24,6 +24,8 @@ tags:
     description: 出品・編集・取り下げと商品写真（ITEM, STORAGE）
   - name: transactions
     description: 購入希望・承認・却下と取引の詳細（DEAL）
+  - name: handover
+    description: 受け渡しトークン（QR・完了リンク・完了コード）の発行と受け渡し完了（DEAL-3）
   - name: settings
     description: 手数料率などの設定（PAY-2）
   - name: admin
@@ -764,6 +766,82 @@ paths:
       responses:
         '200':
           description: 同意を記録した取引
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Transaction'
+        default:
+          $ref: '#/components/responses/Error'
+  /transactions/{transactionId}/handover-tokens:
+    post:
+      tags: [handover]
+      operationId: createHandoverToken
+      summary: 受け渡しトークンを発行する
+      description: |
+        DEAL-3: 出品者が受け渡しQR・完了リンク・完了コードのトークンを発行する。中身は取引IDと使い捨てのトークンだけで、個人情報・金額は含めない。
+        `qr` は QR に載せるトークンと、QR の下に表示する6桁の確認コードを返す（有効期限5分）。`link` はトークン、`code` は6桁のコードだけを返す（有効期限24時間）。
+        同じ取引・同じ種類の未使用のトークンは使えなくなる（使えるのは常に最新の1つ）。トークン・コードの値はこの応答でしか返さない。
+        取引中でなければ 409 invalid_status_transition。出品者でなければ 404 not_found。
+      parameters:
+        - $ref: '#/components/parameters/TransactionId'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/HandoverTokenInput'
+      responses:
+        '201':
+          description: 発行した受け渡しトークン
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HandoverToken'
+        default:
+          $ref: '#/components/responses/Error'
+  /transactions/{transactionId}/handover/verify:
+    post:
+      tags: [handover]
+      operationId: verifyHandover
+      summary: 受け渡しトークンを照合する（使用済みにしない）
+      description: |
+        DEAL-3: 購入者が読み取った QR・開いた完了リンク・入力したコードが使えるかを確かめる。トークンは使用済みにしない。
+        アプリはこの照合のあとに「商品を受け取りましたか？」を表示し、「受け取った」で completeTransaction を呼ぶ。
+        使えない（違う・期限切れ・使用済み）なら 400 invalid_handover_token。取引中でなければ 409 invalid_status_transition。購入者でなければ 404 not_found。
+      parameters:
+        - $ref: '#/components/parameters/TransactionId'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/HandoverCredential'
+      responses:
+        '204':
+          description: 使える
+        default:
+          $ref: '#/components/responses/Error'
+  /transactions/{transactionId}/complete:
+    post:
+      tags: [handover]
+      operationId: completeTransaction
+      summary: 受け渡しを完了する
+      description: |
+        DEAL-3, PAY-2, JOBS-2: 購入者の操作で受け渡しを完了する。トークンを使用済みにし、取引と商品を完了にして、取引成立時に記録した出品者の売上を確定する（モック）。
+        完了方法は入力の種類（qr・link・code。QR の下の確認コードを入力したときは code）で記録する。完了後はキャンセル・返金できない（DEAL-4）。
+        使えない（違う・期限切れ・使用済み）なら 400 invalid_handover_token。取引中でない（同時に完了された場合を含む）なら 409 invalid_status_transition。
+        購入者でなければ 404 not_found（出品者の操作では完了しない）。
+      parameters:
+        - $ref: '#/components/parameters/TransactionId'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/HandoverCredential'
+      responses:
+        '200':
+          description: 完了した取引
           content:
             application/json:
               schema:
@@ -1617,12 +1695,59 @@ components:
       properties:
         paymentMethod:
           $ref: '#/components/schemas/PaymentMethod'
+    HandoverTokenKind:
+      type: string
+      description: 受け渡しトークンの種類（入力の種類にも使う）。qr は受け渡しQR、link は完了リンク、code は6桁のコード
+      enum: [qr, link, code]
+    HandoverMethod:
+      type: string
+      description: 受け渡しの完了方法。auto は自動完了（DEAL-5、暫定）
+      enum: [qr, link, code, auto]
+    HandoverTokenInput:
+      type: object
+      description: DEAL-3 発行する受け渡しトークンの種類
+      required: [kind]
+      properties:
+        kind:
+          $ref: '#/components/schemas/HandoverTokenKind'
+    HandoverToken:
+      type: object
+      description: |
+        DEAL-3 発行した受け渡しトークン。qr は token と code、link は token、code は code だけが入る。
+        完了リンクと QR の中身は `/deals/{transactionId}/complete#t=<token>`（ADR 0024）。
+      required: [kind, token, code, expiresAt]
+      properties:
+        kind:
+          $ref: '#/components/schemas/HandoverTokenKind'
+        token:
+          type: string
+          nullable: true
+          description: QR・完了リンクに載せる使い捨てのトークン
+        code:
+          type: string
+          nullable: true
+          description: 6桁の確認コード・完了コード
+          example: '582017'
+        expiresAt:
+          type: string
+          format: date-time
+          description: 有効期限（qr は5分後、link・code は24時間後）
+    HandoverCredential:
+      type: object
+      description: DEAL-3 購入者が読み取った・開いた・入力したトークン
+      required: [kind, secret]
+      properties:
+        kind:
+          $ref: '#/components/schemas/HandoverTokenKind'
+        secret:
+          type: string
+          description: qr・link はトークン、code は6桁のコード
     Transaction:
       type: object
       description: |
         DEAL 取引（購入希望の段階を含む）。`counterpartStudentNumber` は承認（取引成立）の後だけ入り、それより前は null（DEAL-1）。
         手数料の3項目は出品者にだけ、取引成立の後に入る（PAY-2, ADR 0003）。
-      required: [id, role, status, item, price, paymentMethod, approvalDeadline, feeRateBasisPoints, fee, sellerProceeds, identityDisclosedAt, sellerAcknowledgedAt, counterpartStudentNumber, createdAt]
+      required: [id, role, status, item, price, paymentMethod, approvalDeadline, feeRateBasisPoints, fee, sellerProceeds, identityDisclosedAt, sellerAcknowledgedAt, completedAt, handoverMethod, counterpartStudentNumber, createdAt]
       properties:
         id:
           type: string
@@ -1666,6 +1791,16 @@ components:
           format: date-time
           nullable: true
           description: 出品者が確認モーダルに同意した日時（DEAL-2）
+        completedAt:
+          type: string
+          format: date-time
+          nullable: true
+          description: 受け渡しが完了した日時（DEAL-3）
+        handoverMethod:
+          allOf:
+            - $ref: '#/components/schemas/HandoverMethod'
+          nullable: true
+          description: 受け渡しの完了方法。完了前は null
         counterpartStudentNumber:
           type: string
           nullable: true

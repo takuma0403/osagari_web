@@ -620,6 +620,74 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/transactions/{transactionId}/handover-tokens": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * 受け渡しトークンを発行する
+         * @description DEAL-3: 出品者が受け渡しQR・完了リンク・完了コードのトークンを発行する。中身は取引IDと使い捨てのトークンだけで、個人情報・金額は含めない。
+         *     `qr` は QR に載せるトークンと、QR の下に表示する6桁の確認コードを返す（有効期限5分）。`link` はトークン、`code` は6桁のコードだけを返す（有効期限24時間）。
+         *     同じ取引・同じ種類の未使用のトークンは使えなくなる（使えるのは常に最新の1つ）。トークン・コードの値はこの応答でしか返さない。
+         *     取引中でなければ 409 invalid_status_transition。出品者でなければ 404 not_found。
+         */
+        post: operations["createHandoverToken"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/transactions/{transactionId}/handover/verify": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * 受け渡しトークンを照合する（使用済みにしない）
+         * @description DEAL-3: 購入者が読み取った QR・開いた完了リンク・入力したコードが使えるかを確かめる。トークンは使用済みにしない。
+         *     アプリはこの照合のあとに「商品を受け取りましたか？」を表示し、「受け取った」で completeTransaction を呼ぶ。
+         *     使えない（違う・期限切れ・使用済み）なら 400 invalid_handover_token。取引中でなければ 409 invalid_status_transition。購入者でなければ 404 not_found。
+         */
+        post: operations["verifyHandover"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/transactions/{transactionId}/complete": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * 受け渡しを完了する
+         * @description DEAL-3, PAY-2, JOBS-2: 購入者の操作で受け渡しを完了する。トークンを使用済みにし、取引と商品を完了にして、取引成立時に記録した出品者の売上を確定する（モック）。
+         *     完了方法は入力の種類（qr・link・code。QR の下の確認コードを入力したときは code）で記録する。完了後はキャンセル・返金できない（DEAL-4）。
+         *     使えない（違う・期限切れ・使用済み）なら 400 invalid_handover_token。取引中でない（同時に完了された場合を含む）なら 409 invalid_status_transition。
+         *     購入者でなければ 404 not_found（出品者の操作では完了しない）。
+         */
+        post: operations["completeTransaction"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/settings/fee-rate": {
         parameters: {
             query?: never;
@@ -1240,6 +1308,45 @@ export interface components {
             paymentMethod: components["schemas"]["PaymentMethod"];
         };
         /**
+         * @description 受け渡しトークンの種類（入力の種類にも使う）。qr は受け渡しQR、link は完了リンク、code は6桁のコード
+         * @enum {string}
+         */
+        HandoverTokenKind: "qr" | "link" | "code";
+        /**
+         * @description 受け渡しの完了方法。auto は自動完了（DEAL-5、暫定）
+         * @enum {string}
+         */
+        HandoverMethod: "qr" | "link" | "code" | "auto";
+        /** @description DEAL-3 発行する受け渡しトークンの種類 */
+        HandoverTokenInput: {
+            kind: components["schemas"]["HandoverTokenKind"];
+        };
+        /**
+         * @description DEAL-3 発行した受け渡しトークン。qr は token と code、link は token、code は code だけが入る。
+         *     完了リンクと QR の中身は `/deals/{transactionId}/complete#t=<token>`（ADR 0024）。
+         */
+        HandoverToken: {
+            kind: components["schemas"]["HandoverTokenKind"];
+            /** @description QR・完了リンクに載せる使い捨てのトークン */
+            token: string | null;
+            /**
+             * @description 6桁の確認コード・完了コード
+             * @example 582017
+             */
+            code: string | null;
+            /**
+             * Format: date-time
+             * @description 有効期限（qr は5分後、link・code は24時間後）
+             */
+            expiresAt: string;
+        };
+        /** @description DEAL-3 購入者が読み取った・開いた・入力したトークン */
+        HandoverCredential: {
+            kind: components["schemas"]["HandoverTokenKind"];
+            /** @description qr・link はトークン、code は6桁のコード */
+            secret: string;
+        };
+        /**
          * @description DEAL 取引（購入希望の段階を含む）。`counterpartStudentNumber` は承認（取引成立）の後だけ入り、それより前は null（DEAL-1）。
          *     手数料の3項目は出品者にだけ、取引成立の後に入る（PAY-2, ADR 0003）。
          */
@@ -1281,6 +1388,13 @@ export interface components {
              * @description 出品者が確認モーダルに同意した日時（DEAL-2）
              */
             sellerAcknowledgedAt: string | null;
+            /**
+             * Format: date-time
+             * @description 受け渡しが完了した日時（DEAL-3）
+             */
+            completedAt: string | null;
+            /** @description 受け渡しの完了方法。完了前は null */
+            handoverMethod: components["schemas"]["HandoverMethod"] | null;
             /** @description 相手の学籍番号。承認の後だけ入る（DEAL-1） */
             counterpartStudentNumber: string | null;
             /**
@@ -2122,6 +2236,88 @@ export interface operations {
         requestBody?: never;
         responses: {
             /** @description 同意を記録した取引 */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Transaction"];
+                };
+            };
+            default: components["responses"]["Error"];
+        };
+    };
+    createHandoverToken: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description 取引のID */
+                transactionId: components["parameters"]["TransactionId"];
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["HandoverTokenInput"];
+            };
+        };
+        responses: {
+            /** @description 発行した受け渡しトークン */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HandoverToken"];
+                };
+            };
+            default: components["responses"]["Error"];
+        };
+    };
+    verifyHandover: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description 取引のID */
+                transactionId: components["parameters"]["TransactionId"];
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["HandoverCredential"];
+            };
+        };
+        responses: {
+            /** @description 使える */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            default: components["responses"]["Error"];
+        };
+    };
+    completeTransaction: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description 取引のID */
+                transactionId: components["parameters"]["TransactionId"];
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["HandoverCredential"];
+            };
+        };
+        responses: {
+            /** @description 完了した取引 */
             200: {
                 headers: {
                     [name: string]: unknown;

@@ -49,6 +49,8 @@ export function transaction(overrides: Partial<Transaction> = {}): Transaction {
     sellerProceeds: null,
     identityDisclosedAt: null,
     sellerAcknowledgedAt: null,
+    completedAt: null,
+    handoverMethod: null,
     counterpartStudentNumber: null,
     createdAt: '2026-10-07T03:40:00Z',
     ...overrides,
