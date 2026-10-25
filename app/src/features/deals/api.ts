@@ -38,3 +38,30 @@ export function rejectTransaction(transactionId: string) {
 export function acknowledgeTransaction(transactionId: string) {
   return postJson<Transaction>(`${transactionPath(transactionId)}/acknowledge`, {})
 }
+
+export type HandoverTokenKind = components['schemas']['HandoverTokenKind']
+export type HandoverToken = components['schemas']['HandoverToken']
+export type HandoverCredential = components['schemas']['HandoverCredential']
+
+/** 自分が購入者か出品者の取引を取得する（DEAL-1〜3）。当事者でなければ 404 */
+export function getTransaction(transactionId: string, signal?: AbortSignal) {
+  return request<Transaction>(transactionPath(transactionId), { signal })
+}
+
+/**
+ * 出品者が受け渡しQR・完了リンク・完了コードのトークンを発行する（DEAL-3）。
+ * 同じ種類の未使用のものは使えなくなる。qr は5分、link・code は24時間で期限切れ
+ */
+export function createHandoverToken(transactionId: string, kind: HandoverTokenKind) {
+  return postJson<HandoverToken>(`${transactionPath(transactionId)}/handover-tokens`, { kind })
+}
+
+/** 購入者が読み取った・開いた・入力したトークンが使えるかを、使用済みにせずに確かめる（DEAL-3）。使えなければ 400 invalid_handover_token */
+export function verifyHandover(transactionId: string, credential: HandoverCredential) {
+  return postJson<void>(`${transactionPath(transactionId)}/handover/verify`, credential)
+}
+
+/** 購入者の「受け取った」で受け渡しを完了し、出品者の売上を確定する（DEAL-3、PAY-2） */
+export function completeTransaction(transactionId: string, credential: HandoverCredential) {
+  return postJson<Transaction>(`${transactionPath(transactionId)}/complete`, credential)
+}
