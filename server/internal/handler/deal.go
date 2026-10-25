@@ -8,7 +8,7 @@ import (
 	"github.com/takuma0403/osagari_web/server/internal/service"
 )
 
-// DealService は購入希望・承認・却下の業務ロジック（service.DealService）。
+// DealService は購入希望・承認・却下・受け渡し完了の業務ロジック（service.DealService）。
 type DealService interface {
 	CreateRequest(ctx context.Context, u *domain.User, shareID string, method domain.PaymentMethod) (*service.TransactionView, error)
 	ListRequests(ctx context.Context, u *domain.User, itemID string) ([]*service.PurchaseRequestView, error)
@@ -16,6 +16,9 @@ type DealService interface {
 	Approve(ctx context.Context, u *domain.User, id string) (*service.TransactionView, error)
 	Reject(ctx context.Context, u *domain.User, id string) (*service.TransactionView, error)
 	Acknowledge(ctx context.Context, u *domain.User, id string) (*service.TransactionView, error)
+	IssueHandoverToken(ctx context.Context, u *domain.User, id string, kind domain.HandoverTokenKind) (*service.IssuedHandoverToken, error)
+	VerifyHandover(ctx context.Context, u *domain.User, id string, cred service.HandoverCredential) error
+	Complete(ctx context.Context, u *domain.User, id string, cred service.HandoverCredential) (*service.TransactionView, error)
 }
 
 // CreatePurchaseRequest は購入希望を出す（POST /api/items/shared/{shareId}/requests。DEAL-1）。
@@ -96,6 +99,61 @@ func (h *Handler) AcknowledgeTransaction(ctx context.Context, req api.Acknowledg
 	return api.AcknowledgeTransaction200JSONResponse(v), nil
 }
 
+// CreateHandoverToken は受け渡しトークンを発行する（POST /api/transactions/{transactionId}/handover-tokens。DEAL-3）。
+func (h *Handler) CreateHandoverToken(ctx context.Context, req api.CreateHandoverTokenRequestObject) (api.CreateHandoverTokenResponseObject, error) {
+	if req.Body == nil {
+		return nil, errMissingBody
+	}
+	u, err := currentUser(ctx)
+	if err != nil {
+		return nil, err
+	}
+	t, err := h.d.Deal.IssueHandoverToken(ctx, u, req.TransactionId, domain.HandoverTokenKind(req.Body.Kind))
+	if err != nil {
+		return nil, err
+	}
+	return api.CreateHandoverToken201JSONResponse{
+		Kind:      api.HandoverTokenKind(t.Kind),
+		Token:     t.Token,
+		Code:      t.Code,
+		ExpiresAt: t.ExpiresAt,
+	}, nil
+}
+
+// VerifyHandover は受け渡しトークンを照合する（POST /api/transactions/{transactionId}/handover/verify。DEAL-3）。
+func (h *Handler) VerifyHandover(ctx context.Context, req api.VerifyHandoverRequestObject) (api.VerifyHandoverResponseObject, error) {
+	if req.Body == nil {
+		return nil, errMissingBody
+	}
+	u, err := currentUser(ctx)
+	if err != nil {
+		return nil, err
+	}
+	if err := h.d.Deal.VerifyHandover(ctx, u, req.TransactionId, toHandoverCredential(*req.Body)); err != nil {
+		return nil, err
+	}
+	return api.VerifyHandover204Response{}, nil
+}
+
+// CompleteTransaction は受け渡しを完了する（POST /api/transactions/{transactionId}/complete。DEAL-3）。
+func (h *Handler) CompleteTransaction(ctx context.Context, req api.CompleteTransactionRequestObject) (api.CompleteTransactionResponseObject, error) {
+	if req.Body == nil {
+		return nil, errMissingBody
+	}
+	cred := toHandoverCredential(*req.Body)
+	v, err := h.transaction(ctx, req.TransactionId, func(ctx context.Context, u *domain.User, id string) (*service.TransactionView, error) {
+		return h.d.Deal.Complete(ctx, u, id, cred)
+	})
+	if err != nil {
+		return nil, err
+	}
+	return api.CompleteTransaction200JSONResponse(v), nil
+}
+
+func toHandoverCredential(b api.HandoverCredential) service.HandoverCredential {
+	return service.HandoverCredential{Kind: domain.HandoverTokenKind(b.Kind), Secret: b.Secret}
+}
+
 // transaction はログイン中の本人で取引の操作 op を呼び、応答の形にする。
 func (h *Handler) transaction(ctx context.Context, id string, op func(context.Context, *domain.User, string) (*service.TransactionView, error)) (api.Transaction, error) {
 	u, err := currentUser(ctx)
@@ -123,6 +181,8 @@ func toTransaction(v *service.TransactionView) api.Transaction {
 		SellerProceeds:           v.SellerProceeds,
 		IdentityDisclosedAt:      v.IdentityDisclosedAt,
 		SellerAcknowledgedAt:     v.SellerAcknowledgedAt,
+		CompletedAt:              v.CompletedAt,
+		HandoverMethod:           (*api.HandoverMethod)(v.HandoverMethod),
 		CounterpartStudentNumber: v.CounterpartStudentNumber,
 		CreatedAt:                v.CreatedAt,
 	}

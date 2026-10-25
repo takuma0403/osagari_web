@@ -241,6 +241,21 @@ func (r *TransactionRepository) Acknowledge(ctx context.Context, id, sellerID st
 	return rowsAffected(res)
 }
 
+// Complete は購入者 buyerID の取引中の取引を受け渡し完了にし、完了した日時と完了方法を記録する（DEAL-3, DB）。
+// 取引中でない（すでに完了・キャンセル済みを含む）なら ErrConflict。
+func (r *TransactionRepository) Complete(ctx context.Context, id, buyerID string, method domain.HandoverMethod, now time.Time) error {
+	ts := formatTime(now)
+	res := conn(ctx, r.db).Model(&transactionRow{}).
+		Where("id = ? AND buyer_id = ? AND status = ?", id, buyerID, string(domain.TransactionStatusInDeal)).
+		Updates(map[string]any{
+			"status":          string(domain.TransactionStatusCompleted),
+			"completed_at":    ts,
+			"handover_method": string(method),
+			"updated_at":      ts,
+		})
+	return rowsAffected(res)
+}
+
 // rowsAffected は条件付きUPDATE の結果を返す。更新件数が0なら ErrConflict。
 func rowsAffected(res *gorm.DB) error {
 	if res.Error != nil {

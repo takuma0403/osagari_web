@@ -24,7 +24,7 @@ const itemBucket = "item-images"
 
 type itemFixture struct {
 	svc *service.ItemService
-	// deals は購入希望・承認・却下（DEAL-1）。商品のテストと同じ DB・時計を使う
+	// deals は購入希望・承認・却下・受け渡し完了（DEAL-1, DEAL-3）。商品のテストと同じ DB・時計を使う
 	deals    *service.DealService
 	users    *repository.UserRepository
 	items    *repository.ItemRepository
@@ -59,13 +59,14 @@ func newItemFixture(t *testing.T) *itemFixture {
 		Clock:        f.clock,
 	})
 	f.deals = service.NewDealService(service.DealDeps{
-		Tx:           tx,
-		Items:        f.items,
-		Users:        f.users,
-		Transactions: f.txs,
-		Settings:     repository.NewSettingRepository(gdb),
-		Payments:     gw,
-		Clock:        f.clock,
+		Tx:             tx,
+		Items:          f.items,
+		Users:          f.users,
+		Transactions:   f.txs,
+		HandoverTokens: repository.NewHandoverTokenRepository(gdb),
+		Settings:       repository.NewSettingRepository(gdb),
+		Payments:       gw,
+		Clock:          f.clock,
 	})
 	f.seller = f.createUser(t, email, "26238001", domain.SellerStatusApproved)
 	return f
