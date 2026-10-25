@@ -1,0 +1,101 @@
+.page {
+  display: flex;
+  flex-direction: column;
+  flex-grow: 1;
+  background: var(--color-bg);
+}
+
+.body {
+  display: flex;
+  flex-direction: column;
+  flex-grow: 1;
+  gap: 14px;
+  padding: var(--space-page);
+}
+
+.card {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  padding: 14px;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-card);
+  background: var(--color-surface);
+}
+
+.cardTitle {
+  font-size: var(--text-body);
+  font-weight: 700;
+}
+
+/* 2つのボタンを半分ずつの幅で並べる（Button は縮まないので flex ではなく grid で割る） */
+.issueButtons {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 8px;
+}
+
+/* デザイン（DealQR）どおり 13px。390px 幅で文字が収まるよう左右の余白を詰める */
+.issueButtons > * {
+  padding: 0 8px;
+  font-size: var(--text-label);
+}
+
+.text {
+  font-size: var(--text-body);
+  line-height: 1.7;
+}
+
+.muted {
+  color: var(--color-text-muted);
+  font-size: var(--text-label);
+  line-height: 1.7;
+}
+
+.studentNumber {
+  color: var(--color-text);
+  font-family: var(--font-num);
+  font-weight: 700;
+}
+
+.num {
+  font-family: var(--font-num);
+}
+
+/* 受け渡し完了 */
+.done {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 10px;
+  padding: 22px var(--space-page);
+  border: 1px solid var(--color-border);
+  border-radius: 16px;
+  background: var(--color-surface);
+  text-align: center;
+}
+
+.check {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 52px;
+  height: 52px;
+  border-radius: var(--radius-pill);
+  background: var(--color-primary-soft);
+  color: var(--color-primary);
+}
+
+/* 読み込み中・見つからない・エラー */
+.status {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-gap);
+  padding: var(--space-page);
+  font-size: var(--text-body);
+}
+
+.statusTitle {
+  font-size: var(--text-heading);
+  font-weight: 700;
+}

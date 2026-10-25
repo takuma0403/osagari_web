@@ -31,6 +31,17 @@ export function formatCountdown(seconds: number): string {
   return `${Math.floor(s / 60)}:${String(s % 60).padStart(2, '0')}`
 }
 
+/** 残り秒数を `23:58` の形（時:分。分の端数は切り上げ）にする。完了リンク・完了コードの有効期限（24時間、DEAL-3）に使う */
+export function formatCountdownHours(seconds: number): string {
+  const m = Math.max(0, Math.ceil(seconds / 60))
+  return `${Math.floor(m / 60)}:${String(m % 60).padStart(2, '0')}`
+}
+
+/** 6桁の確認コード・完了コードを、読み上げやすいよう `381 902` のように3桁で区切る（DEAL-3） */
+export function formatHandoverCode(code: string): string {
+  return code.length === 6 ? `${code.slice(0, 3)} ${code.slice(3)}` : code
+}
+
 const HOUR_MS = 60 * 60 * 1000
 const MINUTE_MS = 60 * 1000
 

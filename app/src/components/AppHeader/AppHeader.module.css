@@ -52,3 +52,10 @@
   gap: 4px;
   margin-right: 12px;
 }
+
+/* カメラ画面など暗い地の上 */
+.dark,
+.dark .back,
+.dark .back:hover {
+  color: var(--color-surface);
+}

@@ -16,7 +16,7 @@ Vite + React のSPAを Firebase Hosting に置きます。ログイン必須の�
 - Vercel の Hobby プランは非商用の個人利用に限られ、商用利用には Pro 以上が必要です（[Vercel Fair Use Guidelines](https://vercel.com/docs/limits/fair-use-guidelines)）。
 - **ルーティング**：画面遷移は React Router で行います。商品ページの共有リンク（`/items/:shareId`）もSPAのルートとして扱い、Firebase Hosting では `/api/**` 以外のすべてのパスを `index.html` に返す設定にします。
 - **共有リンクのプレビュー**：SPAのため、TeamsやLINEにリンクを貼っても商品ごとのタイトルや画像のプレビュー（OGP）は表示されず、アプリ共通の表示になります。リンクを開けば商品ページは問題なく表示されます。その代わりに、共有ボタンでは商品名・価格・状態とURLをまとめた文章をコピーできるようにし、リンクを貼るだけで内容が伝わるようにします（例：「【お下がり】線形代数学の教科書 ¥1,500（書き込みなし） https://…/items/123」）。共有はコピーだけで、Web Share API（ほかのアプリの共有シート）は使いません（[ADR 0020](../decisions/0020-share-link-login-and-copy-only.md)）。
-- **QRコード**：表示はQR生成ライブラリ、読み取りはブラウザのカメラを使うライブラリで行います。カメラの利用にはHTTPSが必要ですが、Firebase Hosting は標準でHTTPSです。
+- **QRコード**：表示は `uqr` で行列を作って SVG で描き、読み取りは ISBN と同じ `@zxing/browser`（QR_CODE だけを読む。読み取りを開いたときに動的に読み込む）で行います。出品者が取引中の取引詳細（受け渡しQR・完了リンク・完了コードの表示）を開いている間は、画面が前面にあるときだけ5秒ごとに取引を取り直し、購入者が完了したら完了の表示に切り替えます（[ADR 0025](../decisions/0025-handover-qr-fragment-and-libraries.md)）。カメラの利用にはHTTPSが必要ですが、Firebase Hosting は標準でHTTPSです。
 - **ISBN のバーコード**：出品画面（ITEM）で、ISBN をカメラで読み取れるようにします。ライブラリは `@zxing/browser`（EAN-13 だけを読み、978・979 で始まる値を ISBN として採用）で、読み取りを開いたときに動的に読み込み、最初の画面の読み込みを重くしないようにします。
 
 ### FE-1 実装方針（ハーネス整備時の決定）
@@ -43,7 +43,7 @@ Vite + React のSPAを Firebase Hosting に置きます。ログイン必須の�
   | `/deals` | 取引一覧（下部ナビの「取引」） | スマホ＋下部ナビ |
   | `/deals/:dealId` | 取引詳細（取引成立後の確認、受け渡しQR、キャンセル。購入希望の承認は `/sell/:itemId/requests`） | スマホ |
   | `/deals/:dealId/scan` | QR読み取り（購入者） | スマホ |
-  | `/deals/:dealId/complete` | 完了リンク・完了コードの入力（購入者、DEAL-3）。完了リンクと受け渡しQRの中身は `/deals/:dealId/complete#t=<トークン>`（フラグメント。[ADR 0024](../decisions/0024-handover-token-flow.md)） | スマホ |
+  | `/deals/:dealId/complete` | 完了リンク・完了コードの入力（購入者、DEAL-3）。完了リンクの中身は `/deals/:dealId/complete#t=<トークン>`、受け渡しQRの中身は `/deals/:dealId/complete#q=<トークン>`（フラグメント。[ADR 0024](../decisions/0024-handover-token-flow.md)、[ADR 0025](../decisions/0025-handover-qr-fragment-and-libraries.md)） | スマホ |
   | `/mypage` | マイページ | スマホ＋下部ナビ |
   | `/mypage/student-card`、`/mypage/sales` | 学生証登録、売上管理 | スマホ |
   | `/admin`（→ `/admin/student-cards`）、`/admin/users`、`/admin/items`、`/admin/settings` | 管理：学生証審査、ユーザー、出品・取引、設定 | PC |

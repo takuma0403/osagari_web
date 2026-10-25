@@ -1,0 +1,57 @@
+.page {
+  display: flex;
+  flex-direction: column;
+  flex-grow: 1;
+  background: var(--color-bg);
+}
+
+.body {
+  display: flex;
+  flex-direction: column;
+  flex-grow: 1;
+  gap: 14px;
+  padding: var(--space-page);
+  font-size: var(--text-body);
+}
+
+.item {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding: var(--space-gap);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-card);
+  background: var(--color-surface);
+}
+
+.studentNumber {
+  color: var(--color-text);
+  font-family: var(--font-num);
+  font-weight: 700;
+}
+
+.codeCard {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-gap);
+  padding: 18px var(--space-page);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-card);
+  background: var(--color-surface);
+}
+
+.cardTitle {
+  font-size: var(--text-button);
+  font-weight: 700;
+}
+
+.muted {
+  color: var(--color-text-muted);
+  font-size: var(--text-label);
+  line-height: 1.7;
+}
+
+.statusTitle {
+  font-size: var(--text-heading);
+  font-weight: 700;
+}

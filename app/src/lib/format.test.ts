@@ -1,6 +1,8 @@
 import {
   formatCountdown,
+  formatCountdownHours,
   formatDate,
+  formatHandoverCode,
   formatPrice,
   formatRemaining,
   formatShortDateTime,
@@ -64,5 +66,22 @@ describe('formatRemaining', () => {
     [-hour, '0分'],
   ])('残り %d ミリ秒を %s と表示する', (ms, expected) => {
     expect(formatRemaining(after(ms), now)).toBe(expected)
+  })
+})
+
+describe('formatCountdownHours', () => {
+  it.each([
+    [24 * 3600, '24:00'],
+    [23 * 3600 + 57 * 60 + 1, '23:58'],
+    [59, '0:01'],
+    [-5, '0:00'],
+  ])('%d 秒は %s', (seconds, expected) => {
+    expect(formatCountdownHours(seconds)).toBe(expected)
+  })
+})
+
+describe('formatHandoverCode', () => {
+  it('6桁を3桁ずつに区切る', () => {
+    expect(formatHandoverCode('381902')).toBe('381 902')
   })
 })

@@ -1,8 +1,9 @@
-import { useEffect, useRef, useState } from 'react'
+import { useState } from 'react'
 import { BottomSheet } from '../../../../components/BottomSheet/BottomSheet'
 import { Button } from '../../../../components/Button/Button'
 import { InfoBox } from '../../../../components/InfoBox/InfoBox'
 import { isBookBarcode } from '../../../../lib/isbn'
+import { isCameraDenied, useCameraScan } from '../../../../lib/useCameraScan'
 import { startIsbnScan, type StartScan } from './startIsbnScan'
 import styles from './IsbnScanner.module.css'
 
@@ -16,7 +17,7 @@ type Props = {
 }
 
 function cameraErrorMessage(err: unknown): string {
-  if (err instanceof DOMException && err.name === 'NotAllowedError')
+  if (isCameraDenied(err))
     return 'カメラの使用が許可されていません。ブラウザの設定で許可するか、ISBN を入力してください'
   return 'カメラを起動できませんでした。ISBN を入力してください'
 }
@@ -26,44 +27,25 @@ function cameraErrorMessage(err: unknown): string {
  * 本の裏表紙には2段のバーコードがあり、上段（978・979 で始まる）だけが ISBN なので、それ以外は読み流す。
  */
 export function IsbnScanner({ open, onClose, onDetect, startScan = startIsbnScan }: Props) {
-  const videoRef = useRef<HTMLVideoElement>(null)
-  const [error, setError] = useState<string | null>(null)
   const [wrongCode, setWrongCode] = useState(false)
-  const onDetectRef = useRef(onDetect)
-  useEffect(() => {
-    onDetectRef.current = onDetect
-  }, [onDetect])
-
-  useEffect(() => {
-    const video = videoRef.current
-    if (!open || !video) return
-    let controls: { stop: () => void } | undefined
-    let cancelled = false
-    setError(null)
-    setWrongCode(false)
-    startScan(video, (text) => {
-      if (cancelled) return
+  const { videoRef, error } = useCameraScan({
+    active: open,
+    startScan,
+    onText: (text) => {
       if (!isBookBarcode(text)) {
         setWrongCode(true)
-        return
+        return false
       }
-      cancelled = true
-      controls?.stop()
-      onDetectRef.current(text)
-    })
-      .then((c) => {
-        // 起動を待っている間に閉じたら、すぐ止める
-        if (cancelled) c.stop()
-        else controls = c
-      })
-      .catch((err: unknown) => {
-        if (!cancelled) setError(cameraErrorMessage(err))
-      })
-    return () => {
-      cancelled = true
-      controls?.stop()
-    }
-  }, [open, startScan])
+      onDetect(text)
+      return true
+    },
+  })
+  // 開き直したら、前回の「ISBN ではない」の表示を消す
+  const [wasOpen, setWasOpen] = useState(open)
+  if (open !== wasOpen) {
+    setWasOpen(open)
+    if (open) setWrongCode(false)
+  }
 
   return (
     <BottomSheet
@@ -83,7 +65,7 @@ export function IsbnScanner({ open, onClose, onDetect, startScan = startIsbnScan
       </div>
       {error ? (
         <InfoBox tone="danger" icon="alert" role="alert">
-          {error}
+          {cameraErrorMessage(error)}
         </InfoBox>
       ) : (
         wrongCode && (
