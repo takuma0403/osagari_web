@@ -49,7 +49,7 @@ describe('routes', () => {
     ['/sell/i1/requests', '取引詳細'],
     ['/deals', '取引一覧'],
     ['/deals/42', '取引詳細'],
-    ['/deals/42/scan', 'QR読み取り'],
+    ['/deals/42/scan', 'QRを読み取る'],
     ['/deals/42/complete', '受け渡しの完了'],
     ['/mypage', 'マイページ'],
     ['/mypage/student-card', '学生証の登録'],

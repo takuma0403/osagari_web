@@ -18,6 +18,8 @@ type Props = {
   bordered?: boolean
   /** 戻るボタンを「閉じる」（×）にする。出品のように、入力をやめて元の画面へ戻る画面で使う */
   closable?: boolean
+  /** 暗い地（QRの読み取りのカメラ画面）の上に置くときは dark。文字と戻るボタンを白にする */
+  tone?: 'default' | 'dark'
 }
 
 /** 画面上部のヘッダー（DS-3）。高さ56px、戻るボタンは 44px */
@@ -29,11 +31,16 @@ export function AppHeader({
   right,
   bordered = true,
   closable,
+  tone = 'default',
 }: Props) {
   const back = <Icon name={closable ? 'close' : 'back'} />
   const backLabel = closable ? '閉じる' : '戻る'
   return (
-    <header className={[styles.header, bordered && styles.bordered].filter(Boolean).join(' ')}>
+    <header
+      className={[styles.header, bordered && styles.bordered, tone === 'dark' && styles.dark]
+        .filter(Boolean)
+        .join(' ')}
+    >
       {backTo !== undefined ? (
         <Link to={backTo} state={backState} className={styles.back} aria-label={backLabel}>
           {back}

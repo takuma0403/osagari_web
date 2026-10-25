@@ -9,7 +9,10 @@ import { LoginPage } from './features/auth/pages/LoginPage'
 import { PasswordPage } from './features/auth/pages/PasswordPage'
 import { RecheckPage } from './features/auth/pages/RecheckPage'
 import { SignUpPage } from './features/auth/pages/SignUpPage'
+import { DealCompletePage } from './features/deals/pages/DealCompletePage'
+import { DealDetailPage } from './features/deals/pages/DealDetailPage'
 import { DealRequestsPage } from './features/deals/pages/DealRequestsPage'
+import { DealScanPage } from './features/deals/pages/DealScanPage'
 import { RequestPage } from './features/deals/pages/RequestPage'
 import { DetailPage } from './features/items/pages/DetailPage'
 import { MainPage } from './features/items/pages/MainPage'
@@ -79,9 +82,9 @@ export const routes: RouteObject[] = [
           { path: '/sell', element: <SellPage /> },
           { path: '/sell/:itemId', element: <SellPage /> },
           { path: '/sell/:itemId/requests', element: <DealRequestsPage /> },
-          placeholder('/deals/:dealId', '取引詳細'),
-          placeholder('/deals/:dealId/scan', 'QR読み取り'),
-          placeholder('/deals/:dealId/complete', '受け渡しの完了'),
+          { path: '/deals/:dealId', element: <DealDetailPage /> },
+          { path: '/deals/:dealId/scan', element: <DealScanPage /> },
+          { path: '/deals/:dealId/complete', element: <DealCompletePage /> },
           { path: '/mypage/student-card', element: <StudentCardPage /> },
           placeholder('/mypage/sales', '売上管理'),
         ],
