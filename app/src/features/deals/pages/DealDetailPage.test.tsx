@@ -134,6 +134,36 @@ describe('DealDetailPage', () => {
     expect(screen.getByRole('img', { name: '受け渡し用QRコード' })).toBeInTheDocument()
   })
 
+  it('完了リンクの表示中も取り直し、購入者が完了したら完了を出す', async () => {
+    let completed = false
+    stubDealsFetch({
+      'GET /api/transactions/tx1': () =>
+        json(
+          approvedTransaction({
+            id: 'tx1',
+            status: completed ? 'completed' : 'in_deal',
+            completedAt: completed ? inMinutes(1) : null,
+          }),
+        ),
+      'POST /api/transactions/tx1/handover-tokens': (init) =>
+        JSON.parse(String(init?.body)).kind === 'link'
+          ? json(
+              { kind: 'link', token: 'link-token', code: null, expiresAt: inMinutes(24 * 60) },
+              201,
+            )
+          : qrToken(),
+    })
+    const { user } = setup()
+    await screen.findByText('381 902')
+    await user.click(screen.getByRole('button', { name: '完了リンクを発行' }))
+    await screen.findByRole('heading', { name: '完了リンクを発行しました' })
+    completed = true
+    await act(() => vi.advanceTimersByTimeAsync(5000))
+    expect(
+      await screen.findByRole('heading', { name: '受け渡しが完了しました' }),
+    ).toBeInTheDocument()
+  })
+
   it('完了コードを発行すると、6桁のコードを3桁ずつ区切って出す', async () => {
     stubDealsFetch({
       'GET /api/transactions/tx1': () => json(approvedTransaction({ id: 'tx1' })),

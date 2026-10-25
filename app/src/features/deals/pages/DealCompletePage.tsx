@@ -126,7 +126,7 @@ export function DealCompletePage() {
             price={transaction.price}
             tint="textbook"
           />
-          {transaction.counterpartStudentNumber && (
+          {transaction.role === 'buyer' && transaction.counterpartStudentNumber && (
             <p className={styles.muted}>
               出品者の学籍番号{' '}
               <span className={styles.studentNumber}>{transaction.counterpartStudentNumber}</span>

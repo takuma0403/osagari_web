@@ -21,7 +21,7 @@ import { HandoverPanel } from '../components/HandoverPanel/HandoverPanel'
 import { useTransaction } from '../hooks/useTransaction'
 import styles from './DealDetailPage.module.css'
 
-/** 出品者が受け渡しQRを表示している間、購入者が完了したかを確かめる間隔（ADR 0025） */
+/** 出品者が受け渡しを待っている間、購入者が完了したかを確かめる間隔（ADR 0025） */
 const POLL_MS = 5000
 const unexpectedMessage = '発行できませんでした。もう一度お試しください'
 
@@ -39,7 +39,7 @@ const statusText: Record<Exclude<Transaction['status'], 'in_deal' | 'completed'>
  * 取引詳細（DEAL-1〜3）。見る人と取引のステータスで出し分ける。
  * - 出品者・取引中：受け渡しQR（DealQR）と、読み取ってもらい忘れたときの完了リンク・完了コードの発行（DealCompleteIssue）
  * - 購入者・取引中：QRの読み取り・完了コードの入力への導線
- * - 受け渡し完了：完了の表示（出品者が QR を表示している間は5秒ごとに取り直し、購入者が完了したら切り替える）
+ * - 受け渡し完了：完了の表示（出品者・取引中の間は5秒ごとに取り直し、購入者が完了したら切り替える）
  * キャンセルの申請（DEAL-4）は #30 で足す。
  */
 export function DealDetailPage() {
@@ -49,8 +49,8 @@ export function DealDetailPage() {
   const [issued, setIssued] = useState<HandoverToken | null>(null)
   const { state, reload } = useTransaction(dealId)
   const transaction = state.status === 'ready' ? state.transaction : null
-  // 完了リンク・完了コードの表示中は、出品者がそれを Teams に送っている間なので取り直さない
-  const showsQr = transaction?.role === 'seller' && transaction.status === 'in_deal' && !issued
+  // 出品者・取引中の間（受け渡しQR・完了リンク・完了コードの表示中）は、購入者が完了したかを取り直す
+  const awaitsBuyer = transaction?.role === 'seller' && transaction.status === 'in_deal'
 
   // アプリ内の履歴がない（URL を直接開いた）ときは取引一覧へ戻る
   const back = () => (location.key === 'default' ? navigate('/deals') : navigate(-1))
@@ -123,12 +123,12 @@ export function DealDetailPage() {
           <SellerHandover dealId={dealId} onIssued={setIssued} onExpired={reload} />
         )}
       </main>
-      {showsQr && <CompletionWatcher onTick={reload} />}
+      {awaitsBuyer && <CompletionWatcher onTick={reload} />}
     </div>
   )
 }
 
-/** 出品者が受け渡しQRを表示している間だけ、画面が前面なら5秒ごとに取引を取り直す（ADR 0025） */
+/** 出品者が受け渡しを待っている間、画面が前面なら5秒ごとに取引を取り直す（ADR 0025） */
 function CompletionWatcher({ onTick }: { onTick: () => void }) {
   useEffect(() => {
     const timer = setInterval(() => {

@@ -111,6 +111,18 @@ describe('DealCompletePage', () => {
     ).toBeInTheDocument()
   })
 
+  it('出品者が開いても、相手（購入者）の学籍番号を「出品者の学籍番号」として出さない', async () => {
+    stubDealsFetch({
+      'GET /api/transactions/tx1': () =>
+        json(buyerDealTransaction({ role: 'seller', counterpartStudentNumber: '26141023' })),
+    })
+    setup('/deals/tx1/complete')
+    expect(await screen.findByRole('alert')).toHaveTextContent(
+      '受け渡しを完了できるのは、取引中の取引の購入者だけです。',
+    )
+    expect(screen.queryByText('26141023')).not.toBeInTheDocument()
+  })
+
   it('完了済みの取引では入力欄を出さない', async () => {
     stubDealsFetch({
       'GET /api/transactions/tx1': () => json(buyerDealTransaction({ status: 'completed' })),
