@@ -15,7 +15,7 @@ export type TransactionState =
 type Result = { dealId: string; state: TransactionState }
 
 /**
- * 取引を読み込む（DEAL-1〜3）。dealId が変わったら取り直し、前の読み込みは止める。
+ * 取引を読み込む（DEAL-1〜4）。dealId が変わったら取り直し、前の読み込みは止める。
  * 取り直している間・取り直しに失敗したときは、同じ取引の前の結果を出したままにする（受け渡しQRの表示中の定期的な取り直しで画面を崩さないため）。
  */
 export function useTransaction(dealId: string) {
@@ -44,5 +44,12 @@ export function useTransaction(dealId: string) {
 
   const reload = useCallback(() => setReloadCount((n) => n + 1), [])
 
-  return { state, reload }
+  /** 操作の応答で受け取った取引で、取り直さずに表示を更新する（キャンセルの申請・同意など） */
+  const replace = useCallback(
+    (transaction: Transaction) =>
+      setResult({ dealId: transaction.id, state: { status: 'ready', transaction } }),
+    [],
+  )
+
+  return { state, reload, replace }
 }

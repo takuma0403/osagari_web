@@ -65,3 +65,16 @@ export function verifyHandover(transactionId: string, credential: HandoverCreden
 export function completeTransaction(transactionId: string, credential: HandoverCredential) {
   return postJson<Transaction>(`${transactionPath(transactionId)}/complete`, credential)
 }
+
+/**
+ * 取引のキャンセルを申請する、または相手の申請に同意する（DEAL-4。同じ操作）。双方がそろったらキャンセルになり、代金は返金される（モック）。
+ * 取引中でなければ 409 invalid_status_transition
+ */
+export function cancelTransaction(transactionId: string) {
+  return postJson<Transaction>(`${transactionPath(transactionId)}/cancel`, {})
+}
+
+/** 自分が出したキャンセルの申請を取り下げる（DEAL-4）。相手が同意した後・申請していないなら 409 invalid_status_transition */
+export function withdrawCancelRequest(transactionId: string) {
+  return postJson<Transaction>(`${transactionPath(transactionId)}/cancel/withdraw`, {})
+}
