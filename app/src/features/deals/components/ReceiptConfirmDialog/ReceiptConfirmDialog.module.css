@@ -1,0 +1,17 @@
+.price {
+  font-family: var(--font-num);
+}
+
+.item {
+  margin-top: 14px;
+  padding: var(--space-gap);
+  border-radius: var(--radius-card);
+  background: var(--color-bg);
+}
+
+.error {
+  margin-top: 10px;
+  color: var(--color-danger);
+  font-size: var(--text-label);
+  font-weight: 700;
+}
