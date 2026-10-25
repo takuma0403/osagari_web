@@ -28,9 +28,17 @@
   font-weight: 700;
 }
 
+/* 2つのボタンを半分ずつの幅で並べる（Button は縮まないので flex ではなく grid で割る） */
 .issueButtons {
-  display: flex;
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
   gap: 8px;
+}
+
+/* デザイン（DealQR）どおり 13px。390px 幅で文字が収まるよう左右の余白を詰める */
+.issueButtons > * {
+  padding: 0 8px;
+  font-size: var(--text-label);
 }
 
 .text {
