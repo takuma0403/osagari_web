@@ -23,8 +23,6 @@ type Props = {
  * 期限（5分）が切れたら QR を薄くして読み取らせず、「表示し直す」で発行し直してもらう。
  */
 export function HandoverPanel({ url, code, expiresAt, onReissue, reissuing }: Props) {
-  const remaining = useCountdown(expiresAt ? new Date(expiresAt).getTime() : 0)
-  const expired = expiresAt !== null && remaining <= 0
   return (
     <section className={styles.panel}>
       <p className={styles.lead}>
@@ -32,16 +30,42 @@ export function HandoverPanel({ url, code, expiresAt, onReissue, reissuing }: Pr
         <br />
         購入者にこのコードを読み取ってもらいます。
       </p>
-      <div className={styles.frame}>
-        {url ? (
-          <QrCode value={url} label="受け渡し用QRコード" dimmed={expired} />
-        ) : (
+      {url && code && expiresAt ? (
+        // 発行し直したら残り時間を数え直す
+        <Issued
+          key={expiresAt}
+          url={url}
+          code={code}
+          expiresAt={expiresAt}
+          onReissue={onReissue}
+          reissuing={reissuing}
+        />
+      ) : (
+        <div className={styles.frame}>
           <div className={styles.placeholder} role="status">
             QRコードを用意しています…
           </div>
-        )}
+        </div>
+      )}
+    </section>
+  )
+}
+
+function Issued({
+  url,
+  code,
+  expiresAt,
+  onReissue,
+  reissuing,
+}: Pick<Props, 'onReissue' | 'reissuing'> & { url: string; code: string; expiresAt: string }) {
+  const remaining = useCountdown(new Date(expiresAt).getTime())
+  const expired = remaining <= 0
+  return (
+    <>
+      <div className={styles.frame}>
+        <QrCode value={url} label="受け渡し用QRコード" dimmed={expired} />
       </div>
-      {code && !expired && (
+      {!expired && (
         <div className={styles.code}>
           <span className={styles.codeLabel}>カメラが使えないときの確認コード</span>
           <span className={styles.codeValue}>{formatHandoverCode(code)}</span>
@@ -51,11 +75,9 @@ export function HandoverPanel({ url, code, expiresAt, onReissue, reissuing }: Pr
         {expired ? (
           <span role="status">有効期限が切れました</span>
         ) : (
-          expiresAt && (
-            <span>
-              あと <b className={styles.remaining}>{formatCountdown(remaining)}</b> で無効
-            </span>
-          )
+          <span>
+            あと <b className={styles.remaining}>{formatCountdown(remaining)}</b> で無効
+          </span>
         )}
         <Button
           variant={expired ? 'primary' : 'ghost'}
@@ -66,6 +88,6 @@ export function HandoverPanel({ url, code, expiresAt, onReissue, reissuing }: Pr
           表示し直す
         </Button>
       </div>
-    </section>
+    </>
   )
 }
