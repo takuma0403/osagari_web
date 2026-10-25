@@ -113,6 +113,16 @@ type TransactionStore interface {
 	Approve(ctx context.Context, id, sellerID string, feeRateBP int, fee, proceeds int64, now time.Time) error
 	UpdateStatus(ctx context.Context, id string, from, to domain.TransactionStatus, now time.Time) error
 	Acknowledge(ctx context.Context, id, sellerID string, now time.Time) error
+	Complete(ctx context.Context, id, buyerID string, method domain.HandoverMethod, now time.Time) error
+}
+
+// HandoverTokenStore は handover_tokens の読み書き（repository.HandoverTokenRepository）。
+type HandoverTokenStore interface {
+	Create(ctx context.Context, t *domain.HandoverToken) error
+	InvalidateOthers(ctx context.Context, transactionID string, kind domain.HandoverTokenKind, keepID string, now time.Time) error
+	FindActiveByTokenHash(ctx context.Context, transactionID, tokenHash string, now time.Time) (*domain.HandoverToken, error)
+	ListActiveWithCode(ctx context.Context, transactionID string, now time.Time) ([]*domain.HandoverToken, error)
+	Consume(ctx context.Context, id string, now time.Time) error
 }
 
 // SettingStore は settings の読み書き（repository.SettingRepository）。

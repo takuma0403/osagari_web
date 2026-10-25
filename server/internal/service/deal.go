@@ -25,12 +25,14 @@ type DealDeps struct {
 	Items        ItemStore
 	Users        UserStore
 	Transactions TransactionStore
-	Settings     SettingStore
-	Payments     payment.Gateway
-	Clock        clock.Clock
+	// HandoverTokens は受け渡しトークン（DEAL-3。handover.go）
+	HandoverTokens HandoverTokenStore
+	Settings       SettingStore
+	Payments       payment.Gateway
+	Clock          clock.Clock
 }
 
-// DealService は購入希望・承認・却下と取引の詳細を扱う（DEAL-1, DEAL-2）。
+// DealService は購入希望・承認・却下・受け渡し完了と取引の詳細を扱う（DEAL-1, DEAL-2, DEAL-3）。
 // 状態遷移は条件付きUPDATE で行い、決済は payment.Gateway に同じトランザクションで記録する（DB, JOBS-2）。
 type DealService struct {
 	d DealDeps
@@ -248,6 +250,11 @@ func (s *DealService) Acknowledge(ctx context.Context, u *domain.User, id string
 
 // findAsSeller は本人が出品者の取引を返す。ないか、出品者でなければ 404（購入者にも存在を区別させない）。
 func (s *DealService) findAsSeller(ctx context.Context, u *domain.User, id string) (*domain.Transaction, error) {
+	return s.findAs(ctx, u, id, domain.TransactionRoleSeller)
+}
+
+// findAs は本人が role として当事者の取引を返す。ないか、role でなければ 404（相手にも存在を区別させない）。
+func (s *DealService) findAs(ctx context.Context, u *domain.User, id string, role domain.TransactionRole) (*domain.Transaction, error) {
 	tr, err := s.d.Transactions.FindByID(ctx, id)
 	if errors.Is(err, repository.ErrNotFound) {
 		return nil, errTransactionNotFound
@@ -255,7 +262,7 @@ func (s *DealService) findAsSeller(ctx context.Context, u *domain.User, id strin
 	if err != nil {
 		return nil, apperr.Internal(err)
 	}
-	if tr.SellerID != u.ID {
+	if r, ok := tr.RoleOf(u.ID); !ok || r != role {
 		return nil, errTransactionNotFound
 	}
 	return tr, nil
