@@ -9,6 +9,7 @@ export type TransactionRole = components['schemas']['TransactionRole']
 export type TransactionPhase = components['schemas']['TransactionPhase']
 export type TransactionList = components['schemas']['TransactionList']
 export type TransactionListEntry = components['schemas']['TransactionListEntry']
+export type TransactionListItem = components['schemas']['TransactionListItem']
 
 const transactionPath = (transactionId: string) =>
   `/transactions/${encodeURIComponent(transactionId)}`

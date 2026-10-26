@@ -3,6 +3,7 @@ import {
   formatCountdownHours,
   formatDate,
   formatHandoverCode,
+  formatMonthDay,
   formatPrice,
   formatRemaining,
   formatShortDateTime,
@@ -36,6 +37,15 @@ describe('formatShortDateTime', () => {
     [new Date(2026, 0, 1, 9, 0), '1/1 09:00'],
   ])('%s を %s と表示する', (date, expected) => {
     expect(formatShortDateTime(date.toISOString())).toBe(expected)
+  })
+})
+
+describe('formatMonthDay', () => {
+  it.each([
+    [new Date(2026, 8, 28, 23, 59), '9/28'],
+    [new Date(2026, 0, 1, 0, 0), '1/1'],
+  ])('%s を %s と表示する', (date, expected) => {
+    expect(formatMonthDay(date.toISOString())).toBe(expected)
   })
 })
 
