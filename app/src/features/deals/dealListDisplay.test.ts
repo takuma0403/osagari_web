@@ -13,9 +13,17 @@ describe('dealRowDisplay', () => {
     })
   })
 
-  it('承認期限を過ぎた購入希望は、期限切れになるまで「まもなく期限切れ」と出す', () => {
-    const entry = transactionListEntry({ approvalDeadline: '2026-10-08T03:00:00Z' })
+  it.each([
+    ['期限を過ぎた', '2026-10-08T03:00:00Z'],
+    ['残り1分未満の', '2026-10-08T03:40:30Z'],
+  ])('%s購入希望は、期限切れになるまで「まもなく期限切れ」と出す', (_, approvalDeadline) => {
+    const entry = transactionListEntry({ approvalDeadline })
     expect(dealRowDisplay(entry, 'buyer', now).note).toBe('まもなく期限切れ')
+  })
+
+  it('残りちょうど1分なら「あと1分で期限切れ」と出す', () => {
+    const entry = transactionListEntry({ approvalDeadline: '2026-10-08T03:41:00Z' })
+    expect(dealRowDisplay(entry, 'buyer', now).note).toBe('あと1分で期限切れ')
   })
 
   it('出品側の商品ごとの購入希望は件数を出し、購入希望の一覧へ進む', () => {

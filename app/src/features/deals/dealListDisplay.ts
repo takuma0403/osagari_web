@@ -2,6 +2,8 @@ import type { BadgeTone } from '../../components/Badge/Badge'
 import { formatMonthDay, formatRemaining } from '../../lib/format'
 import type { TransactionListEntry, TransactionRole } from './api'
 
+const MINUTE_MS = 60 * 1000
+
 /** 取引詳細（/deals/:dealId） */
 export const dealPath = (transactionId: string) => `/deals/${encodeURIComponent(transactionId)}`
 
@@ -49,7 +51,8 @@ export function dealRowDisplay(
         status: '承認待ち',
         tone: 'warning',
         note:
-          entry.approvalDeadline && Date.parse(entry.approvalDeadline) > now
+          // 残り1分未満（「あと0分」になる）と期限を過ぎたものは「まもなく期限切れ」にする
+          entry.approvalDeadline && Date.parse(entry.approvalDeadline) - now >= MINUTE_MS
             ? `あと${formatRemaining(entry.approvalDeadline, now)}で期限切れ`
             : 'まもなく期限切れ',
       }
