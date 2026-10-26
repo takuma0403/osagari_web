@@ -309,16 +309,7 @@ func (s *ItemService) reload(ctx context.Context, id string) (*ItemView, error) 
 
 // view は写真に閲覧用の署名付きURL（15分有効。STORAGE）を付ける。
 func (s *ItemService) view(ctx context.Context, it *domain.Item) (*ItemView, error) {
-	expiresAt := s.d.Clock.Now().Add(imageUploadTTL)
-	urls := make([]storage.SignedURL, len(it.Images))
-	for i, img := range it.Images {
-		signed, err := s.d.Storage.SignedGetURL(ctx, s.d.Bucket, img.ObjectKey, expiresAt)
-		if err != nil {
-			return nil, apperr.Internal(err)
-		}
-		urls[i] = signed
-	}
-	return &ItemView{Item: it, ImageURLs: urls}, nil
+	return newItemView(ctx, s.d.Storage, s.d.Bucket, it, s.d.Clock.Now())
 }
 
 // newShareID は共有用ID（base62 で shareIDLen 文字）を crypto/rand で作る。

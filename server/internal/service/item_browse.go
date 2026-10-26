@@ -16,7 +16,7 @@ import (
 var (
 	errItemListQuery = apperr.BadRequest("検索の条件を確認してください")
 	errItemListPrice = apperr.BadRequest("価格の範囲を確認してください")
-	// errItemListCursor は続きの位置（cursor）が読めない。改ざんされたか、古い形式のもの
+	// errItemListCursor は続きの位置（cursor）が読めない。改ざんされたか、古い形式のもの（取引一覧でも使う）
 	errItemListCursor = apperr.BadRequest("続きを読み込めませんでした。最初から読み込み直してください")
 )
 
@@ -85,11 +85,11 @@ func (s *ItemService) List(ctx context.Context, q ItemListQuery) (*ItemListPage,
 	}
 	var after *domain.ItemCursor
 	if q.Cursor != nil {
-		c, err := decodeItemCursor(*q.Cursor)
+		at, id, err := decodeCursor(*q.Cursor)
 		if err != nil {
 			return nil, errItemListCursor
 		}
-		after = &c
+		after = &domain.ItemCursor{PublishedAt: at, ID: id}
 	}
 
 	// 1件多く読み、続きがあるかを確かめる
@@ -101,7 +101,7 @@ func (s *ItemService) List(ctx context.Context, q ItemListQuery) (*ItemListPage,
 	if len(items) > limit {
 		items = items[:limit]
 		last := items[limit-1]
-		next := encodeItemCursor(domain.ItemCursor{PublishedAt: *last.PublishedAt, ID: last.ID})
+		next := encodeCursor(*last.PublishedAt, last.ID)
 		page.NextCursor = &next
 	}
 	for _, it := range items {
@@ -199,27 +199,28 @@ func itemFilter(q ItemListQuery) (domain.ItemFilter, error) {
 	return f, nil
 }
 
-// cursorSep は続きの位置の中の、公開日時と ID の区切り。どちらにも含まれない文字にする。
+// cursorSep は続きの位置の中の、日時と ID の区切り。どちらにも含まれない文字にする。
 const cursorSep = "|"
 
-// encodeItemCursor は続きの位置を、URL のクエリにそのまま入れられる文字列にする（公開日時と ID を base64url にしたもの）。
-func encodeItemCursor(c domain.ItemCursor) string {
-	raw := c.PublishedAt.UTC().Format(time.RFC3339Nano) + cursorSep + c.ID
+// encodeCursor は一覧の続きの位置（並びの日時と ID）を、URL のクエリにそのまま入れられる文字列（base64url）にする。
+// 商品の一覧（公開日時）と取引一覧（最後に動いた日時）で使う。
+func encodeCursor(at time.Time, id string) string {
+	raw := at.UTC().Format(time.RFC3339Nano) + cursorSep + id
 	return base64.RawURLEncoding.EncodeToString([]byte(raw))
 }
 
-func decodeItemCursor(s string) (domain.ItemCursor, error) {
+func decodeCursor(s string) (time.Time, string, error) {
 	raw, err := base64.RawURLEncoding.DecodeString(s)
 	if err != nil {
-		return domain.ItemCursor{}, err
+		return time.Time{}, "", err
 	}
 	at, id, ok := strings.Cut(string(raw), cursorSep)
 	if !ok || id == "" {
-		return domain.ItemCursor{}, errors.New("service: 続きの位置の形式が違います")
+		return time.Time{}, "", errors.New("service: 続きの位置の形式が違います")
 	}
 	t, err := time.Parse(time.RFC3339Nano, at)
 	if err != nil {
-		return domain.ItemCursor{}, err
+		return time.Time{}, "", err
 	}
-	return domain.ItemCursor{PublishedAt: t, ID: id}, nil
+	return t, id, nil
 }
