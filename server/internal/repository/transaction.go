@@ -144,6 +144,11 @@ func (r *TransactionRepository) ListRequestedByItem(ctx context.Context, itemID 
 	if err != nil {
 		return nil, err
 	}
+	return toTransactions(rows)
+}
+
+// toTransactions は行の並びを取引の並びにする。
+func toTransactions(rows []transactionRow) ([]*domain.Transaction, error) {
 	out := make([]*domain.Transaction, 0, len(rows))
 	for _, row := range rows {
 		tr, err := row.toDomain()
@@ -153,6 +158,17 @@ func (r *TransactionRepository) ListRequestedByItem(ctx context.Context, itemID 
 		out = append(out, tr)
 	}
 	return out, nil
+}
+
+// ListExpiredRequests は承認期限 now を過ぎた承認待ちの購入希望（requested）を、期限の古い順に返す（DEAL-1, JOBS-1）。
+func (r *TransactionRepository) ListExpiredRequests(ctx context.Context, now time.Time) ([]*domain.Transaction, error) {
+	var rows []transactionRow
+	err := conn(ctx, r.db).Where("status = ? AND approval_deadline <= ?", string(domain.TransactionStatusRequested), formatTime(now)).
+		Order("approval_deadline ASC, id ASC").Find(&rows).Error
+	if err != nil {
+		return nil, err
+	}
+	return toTransactions(rows)
 }
 
 // FindRequestedByItemAndBuyer は、購入者が商品に出している承認待ちの購入希望（requested）を返す（DEAL-1）。

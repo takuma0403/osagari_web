@@ -128,3 +128,10 @@ func (r *HandoverTokenRepository) Consume(ctx context.Context, id string, now ti
 		Updates(map[string]any{"consumed_at": ts, "updated_at": ts})
 	return rowsAffected(res)
 }
+
+// DeleteExpired は期限が切れたトークン（使用済みを含む）を消し、消した件数を返す（JOBS-1）。
+// 期限が切れたトークンは照合に使わないので、取引の状態には影響しない。
+func (r *HandoverTokenRepository) DeleteExpired(ctx context.Context, now time.Time) (int, error) {
+	res := conn(ctx, r.db).Where("expires_at <= ?", formatTime(now)).Delete(&handoverTokenRow{})
+	return int(res.RowsAffected), res.Error
+}

@@ -27,6 +27,8 @@ const (
 	// Gmail の1日の送信数の上限（およそ500通）に近づいたことを管理者に知らせる（AUTHN-6, AUTHN-7）
 	MailWarnWindow    = 24 * time.Hour
 	MailWarnThreshold = 400
+	// CodeRetention の間は、期限が切れても verification_codes の行を消さない。送信の制限と全体の送信数を行数で数えるため（AUTHN-6, JOBS-1）
+	CodeRetention = MailWarnWindow
 	// MaxPasswordFailures 回続けてパスワードを間違えたら、LoginLockDuration の間ログインを止める（AUTHN-6）
 	MaxPasswordFailures = 10
 	LoginLockDuration   = 15 * time.Minute

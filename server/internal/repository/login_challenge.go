@@ -97,6 +97,12 @@ func (r *LoginChallengeRepository) FindActive(ctx context.Context, tokenHash str
 	return rows[0].toDomain()
 }
 
+// DeleteExpired は期限が切れたチャレンジを消し、消した件数を返す（JOBS-1）。
+func (r *LoginChallengeRepository) DeleteExpired(ctx context.Context, now time.Time) (int, error) {
+	res := conn(ctx, r.db).Where("expires_at <= ?", formatTime(now)).Delete(&loginChallengeRow{})
+	return int(res.RowsAffected), res.Error
+}
+
 // Consume はチャレンジを使用済みにする。条件付きUPDATE なので一度しか成功しない。使えないチャレンジなら ErrConflict。
 func (r *LoginChallengeRepository) Consume(ctx context.Context, id string, now time.Time) error {
 	ts := formatTime(now)

@@ -73,6 +73,12 @@ func (r *PasswordSetupTokenRepository) Create(ctx context.Context, t *domain.Pas
 	return conn(ctx, r.db).Create(&row).Error
 }
 
+// DeleteExpired は期限が切れたトークンを消し、消した件数を返す（JOBS-1）。
+func (r *PasswordSetupTokenRepository) DeleteExpired(ctx context.Context, now time.Time) (int, error) {
+	res := conn(ctx, r.db).Where("expires_at <= ?", formatTime(now)).Delete(&passwordSetupTokenRow{})
+	return int(res.RowsAffected), res.Error
+}
+
 // Consume はハッシュが一致する未使用・期限内のトークンを使用済みにして返す。
 // 条件付きUPDATE なので、同じトークンは一度しか使えない。使えないトークンなら ErrConflict。
 func (r *PasswordSetupTokenRepository) Consume(ctx context.Context, tokenHash string, purpose domain.PasswordSetupPurpose, now time.Time) (*domain.PasswordSetupToken, error) {
