@@ -10,6 +10,7 @@ import (
 	"github.com/takuma0403/osagari_web/server/internal/domain"
 	"github.com/takuma0403/osagari_web/server/internal/payment"
 	"github.com/takuma0403/osagari_web/server/internal/repository"
+	"github.com/takuma0403/osagari_web/server/internal/storage"
 )
 
 var (
@@ -29,7 +30,11 @@ type DealDeps struct {
 	HandoverTokens HandoverTokenStore
 	Settings       SettingStore
 	Payments       payment.Gateway
-	Clock          clock.Clock
+	// Storage・Bucket は取引一覧のサムネイルの閲覧用の署名付きURLに使う（ADR 0028）
+	Storage storage.Storage
+	// Bucket は商品写真のバケットの名前
+	Bucket string
+	Clock  clock.Clock
 }
 
 // DealService は購入希望・承認・却下・受け渡し完了・キャンセルと取引の詳細を扱う（DEAL-1, DEAL-2, DEAL-3, DEAL-4）。

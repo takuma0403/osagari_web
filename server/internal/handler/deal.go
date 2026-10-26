@@ -12,6 +12,7 @@ import (
 type DealService interface {
 	CreateRequest(ctx context.Context, u *domain.User, shareID string, method domain.PaymentMethod) (*service.TransactionView, error)
 	ListRequests(ctx context.Context, u *domain.User, itemID string) ([]*service.PurchaseRequestView, error)
+	List(ctx context.Context, u *domain.User, q service.TransactionListQuery) (*service.TransactionListPage, error)
 	Get(ctx context.Context, u *domain.User, id string) (*service.TransactionView, error)
 	Approve(ctx context.Context, u *domain.User, id string) (*service.TransactionView, error)
 	Reject(ctx context.Context, u *domain.User, id string) (*service.TransactionView, error)
@@ -63,6 +64,29 @@ func (h *Handler) ListPurchaseRequests(ctx context.Context, req api.ListPurchase
 		}
 	}
 	return api.ListPurchaseRequests200JSONResponse(out), nil
+}
+
+// ListTransactions は自分が当事者の取引を一覧する（GET /api/transactions。DEAL-1, DEAL-3, DEAL-4, ADR 0028）。
+func (h *Handler) ListTransactions(ctx context.Context, req api.ListTransactionsRequestObject) (api.ListTransactionsResponseObject, error) {
+	u, err := currentUser(ctx)
+	if err != nil {
+		return nil, err
+	}
+	p := req.Params
+	page, err := h.d.Deal.List(ctx, u, service.TransactionListQuery{
+		Role:   domain.TransactionRole(p.Role),
+		Phase:  domain.TransactionPhase(p.Phase),
+		Cursor: p.Cursor,
+		Limit:  p.Limit,
+	})
+	if err != nil {
+		return nil, err
+	}
+	out := api.ListTransactions200JSONResponse{Entries: make([]api.TransactionListEntry, len(page.Entries)), NextCursor: page.NextCursor}
+	for i, e := range page.Entries {
+		out.Entries[i] = toTransactionListEntry(e)
+	}
+	return out, nil
 }
 
 // GetTransaction は取引の詳細を返す（GET /api/transactions/{transactionId}。DEAL-1, DEAL-2）。
@@ -208,4 +232,27 @@ func toTransaction(v *service.TransactionView) api.Transaction {
 		CounterpartStudentNumber: v.CounterpartStudentNumber,
 		CreatedAt:                v.CreatedAt,
 	}
+}
+
+// toTransactionListEntry は取引一覧の1行にする。学籍番号・手数料は出さない（DEAL-1）。
+func toTransactionListEntry(e *service.TransactionListEntry) api.TransactionListEntry {
+	out := api.TransactionListEntry{
+		TransactionId: e.TransactionID,
+		ItemId:        e.ItemID,
+		Status:        api.TransactionStatus(e.Status),
+		Item: api.TransactionListItem{
+			ShareId:  e.Item.ShareID,
+			Title:    e.Item.Title,
+			Category: api.ItemCategory(deref(e.Item.Category)),
+		},
+		Price:            e.Price,
+		RequestCount:     e.RequestCount,
+		ApprovalDeadline: e.ApprovalDeadline,
+		CompletedAt:      e.CompletedAt,
+		UpdatedAt:        e.UpdatedAt,
+	}
+	if images := toItemImages(e.Item); len(images) > 0 {
+		out.Item.Thumbnail = &images[0]
+	}
+	return out
 }
