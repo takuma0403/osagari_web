@@ -295,6 +295,15 @@ func Test取引の操作はログインが必要(t *testing.T) {
 	})
 }
 
+// マイページの出品の一覧と、売上・出金申請はセッション必須（AUTH-3, PAY）。ログインしていなければ service を呼ばずに 401 を返す。
+func Testマイページと売上の操作はログインが必要(t *testing.T) {
+	assertLoginRequired(t, []struct{ method, target string }{
+		{http.MethodGet, "/api/me/items"},
+		{http.MethodGet, "/api/me/sales"},
+		{http.MethodPost, "/api/me/sales/payouts"},
+	})
+}
+
 // assertLoginRequired は、ログインしていないと各操作が 401 unauthorized になることを確かめる。
 // handler の service は空なので、呼ばれれば panic して 500 になる。
 func assertLoginRequired(t *testing.T, ops []struct{ method, target string }) {

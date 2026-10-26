@@ -256,3 +256,17 @@ const (
 var LoginRecheckReasons = []LoginRecheckReason{LoginRecheckReasonCodeExpired, LoginRecheckReasonNewDevice}
 
 func (v LoginRecheckReason) Valid() bool { return enumValid(v, LoginRecheckReasons) }
+
+// SalesEntryState は売上の明細の状態（PAY, ADR 0029）。
+type SalesEntryState string
+
+const (
+	SalesEntryStateAwaitingHandover SalesEntryState = "awaiting_handover" // 受け渡し待ち（取引中）
+	SalesEntryStateSettled          SalesEntryState = "settled"           // 確定（出金できる）
+	SalesEntryStatePaidOut          SalesEntryState = "paid_out"          // 出金済み
+)
+
+// SalesEntryStates は SalesEntryState のすべての値。
+var SalesEntryStates = []SalesEntryState{SalesEntryStateAwaitingHandover, SalesEntryStateSettled, SalesEntryStatePaidOut}
+
+func (v SalesEntryState) Valid() bool { return enumValid(v, SalesEntryStates) }

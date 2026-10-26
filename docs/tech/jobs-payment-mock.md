@@ -29,6 +29,7 @@ Cloud Scheduler から Cloud Run の内部用エンドポイントを定期的�
 | 枠の解放 | 却下・期限切れ | 記録する |
 | 返金 | 双方同意のキャンセル | 記録する |
 | 売上の確定 | 受け渡し完了 | 手数料を引いた金額を出品者の売上として記録する |
+| 出金 | 売上画面の出金申請（PAY-5） | 確定した売上を取引ごとに出金として記録する（[ADR 0029](../decisions/0029-sales-and-payout-mock.md)） |
 
 - 本番の決済サービスからの通知（Webhook）を受けるエンドポイントは、最初から枠だけ用意しておきます（`POST /api/webhooks/payment`。フェーズ1は何もせず 204 を返す）。
-- モックは各操作で `payments` にステータス `succeeded`・外部IDが空の行を1行記録するだけで、外部の API は呼びません。出金（`payout`）は売上画面の出金申請（PAY）で扱います（[ADR 0021](../decisions/0021-transaction-payment-columns.md)）。
+- モックは各操作で `payments` にステータス `succeeded`・外部IDが空の行を1行記録するだけで、外部の API は呼びません。出金（`payout`）も取引ごとに1行で記録します（[ADR 0021](../decisions/0021-transaction-payment-columns.md)）。

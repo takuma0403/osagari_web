@@ -236,23 +236,28 @@ func toTransaction(v *service.TransactionView) api.Transaction {
 
 // toTransactionListEntry は取引一覧の1行にする。学籍番号・手数料は出さない（DEAL-1）。
 func toTransactionListEntry(e *service.TransactionListEntry) api.TransactionListEntry {
-	out := api.TransactionListEntry{
-		TransactionId: e.TransactionID,
-		ItemId:        e.ItemID,
-		Status:        api.TransactionStatus(e.Status),
-		Item: api.TransactionListItem{
-			ShareId:  e.Item.ShareID,
-			Title:    e.Item.Title,
-			Category: api.ItemCategory(deref(e.Item.Category)),
-		},
+	return api.TransactionListEntry{
+		TransactionId:    e.TransactionID,
+		ItemId:           e.ItemID,
+		Status:           api.TransactionStatus(e.Status),
+		Item:             toTransactionListItem(e.Item),
 		Price:            e.Price,
 		RequestCount:     e.RequestCount,
 		ApprovalDeadline: e.ApprovalDeadline,
 		CompletedAt:      e.CompletedAt,
 		UpdatedAt:        e.UpdatedAt,
 	}
-	if images := toItemImages(e.Item); len(images) > 0 {
-		out.Item.Thumbnail = &images[0]
+}
+
+// toTransactionListItem は取引一覧・売上の明細に出す商品にする。写真は1枚目だけ。
+func toTransactionListItem(v *service.ItemView) api.TransactionListItem {
+	out := api.TransactionListItem{
+		ShareId:  v.ShareID,
+		Title:    v.Title,
+		Category: api.ItemCategory(deref(v.Category)),
+	}
+	if images := toItemImages(v); len(images) > 0 {
+		out.Thumbnail = &images[0]
 	}
 	return out
 }

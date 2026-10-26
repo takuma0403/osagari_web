@@ -101,6 +101,7 @@ type ItemStore interface {
 	FindByShareID(ctx context.Context, shareID string) (*domain.Item, error)
 	ListPublic(ctx context.Context, f domain.ItemFilter, after *domain.ItemCursor, limit int, now time.Time) ([]*domain.Item, int, error)
 	FindByIDs(ctx context.Context, ids []string) (map[string]*domain.Item, error)
+	ListBySeller(ctx context.Context, sellerID string) ([]*domain.Item, error)
 }
 
 // TransactionStore は transactions の読み書き（repository.TransactionRepository）。
@@ -131,6 +132,11 @@ type HandoverTokenStore interface {
 	ListActiveWithCode(ctx context.Context, transactionID string, now time.Time) ([]*domain.HandoverToken, error)
 	Consume(ctx context.Context, id string, now time.Time) error
 	DeleteExpired(ctx context.Context, now time.Time) (int, error)
+}
+
+// PaymentStore は payments の読み出し（repository.PaymentRepository）。記録は payment.Gateway 越しに行う。
+type PaymentStore interface {
+	ListPayoutsByTransactions(ctx context.Context, transactionIDs []string) (map[string]*domain.Payment, error)
 }
 
 // SettingStore は settings の読み書き（repository.SettingRepository）。
