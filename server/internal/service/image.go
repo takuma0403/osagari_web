@@ -10,6 +10,7 @@ import (
 	"github.com/google/uuid"
 
 	"github.com/takuma0403/osagari_web/server/internal/apperr"
+	"github.com/takuma0403/osagari_web/server/internal/domain"
 	"github.com/takuma0403/osagari_web/server/internal/storage"
 )
 
@@ -83,4 +84,18 @@ func statUploadedImage(ctx context.Context, st storage.Storage, bucket, userID, 
 		return storage.ObjectInfo{}, errUploadedImageTooLarge
 	}
 	return info, nil
+}
+
+// newItemView は商品の写真に、bucket の閲覧用の署名付きURL（imageUploadTTL の間有効。STORAGE）を付ける。
+func newItemView(ctx context.Context, st storage.Storage, bucket string, it *domain.Item, now time.Time) (*ItemView, error) {
+	expiresAt := now.Add(imageUploadTTL)
+	urls := make([]storage.SignedURL, len(it.Images))
+	for i, img := range it.Images {
+		signed, err := st.SignedGetURL(ctx, bucket, img.ObjectKey, expiresAt)
+		if err != nil {
+			return nil, apperr.Internal(err)
+		}
+		urls[i] = signed
+	}
+	return &ItemView{Item: it, ImageURLs: urls}, nil
 }

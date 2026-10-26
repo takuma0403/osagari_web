@@ -147,6 +147,51 @@ func (r *TransactionRepository) ListRequestedByItem(ctx context.Context, itemID 
 	return toTransactions(rows)
 }
 
+// ListByParty は role として当事者 userID の取引のうち、ステータスが statuses のものを、
+// 最後に動いた順（updated_at の新しい順、同じなら ID の大きい順）で返す（取引一覧。ADR 0028）。
+// after を渡すとその位置より後ろを返す。limit が 0 なら全件。
+func (r *TransactionRepository) ListByParty(ctx context.Context, role domain.TransactionRole, userID string, statuses []domain.TransactionStatus, after *domain.TransactionCursor, limit int) ([]*domain.Transaction, error) {
+	q := conn(ctx, r.db).Where(partyColumn(role)+" = ? AND status IN ?", userID, enumStrings(statuses))
+	if after != nil {
+		at := formatTime(after.UpdatedAt)
+		q = q.Where("(updated_at < ? OR (updated_at = ? AND id < ?))", at, at, after.ID)
+	}
+	q = q.Order("updated_at DESC, id DESC")
+	if limit > 0 {
+		q = q.Limit(limit)
+	}
+	var rows []transactionRow
+	if err := q.Find(&rows).Error; err != nil {
+		return nil, err
+	}
+	return toTransactions(rows)
+}
+
+// ListRequestGroupsBySeller は出品者 sellerID の商品ごとに、承認待ちの購入希望（requested）の件数と最新の購入希望の日時を、
+// 最新の購入希望の新しい順で返す（取引一覧の出品側。ADR 0028）。
+func (r *TransactionRepository) ListRequestGroupsBySeller(ctx context.Context, sellerID string) ([]domain.TransactionRequestGroup, error) {
+	var rows []struct {
+		ItemID string
+		N      int
+		Latest string
+	}
+	err := conn(ctx, r.db).Model(&transactionRow{}).Select("item_id, COUNT(*) AS n, MAX(created_at) AS latest").
+		Where("seller_id = ? AND status = ?", sellerID, string(domain.TransactionStatusRequested)).
+		Group("item_id").Order("latest DESC, item_id DESC").Scan(&rows).Error
+	if err != nil {
+		return nil, err
+	}
+	out := make([]domain.TransactionRequestGroup, 0, len(rows))
+	for _, row := range rows {
+		at, err := parseTime(row.Latest)
+		if err != nil {
+			return nil, fmt.Errorf("repository: transactions.created_at: %w", err)
+		}
+		out = append(out, domain.TransactionRequestGroup{ItemID: row.ItemID, Count: row.N, LatestRequestedAt: at})
+	}
+	return out, nil
+}
+
 // toTransactions は行の並びを取引の並びにする。
 func toTransactions(rows []transactionRow) ([]*domain.Transaction, error) {
 	out := make([]*domain.Transaction, 0, len(rows))
@@ -305,9 +350,17 @@ func (r *TransactionRepository) WithdrawCancel(ctx context.Context, id, userID s
 // cancelColumns は role から見た当事者の列、自分と相手のキャンセルへの同意日時の列を返す（DEAL-4）。
 func cancelColumns(role domain.TransactionRole) (party, own, other string) {
 	if role == domain.TransactionRoleSeller {
-		return "seller_id", "seller_cancel_agreed_at", "buyer_cancel_agreed_at"
+		return partyColumn(role), "seller_cancel_agreed_at", "buyer_cancel_agreed_at"
 	}
-	return "buyer_id", "buyer_cancel_agreed_at", "seller_cancel_agreed_at"
+	return partyColumn(role), "buyer_cancel_agreed_at", "seller_cancel_agreed_at"
+}
+
+// partyColumn は role の当事者のユーザーIDの列を返す。
+func partyColumn(role domain.TransactionRole) string {
+	if role == domain.TransactionRoleSeller {
+		return "seller_id"
+	}
+	return "buyer_id"
 }
 
 // rowsAffected は条件付きUPDATE の結果を返す。更新件数が0なら ErrConflict。

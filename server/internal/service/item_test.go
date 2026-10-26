@@ -66,6 +66,8 @@ func newItemFixture(t *testing.T) *itemFixture {
 		HandoverTokens: repository.NewHandoverTokenRepository(gdb),
 		Settings:       repository.NewSettingRepository(gdb),
 		Payments:       gw,
+		Storage:        f.storage,
+		Bucket:         itemBucket,
 		Clock:          f.clock,
 	})
 	f.seller = f.createUser(t, email, "26238001", domain.SellerStatusApproved)

@@ -100,6 +100,7 @@ type ItemStore interface {
 	ReplaceImages(ctx context.Context, itemID string, images []domain.ItemImage, now time.Time) error
 	FindByShareID(ctx context.Context, shareID string) (*domain.Item, error)
 	ListPublic(ctx context.Context, f domain.ItemFilter, after *domain.ItemCursor, limit int, now time.Time) ([]*domain.Item, int, error)
+	FindByIDs(ctx context.Context, ids []string) (map[string]*domain.Item, error)
 }
 
 // TransactionStore は transactions の読み書き（repository.TransactionRepository）。
@@ -111,6 +112,8 @@ type TransactionStore interface {
 	CountRequestedByItem(ctx context.Context, itemID string) (int, error)
 	FindRequestedByItemAndBuyer(ctx context.Context, itemID, buyerID string) (*domain.Transaction, error)
 	CountCompletedByUsers(ctx context.Context, userIDs []string) (map[string]int, error)
+	ListByParty(ctx context.Context, role domain.TransactionRole, userID string, statuses []domain.TransactionStatus, after *domain.TransactionCursor, limit int) ([]*domain.Transaction, error)
+	ListRequestGroupsBySeller(ctx context.Context, sellerID string) ([]domain.TransactionRequestGroup, error)
 	Approve(ctx context.Context, id, sellerID string, feeRateBP int, fee, proceeds int64, now time.Time) error
 	UpdateStatus(ctx context.Context, id string, from, to domain.TransactionStatus, now time.Time) error
 	Acknowledge(ctx context.Context, id, sellerID string, now time.Time) error

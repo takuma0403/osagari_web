@@ -85,6 +85,19 @@ var TransactionStatuses = []TransactionStatus{
 
 func (v TransactionStatus) Valid() bool { return enumValid(v, TransactionStatuses) }
 
+// TransactionPhase は取引一覧の区分（ADR 0028）。
+type TransactionPhase string
+
+const (
+	TransactionPhaseActive TransactionPhase = "active" // 進行中
+	TransactionPhaseEnded  TransactionPhase = "ended"  // 終了
+)
+
+// TransactionPhases は TransactionPhase のすべての値。
+var TransactionPhases = []TransactionPhase{TransactionPhaseActive, TransactionPhaseEnded}
+
+func (v TransactionPhase) Valid() bool { return enumValid(v, TransactionPhases) }
+
 // HandoverMethod は受け渡しの完了方法。
 type HandoverMethod string
 

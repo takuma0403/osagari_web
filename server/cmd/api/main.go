@@ -183,6 +183,8 @@ func wire(cfg config, gdb *gorm.DB, clk clock.Clock, mailer mail.Mailer, store s
 		HandoverTokens: handoverTokens,
 		Settings:       settings,
 		Payments:       payments,
+		Storage:        store,
+		Bucket:         cfg.ItemImageBucket,
 		Clock:          clk,
 	})
 	cleanup := service.NewAuthCleanupService(service.AuthCleanupDeps{
