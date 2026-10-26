@@ -534,6 +534,33 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/transactions": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * 自分が当事者の取引を一覧する
+         * @description DEAL-1, DEAL-3, DEAL-4: 取引一覧（DealList）に出す、ログイン中の本人が購入者か出品者の取引を返す（ADR 0028）。学籍番号・手数料は含めない。
+         *     `role` で購入（buyer）と出品（seller）、`phase` で進行中（active）と終了（ended）を分ける。
+         *     - buyer / active：購入希望（requested）と取引中（in_deal）
+         *     - buyer / ended：却下・期限切れ・キャンセル・完了
+         *     - seller / active：承認待ちの購入希望を商品ごとに1行（`requestCount` 件）と、取引中
+         *     - seller / ended：キャンセル・完了（出品側の却下・期限切れは出さない）
+         *     並びは最後に動いた日時（`updatedAt`）の新しい順。active は全件を返し `nextCursor` は常に null（cursor を渡すと 400 bad_request）。
+         *     ended は応答の `nextCursor` を `cursor` に入れて続きを取る。壊れた cursor は 400 bad_request。
+         */
+        get: operations["listTransactions"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/transactions/{transactionId}": {
         parameters: {
             query?: never;
@@ -1486,6 +1513,60 @@ export interface components {
             title: string;
             status: components["schemas"]["ItemStatus"];
         };
+        /**
+         * @description 取引一覧の区分。active は進行中、ended は終了した取引
+         * @enum {string}
+         */
+        TransactionPhase: "active" | "ended";
+        /** @description DEAL 取引一覧（DealList）の1区分 */
+        TransactionList: {
+            /** @description 最後に動いた日時の新しい順 */
+            entries: components["schemas"]["TransactionListEntry"][];
+            /** @description 続きを取るときに cursor に入れる値。続きがなければ null（active は常に null） */
+            nextCursor: string | null;
+        };
+        /**
+         * @description DEAL 取引一覧の1行。ふつうは取引1件だが、出品側の承認待ちの購入希望は商品ごとに1行にまとめる（status が requested、transactionId が null、requestCount が件数）。
+         *     学籍番号・手数料は含めない（DEAL-1）。
+         */
+        TransactionListEntry: {
+            /** @description 取引のID（`/deals/:dealId`）。出品側の商品ごとの承認待ちの行は null */
+            transactionId: string | null;
+            /** @description 商品のID。出品側だけ入る（購入希望の一覧 `/sell/:itemId/requests` に使う）。購入側は null */
+            itemId: string | null;
+            status: components["schemas"]["TransactionStatus"];
+            item: components["schemas"]["TransactionListItem"];
+            /**
+             * Format: int64
+             * @description 取引の金額（円）。出品側の商品ごとの承認待ちの行は今の商品価格
+             */
+            price: number;
+            /** @description 承認待ちの購入希望の件数。出品側の商品ごとの行だけ入る */
+            requestCount: number | null;
+            /**
+             * Format: date-time
+             * @description 承認期限。購入側の購入希望（requested）だけ入る
+             */
+            approvalDeadline: string | null;
+            /**
+             * Format: date-time
+             * @description 受け渡しが完了した日時。完了前は null
+             */
+            completedAt: string | null;
+            /**
+             * Format: date-time
+             * @description 最後に動いた日時。出品側の商品ごとの行は最新の購入希望を出した日時
+             */
+            updatedAt: string;
+        };
+        /** @description 取引一覧に出す商品の情報 */
+        TransactionListItem: {
+            shareId: string;
+            title: string;
+            category: components["schemas"]["ItemCategory"];
+            /** @description 1枚目の写真 */
+            thumbnail: components["schemas"]["ItemImage"] | null;
+        };
         PurchaseRequestList: {
             /** @description 希望の古い順 */
             requests: components["schemas"]["PurchaseRequest"][];
@@ -2223,6 +2304,34 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["Transaction"];
+                };
+            };
+            default: components["responses"]["Error"];
+        };
+    };
+    listTransactions: {
+        parameters: {
+            query: {
+                role: components["schemas"]["TransactionRole"];
+                phase: components["schemas"]["TransactionPhase"];
+                /** @description 前の応答の nextCursor（ended だけ）。省略すると先頭から */
+                cursor?: string;
+                /** @description 1回に返す件数（ended だけ。active は全件） */
+                limit?: number;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description 取引の一覧 */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["TransactionList"];
                 };
             };
             default: components["responses"]["Error"];

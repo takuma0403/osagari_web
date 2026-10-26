@@ -696,6 +696,55 @@ paths:
                 $ref: '#/components/schemas/Transaction'
         default:
           $ref: '#/components/responses/Error'
+  /transactions:
+    get:
+      tags: [transactions]
+      operationId: listTransactions
+      summary: 自分が当事者の取引を一覧する
+      description: |
+        DEAL-1, DEAL-3, DEAL-4: 取引一覧（DealList）に出す、ログイン中の本人が購入者か出品者の取引を返す（ADR 0028）。学籍番号・手数料は含めない。
+        `role` で購入（buyer）と出品（seller）、`phase` で進行中（active）と終了（ended）を分ける。
+        - buyer / active：購入希望（requested）と取引中（in_deal）
+        - buyer / ended：却下・期限切れ・キャンセル・完了
+        - seller / active：承認待ちの購入希望を商品ごとに1行（`requestCount` 件）と、取引中
+        - seller / ended：キャンセル・完了（出品側の却下・期限切れは出さない）
+        並びは最後に動いた日時（`updatedAt`）の新しい順。active は全件を返し `nextCursor` は常に null（cursor を渡すと 400 bad_request）。
+        ended は応答の `nextCursor` を `cursor` に入れて続きを取る。壊れた cursor は 400 bad_request。
+      parameters:
+        - name: role
+          in: query
+          required: true
+          schema:
+            $ref: '#/components/schemas/TransactionRole'
+        - name: phase
+          in: query
+          required: true
+          schema:
+            $ref: '#/components/schemas/TransactionPhase'
+        - name: cursor
+          in: query
+          required: false
+          description: 前の応答の nextCursor（ended だけ）。省略すると先頭から
+          schema:
+            type: string
+        - name: limit
+          in: query
+          required: false
+          description: 1回に返す件数（ended だけ。active は全件）
+          schema:
+            type: integer
+            minimum: 1
+            maximum: 50
+            default: 20
+      responses:
+        '200':
+          description: 取引の一覧
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TransactionList'
+        default:
+          $ref: '#/components/responses/Error'
   /transactions/{transactionId}:
     get:
       tags: [transactions]
@@ -1894,6 +1943,81 @@ components:
           type: string
         status:
           $ref: '#/components/schemas/ItemStatus'
+    TransactionPhase:
+      type: string
+      description: 取引一覧の区分。active は進行中、ended は終了した取引
+      enum: [active, ended]
+    TransactionList:
+      type: object
+      description: DEAL 取引一覧（DealList）の1区分
+      required: [entries, nextCursor]
+      properties:
+        entries:
+          type: array
+          description: 最後に動いた日時の新しい順
+          items:
+            $ref: '#/components/schemas/TransactionListEntry'
+        nextCursor:
+          type: string
+          nullable: true
+          description: 続きを取るときに cursor に入れる値。続きがなければ null（active は常に null）
+    TransactionListEntry:
+      type: object
+      description: |
+        DEAL 取引一覧の1行。ふつうは取引1件だが、出品側の承認待ちの購入希望は商品ごとに1行にまとめる（status が requested、transactionId が null、requestCount が件数）。
+        学籍番号・手数料は含めない（DEAL-1）。
+      required: [transactionId, itemId, status, item, price, requestCount, approvalDeadline, completedAt, updatedAt]
+      properties:
+        transactionId:
+          type: string
+          nullable: true
+          description: 取引のID（`/deals/:dealId`）。出品側の商品ごとの承認待ちの行は null
+        itemId:
+          type: string
+          nullable: true
+          description: 商品のID。出品側だけ入る（購入希望の一覧 `/sell/:itemId/requests` に使う）。購入側は null
+        status:
+          $ref: '#/components/schemas/TransactionStatus'
+        item:
+          $ref: '#/components/schemas/TransactionListItem'
+        price:
+          type: integer
+          format: int64
+          description: 取引の金額（円）。出品側の商品ごとの承認待ちの行は今の商品価格
+        requestCount:
+          type: integer
+          nullable: true
+          description: 承認待ちの購入希望の件数。出品側の商品ごとの行だけ入る
+        approvalDeadline:
+          type: string
+          format: date-time
+          nullable: true
+          description: 承認期限。購入側の購入希望（requested）だけ入る
+        completedAt:
+          type: string
+          format: date-time
+          nullable: true
+          description: 受け渡しが完了した日時。完了前は null
+        updatedAt:
+          type: string
+          format: date-time
+          description: 最後に動いた日時。出品側の商品ごとの行は最新の購入希望を出した日時
+    TransactionListItem:
+      type: object
+      description: 取引一覧に出す商品の情報
+      required: [shareId, title, category, thumbnail]
+      properties:
+        shareId:
+          type: string
+        title:
+          type: string
+        category:
+          $ref: '#/components/schemas/ItemCategory'
+        thumbnail:
+          description: 1枚目の写真
+          allOf:
+            - $ref: '#/components/schemas/ItemImage'
+          nullable: true
     PurchaseRequestList:
       type: object
       required: [requests]
