@@ -54,11 +54,12 @@ func NewPaymentRepository(db *gorm.DB) *PaymentRepository {
 }
 
 // Create は決済の記録を保存する。ID が空なら採番する。
+// 同じ取引の出金（payout）がすでにあれば ErrDuplicate（ADR 0029）。
 func (r *PaymentRepository) Create(ctx context.Context, p *domain.Payment) error {
 	if p.ID == "" {
 		p.ID = newID()
 	}
-	return conn(ctx, r.db).Create(&paymentRow{
+	err := conn(ctx, r.db).Create(&paymentRow{
 		ID:            p.ID,
 		TransactionID: p.TransactionID,
 		Kind:          string(p.Kind),
@@ -69,6 +70,32 @@ func (r *PaymentRepository) Create(ctx context.Context, p *domain.Payment) error
 		CreatedAt:     formatTime(p.CreatedAt),
 		UpdatedAt:     formatTime(p.UpdatedAt),
 	}).Error
+	if isUniqueViolation(err) {
+		return ErrDuplicate
+	}
+	return err
+}
+
+// ListPayoutsByTransactions は取引ごとの出金（payout）の記録を、取引IDごとの対応で返す（売上の明細。ADR 0029）。
+// 出金していない取引は結果に含めない。
+func (r *PaymentRepository) ListPayoutsByTransactions(ctx context.Context, transactionIDs []string) (map[string]*domain.Payment, error) {
+	out := make(map[string]*domain.Payment, len(transactionIDs))
+	if len(transactionIDs) == 0 {
+		return out, nil
+	}
+	var rows []paymentRow
+	if err := conn(ctx, r.db).Where("transaction_id IN ? AND kind = ?", transactionIDs, string(domain.PaymentKindPayout)).
+		Find(&rows).Error; err != nil {
+		return nil, err
+	}
+	for _, row := range rows {
+		p, err := row.toDomain()
+		if err != nil {
+			return nil, err
+		}
+		out[p.TransactionID] = p
+	}
+	return out, nil
 }
 
 // ListByTransaction は取引の決済の記録を古い順に返す。

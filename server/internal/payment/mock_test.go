@@ -72,6 +72,8 @@ func TestMock(t *testing.T) {
 		{domain.PaymentKindRefund, gw.Refund, 1550, ptr(domain.PaymentMethodPayPay)},
 		// 売上の確定は手数料（¥77）を引いた額で、支払い方法は空
 		{domain.PaymentKindSettle, gw.Settle, 1473, nil},
+		// 出金も売上の額で、支払い方法は空（ADR 0029）
+		{domain.PaymentKindPayout, gw.Payout, 1473, nil},
 	}
 	for _, op := range ops {
 		clk.Advance(time.Minute)
@@ -104,7 +106,32 @@ func TestMock_成立前の売上の確定(t *testing.T) {
 	gw := payment.NewMock(nil, clock.NewFake(t0))
 	tr := &domain.Transaction{ID: "tx", Price: 1550, PaymentMethod: domain.PaymentMethodCard, Status: domain.TransactionStatusRequested}
 	if err := gw.Settle(context.Background(), tr); !errors.Is(err, payment.ErrFeeNotRecorded) {
-		t.Errorf("err = %v, want ErrFeeNotRecorded", err)
+		t.Errorf("Settle: err = %v, want ErrFeeNotRecorded", err)
+	}
+	if err := gw.Payout(context.Background(), tr); !errors.Is(err, payment.ErrFeeNotRecorded) {
+		t.Errorf("Payout: err = %v, want ErrFeeNotRecorded", err)
+	}
+}
+
+// 出金は取引ごとに1行だけ。2回目は一意制約で ErrDuplicate になる（ADR 0029）。
+func TestMock_二重の出金(t *testing.T) {
+	ctx := context.Background()
+	gdb := testdb.New(t)
+	payments := repository.NewPaymentRepository(gdb)
+	tr := newTransaction(t, ctx, repository.NewTransactionRepository(gdb), repository.NewUserRepository(gdb), repository.NewItemRepository(gdb))
+	gw := payment.NewMock(payments, clock.NewFake(t0))
+
+	if err := gw.Payout(ctx, tr); err != nil {
+		t.Fatal(err)
+	}
+	if err := gw.Payout(ctx, tr); !errors.Is(err, repository.ErrDuplicate) {
+		t.Errorf("2回目の出金: err = %v, want ErrDuplicate", err)
+	}
+	// 出金以外の種別は同じ取引に何行でも記録できる
+	for range 2 {
+		if err := gw.Settle(ctx, tr); err != nil {
+			t.Fatal(err)
+		}
 	}
 }
 

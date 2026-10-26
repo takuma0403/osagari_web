@@ -12,7 +12,6 @@ import (
 
 // Gateway は取引ごとの決済の操作（JOBS-2）。service はこのインターフェース越しに使う。
 // ctx にトランザクション（repository.Transactor）があれば、記録は同じトランザクションで行う。
-// 出金（payout）は売上画面の出金申請（PAY）で足す（ADR 0021）。
 type Gateway interface {
 	// Authorize は購入希望のときに代金の枠を確保する
 	Authorize(ctx context.Context, tr *domain.Transaction) error
@@ -24,7 +23,9 @@ type Gateway interface {
 	Refund(ctx context.Context, tr *domain.Transaction) error
 	// Settle は受け渡し完了のときに、手数料を引いた金額を出品者の売上として確定する（DEAL-3, PAY-2）
 	Settle(ctx context.Context, tr *domain.Transaction) error
+	// Payout は売上画面の出金申請のときに、確定した出品者の売上を出金する（PAY, ADR 0029）
+	Payout(ctx context.Context, tr *domain.Transaction) error
 }
 
-// ErrFeeNotRecorded は売上を確定する取引に手数料が記録されていない（取引が成立していない）ときに返す。
+// ErrFeeNotRecorded は売上を確定・出金する取引に手数料が記録されていない（取引が成立していない）ときに返す。
 var ErrFeeNotRecorded = errors.New("payment: 取引に手数料が記録されていません")
