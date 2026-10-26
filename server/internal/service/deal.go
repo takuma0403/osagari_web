@@ -204,24 +204,68 @@ func (s *DealService) Reject(ctx context.Context, u *domain.User, id string) (*T
 	}
 	now := s.d.Clock.Now()
 	err = s.d.Tx.Do(ctx, func(ctx context.Context) error {
-		if err := rejectRequest(ctx, s.d.Transactions, s.d.Payments, tr, now); err != nil {
-			return err
-		}
-		n, err := s.d.Transactions.CountRequestedByItem(ctx, tr.ItemID)
-		if err != nil || n > 0 {
-			return err
-		}
-		err = s.d.Items.UpdateDealStatus(ctx, tr.ItemID, u.ID, []domain.ItemStatus{domain.ItemStatusRequested}, domain.ItemStatusPublished, now)
-		// 商品が購入希望ありでなければ（停止など）そのままにする
-		if errors.Is(err, repository.ErrConflict) {
-			return nil
-		}
-		return err
+		return s.endRequest(ctx, tr, domain.TransactionStatusRejected, now)
 	})
 	if err := dealError(err); err != nil {
 		return nil, err
 	}
 	return s.view(ctx, u, tr.ID)
+}
+
+// ExpireRequests は承認期限を過ぎた購入希望を期限切れにして枠を解放し、期限切れにした件数を返す（DEAL-1, JOBS-1）。
+// 短周期ジョブから呼ぶ。1件ずつトランザクションで行い、その間に承認・却下された購入希望は飛ばす（何度呼んでも結果は同じ）。
+// 1件が失敗しても残りは続け、失敗をまとめて返す。
+func (s *DealService) ExpireRequests(ctx context.Context) (int, error) {
+	now := s.d.Clock.Now()
+	reqs, err := s.d.Transactions.ListExpiredRequests(ctx, now)
+	if err != nil {
+		return 0, apperr.Internal(err)
+	}
+	n := 0
+	var errs []error
+	for _, tr := range reqs {
+		err := s.d.Tx.Do(ctx, func(ctx context.Context) error {
+			return s.endRequest(ctx, tr, domain.TransactionStatusExpired, now)
+		})
+		switch {
+		case errors.Is(err, repository.ErrConflict):
+		case err != nil:
+			errs = append(errs, err)
+		default:
+			n++
+		}
+	}
+	if err := errors.Join(errs...); err != nil {
+		return n, apperr.Internal(err)
+	}
+	return n, nil
+}
+
+// DeleteExpiredHandoverTokens は期限が切れた受け渡しトークンを消し、消した件数を返す（DEAL-3, JOBS-1）。
+func (s *DealService) DeleteExpiredHandoverTokens(ctx context.Context) (int, error) {
+	n, err := s.d.HandoverTokens.DeleteExpired(ctx, s.d.Clock.Now())
+	if err != nil {
+		return 0, apperr.Internal(err)
+	}
+	return n, nil
+}
+
+// endRequest は承認待ちの購入希望を to（却下・期限切れ）にして枠を解放し、
+// 承認待ちの購入希望がなくなったら商品を公開中に戻す（DEAL-1, ADR 0022）。トランザクションの中で呼ぶ。承認待ちでなければ repository.ErrConflict。
+func (s *DealService) endRequest(ctx context.Context, tr *domain.Transaction, to domain.TransactionStatus, now time.Time) error {
+	if err := closeRequest(ctx, s.d.Transactions, s.d.Payments, tr, to, now); err != nil {
+		return err
+	}
+	n, err := s.d.Transactions.CountRequestedByItem(ctx, tr.ItemID)
+	if err != nil || n > 0 {
+		return err
+	}
+	err = s.d.Items.UpdateDealStatus(ctx, tr.ItemID, tr.SellerID, []domain.ItemStatus{domain.ItemStatusRequested}, domain.ItemStatusPublished, now)
+	// 商品が購入希望ありでなければ（停止など）そのままにする
+	if errors.Is(err, repository.ErrConflict) {
+		return nil
+	}
+	return err
 }
 
 // Acknowledge は出品者が取引成立の確認モーダルに同意した日時を記録する（DEAL-2）。
@@ -313,9 +357,9 @@ func (s *DealService) view(ctx context.Context, u *domain.User, id string) (*Tra
 	return v, nil
 }
 
-// rejectRequest は承認待ちの購入希望を却下して枠を解放する（DEAL-1, JOBS-2）。承認待ちでなければ repository.ErrConflict。
-func rejectRequest(ctx context.Context, txs TransactionStore, gw payment.Gateway, tr *domain.Transaction, now time.Time) error {
-	if err := txs.UpdateStatus(ctx, tr.ID, domain.TransactionStatusRequested, domain.TransactionStatusRejected, now); err != nil {
+// closeRequest は承認待ちの購入希望を to（却下・期限切れ）にして枠を解放する（DEAL-1, JOBS-2）。承認待ちでなければ repository.ErrConflict。
+func closeRequest(ctx context.Context, txs TransactionStore, gw payment.Gateway, tr *domain.Transaction, to domain.TransactionStatus, now time.Time) error {
+	if err := txs.UpdateStatus(ctx, tr.ID, domain.TransactionStatusRequested, to, now); err != nil {
 		return err
 	}
 	return gw.Release(ctx, tr)
@@ -329,7 +373,7 @@ func rejectRequests(ctx context.Context, txs TransactionStore, gw payment.Gatewa
 		return err
 	}
 	for _, tr := range reqs {
-		if err := rejectRequest(ctx, txs, gw, tr, now); err != nil {
+		if err := closeRequest(ctx, txs, gw, tr, domain.TransactionStatusRejected, now); err != nil {
 			return err
 		}
 	}
