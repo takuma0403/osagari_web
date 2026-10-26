@@ -260,6 +260,16 @@ func (r *ItemRepository) FindByIDs(ctx context.Context, ids []string) (map[strin
 	return out, nil
 }
 
+// ListBySeller は出品者 sellerID のすべての商品（ステータスを問わない）を、最後に更新した順（updated_at の新しい順、同じなら ID の大きい順）で返す。
+// 写真は1枚目だけを Images に入れる（マイページ。AUTH-3, ADR 0029）。
+func (r *ItemRepository) ListBySeller(ctx context.Context, sellerID string) ([]*domain.Item, error) {
+	var rows []itemRow
+	if err := conn(ctx, r.db).Where("seller_id = ?", sellerID).Order("updated_at DESC, id DESC").Find(&rows).Error; err != nil {
+		return nil, err
+	}
+	return r.withThumbnails(ctx, rows)
+}
+
 // withThumbnails は商品の行の並びに、1枚目の写真だけを付けて返す（一覧のサムネイル）。写真がなければ Images は空。
 func (r *ItemRepository) withThumbnails(ctx context.Context, rows []itemRow) ([]*domain.Item, error) {
 	items := make([]*domain.Item, 0, len(rows))
