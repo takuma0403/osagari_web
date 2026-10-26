@@ -25,6 +25,12 @@ export function formatShortDateTime(isoDateTime: string): string {
   return `${d.getMonth() + 1}/${d.getDate()} ${hh}:${mm}`
 }
 
+/** 日時（ISO 8601）を端末の日付で `9/28` の形にする。取引一覧の受け渡し日など、日だけでよい表示に使う */
+export function formatMonthDay(isoDateTime: string): string {
+  const d = new Date(isoDateTime)
+  return `${d.getMonth() + 1}/${d.getDate()}`
+}
+
 /** 残り秒数を `9:41` の形（分:秒）にする。認証コードの有効期限や再送までの待ち時間に使う */
 export function formatCountdown(seconds: number): string {
   const s = Math.max(0, Math.ceil(seconds))

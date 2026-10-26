@@ -47,7 +47,7 @@ describe('routes', () => {
     ['/sell', '出品する'],
     ['/sell/i1', '出品を編集'],
     ['/sell/i1/requests', '取引詳細'],
-    ['/deals', '取引一覧'],
+    ['/deals', '取引'],
     ['/deals/42', '取引詳細'],
     ['/deals/42/scan', 'QRを読み取る'],
     ['/deals/42/complete', '受け渡しの完了'],

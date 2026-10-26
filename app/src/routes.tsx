@@ -11,6 +11,7 @@ import { RecheckPage } from './features/auth/pages/RecheckPage'
 import { SignUpPage } from './features/auth/pages/SignUpPage'
 import { DealCompletePage } from './features/deals/pages/DealCompletePage'
 import { DealDetailPage } from './features/deals/pages/DealDetailPage'
+import { DealListPage } from './features/deals/pages/DealListPage'
 import { DealRequestsPage } from './features/deals/pages/DealRequestsPage'
 import { DealScanPage } from './features/deals/pages/DealScanPage'
 import { RequestPage } from './features/deals/pages/RequestPage'
@@ -69,7 +70,7 @@ export const routes: RouteObject[] = [
         children: [
           { path: '/', element: <MainPage /> },
           { path: '/search', element: <SearchPage /> },
-          placeholder('/deals', '取引一覧'),
+          { path: '/deals', element: <DealListPage /> },
           placeholder('/mypage', 'マイページ'),
         ],
       },

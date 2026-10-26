@@ -1,5 +1,5 @@
 import type { OwnItem } from '../../sell/api'
-import type { PurchaseRequest, Transaction } from '../api'
+import type { PurchaseRequest, Transaction, TransactionListEntry } from '../api'
 
 /** 出品者本人の商品（購入希望あり） */
 export function ownItem(overrides: Partial<OwnItem> = {}): OwnItem {
@@ -104,4 +104,22 @@ export function bodyOf(fetchMock: ReturnType<typeof stubDealsFetch>, key: string
   const call = fetchMock.mock.calls.find(([url, init]) => `${init?.method ?? 'GET'} ${url}` === key)
   if (!call) throw new Error(`呼ばれていない: ${key}`)
   return JSON.parse(String(call[1]?.body))
+}
+
+/** 取引一覧の1行（既定は購入側の承認待ちの購入希望） */
+export function transactionListEntry(
+  overrides: Partial<TransactionListEntry> = {},
+): TransactionListEntry {
+  return {
+    transactionId: 'tx1',
+    itemId: null,
+    status: 'requested',
+    item: { shareId: 'abc123', title: '線形代数入門', category: 'textbook', thumbnail: null },
+    price: 1500,
+    requestCount: null,
+    approvalDeadline: '2026-10-09T03:40:00Z',
+    completedAt: null,
+    updatedAt: '2026-10-07T03:40:00Z',
+    ...overrides,
+  }
 }

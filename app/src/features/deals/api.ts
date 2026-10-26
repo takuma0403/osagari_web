@@ -5,6 +5,11 @@ export type Transaction = components['schemas']['Transaction']
 export type PurchaseRequest = components['schemas']['PurchaseRequest']
 export type PurchaseRequestList = components['schemas']['PurchaseRequestList']
 export type PaymentMethod = components['schemas']['PaymentMethod']
+export type TransactionRole = components['schemas']['TransactionRole']
+export type TransactionPhase = components['schemas']['TransactionPhase']
+export type TransactionList = components['schemas']['TransactionList']
+export type TransactionListEntry = components['schemas']['TransactionListEntry']
+export type TransactionListItem = components['schemas']['TransactionListItem']
 
 const transactionPath = (transactionId: string) =>
   `/transactions/${encodeURIComponent(transactionId)}`
@@ -22,6 +27,21 @@ export function createPurchaseRequest(shareId: string, paymentMethod: PaymentMet
 /** 自分の商品に届いている承認待ちの購入希望を、希望の古い順に取得する（DEAL-1）。購入者の学籍番号は含まない */
 export function listPurchaseRequests(itemId: string, signal?: AbortSignal) {
   return request<PurchaseRequestList>(`/items/${encodeURIComponent(itemId)}/requests`, { signal })
+}
+
+/**
+ * 自分が当事者の取引を、購入（buyer）／出品（seller）と進行中（active）／終了（ended）の区分で取得する（DEAL-1、ADR 0028）。
+ * 出品側の承認待ちの購入希望は商品ごとに1行。active は全件、ended は nextCursor を cursor に入れて続きを取る
+ */
+export function listTransactions(
+  role: TransactionRole,
+  phase: TransactionPhase,
+  cursor?: string,
+  signal?: AbortSignal,
+) {
+  const params = new URLSearchParams({ role, phase })
+  if (cursor) params.set('cursor', cursor)
+  return request<TransactionList>(`/transactions?${params.toString()}`, { signal })
 }
 
 /** 購入希望を承認して取引を成立させる（DEAL-1）。応答には購入者の学籍番号が入る */
