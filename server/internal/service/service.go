@@ -107,6 +107,7 @@ type TransactionStore interface {
 	Create(ctx context.Context, tr *domain.Transaction) error
 	FindByID(ctx context.Context, id string) (*domain.Transaction, error)
 	ListRequestedByItem(ctx context.Context, itemID string) ([]*domain.Transaction, error)
+	ListExpiredRequests(ctx context.Context, now time.Time) ([]*domain.Transaction, error)
 	CountRequestedByItem(ctx context.Context, itemID string) (int, error)
 	FindRequestedByItemAndBuyer(ctx context.Context, itemID, buyerID string) (*domain.Transaction, error)
 	CountCompletedByUsers(ctx context.Context, userIDs []string) (map[string]int, error)
@@ -126,6 +127,7 @@ type HandoverTokenStore interface {
 	FindActiveByTokenHash(ctx context.Context, transactionID, tokenHash string, now time.Time) (*domain.HandoverToken, error)
 	ListActiveWithCode(ctx context.Context, transactionID string, now time.Time) ([]*domain.HandoverToken, error)
 	Consume(ctx context.Context, id string, now time.Time) error
+	DeleteExpired(ctx context.Context, now time.Time) (int, error)
 }
 
 // SettingStore は settings の読み書き（repository.SettingRepository）。

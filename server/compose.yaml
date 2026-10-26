@@ -94,6 +94,9 @@ services:
       SMTP_STARTTLS: "false"
       # 管理者の学籍番号（ADR 0015）。例：ADMIN_STUDENT_NUMBERS=26141023 docker compose up -d
       ADMIN_STUDENT_NUMBERS: ${ADMIN_STUDENT_NUMBERS:-}
+      # 内部用エンドポイントのローカルの代替認証（JOBS-1, ADR 0027）。
+      # 例：curl -X POST -H 'Authorization: Bearer local-jobs-secret' localhost:8080/api/internal/jobs/short
+      JOBS_LOCAL_SECRET: local-jobs-secret
     volumes: *go-volumes
     depends_on:
       db:

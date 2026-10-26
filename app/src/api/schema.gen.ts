@@ -881,6 +881,29 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/internal/jobs/short": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * 短周期ジョブを実行する（15分ごと）
+         * @description JOBS-1, DEAL-1, AUTHN-6: Cloud Scheduler から15分ごとに呼ぶ。承認期限を過ぎた購入希望を期限切れにして枠を解放し（承認待ちがなくなった商品は公開中に戻す。ADR 0022）、
+         *     期限切れの認証コード・再確認・パスワード設定・受け渡しのトークンと、24時間更新のないパスワードの入力ミスの記録を消す。
+         *     自動完了（DEAL-5）は導入するか未定のため行わない。何度呼んでも結果は同じ（冪等）。
+         *     `Authorization: Bearer` で Cloud Scheduler の OIDC ID トークン（ローカルは代替のシークレット）を送る。確かめられなければ 404 not_found（ADR 0027）。
+         */
+        post: operations["runShortJob"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
 }
 export type webhooks = Record<string, never>;
 export interface components {
@@ -2598,6 +2621,25 @@ export interface operations {
         requestBody?: never;
         responses: {
             /** @description 受け付けた（フェーズ1は何もしない） */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            default: components["responses"]["Error"];
+        };
+    };
+    runShortJob: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description 実行した */
             204: {
                 headers: {
                     [name: string]: unknown;

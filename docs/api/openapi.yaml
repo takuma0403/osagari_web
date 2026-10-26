@@ -32,6 +32,8 @@ tags:
     description: 管理者向け（ADMIN）。未ログイン・管理者でなければすべて 404 not_found（ADR 0015）
   - name: webhooks
     description: 本番の決済サービスからの通知（JOBS-2）。フェーズ1は枠だけ
+  - name: internal
+    description: 定期処理（JOBS-1）。Cloud Scheduler のサービスアカウントからだけ受け付け、それ以外はすべて 404 not_found
 paths:
   /health:
     get:
@@ -1025,12 +1027,34 @@ paths:
           description: 受け付けた（フェーズ1は何もしない）
         default:
           $ref: '#/components/responses/Error'
+  /internal/jobs/short:
+    post:
+      tags: [internal]
+      operationId: runShortJob
+      summary: 短周期ジョブを実行する（15分ごと）
+      description: |
+        JOBS-1, DEAL-1, AUTHN-6: Cloud Scheduler から15分ごとに呼ぶ。承認期限を過ぎた購入希望を期限切れにして枠を解放し（承認待ちがなくなった商品は公開中に戻す。ADR 0022）、
+        期限切れの認証コード・再確認・パスワード設定・受け渡しのトークンと、24時間更新のないパスワードの入力ミスの記録を消す。
+        自動完了（DEAL-5）は導入するか未定のため行わない。何度呼んでも結果は同じ（冪等）。
+        `Authorization: Bearer` で Cloud Scheduler の OIDC ID トークン（ローカルは代替のシークレット）を送る。確かめられなければ 404 not_found（ADR 0027）。
+      security:
+        - schedulerOidc: []
+      responses:
+        '204':
+          description: 実行した
+        default:
+          $ref: '#/components/responses/Error'
 components:
   securitySchemes:
     sessionCookie:
       type: apiKey
       in: cookie
       name: __session
+    schedulerOidc:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+      description: Cloud Scheduler のサービスアカウントの OIDC ID トークン（JOBS-1）。ローカルは代替のシークレット
   parameters:
     StudentCardId:
       name: studentCardId

@@ -166,6 +166,15 @@ func (r *VerificationCodeRepository) ReserveAttempt(ctx context.Context, id stri
 	return attempts, nil
 }
 
+// DeleteExpired は、期限が切れていて createdBefore 以前に作ったコードを消し、消した件数を返す（JOBS-1）。
+// 送信の制限と全体の送信数を行数で数えるため、期限が切れても作ってから auth.CodeRetention の間は消さない（AUTHN-6）。
+func (r *VerificationCodeRepository) DeleteExpired(ctx context.Context, now, createdBefore time.Time) (int, error) {
+	res := conn(ctx, r.db).
+		Where("expires_at <= ? AND created_at <= ?", formatTime(now), formatTime(createdBefore)).
+		Delete(&verificationCodeRow{})
+	return int(res.RowsAffected), res.Error
+}
+
 // Consume はコードを使用済みにする。条件付きUPDATE なので一度しか成功しない。使えないコードなら ErrConflict。
 func (r *VerificationCodeRepository) Consume(ctx context.Context, id string, now time.Time) error {
 	ts := formatTime(now)

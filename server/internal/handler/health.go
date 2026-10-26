@@ -22,6 +22,8 @@ type Deps struct {
 	Setting SettingService
 	// AdminStudentCard は管理者による学生証の審査（ADMIN）
 	AdminStudentCard AdminStudentCardService
+	// ShortJob は15分ごとの短周期ジョブ（JOBS-1）
+	ShortJob ShortJob
 }
 
 // Handler は api.StrictServerInterface の実装。

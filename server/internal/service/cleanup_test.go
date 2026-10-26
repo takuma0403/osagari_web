@@ -53,3 +53,42 @@ func TestDeleteStaleLoginFailures_止めている間は消さない(t *testing.T
 	_, err := f.login.Login(ctx, email, password, knownDevice)
 	wantCode(t, err, apperr.CodeTooManyRequests)
 }
+
+// 期限切れの認証コード・再確認のチャレンジ・パスワード設定用のトークンを消す（JOBS-1）。
+// 認証コードは送信の制限に数えるため、作ってから24時間は消さない（AUTHN-6）。
+func TestDeleteExpiredCodes(t *testing.T) {
+	ctx := context.Background()
+	f := newLoginFixture(t)
+	cleanup := service.NewAuthCleanupService(service.AuthCleanupDeps{
+		Codes:       repository.NewVerificationCodeRepository(f.gdb),
+		Challenges:  repository.NewLoginChallengeRepository(f.gdb),
+		SetupTokens: repository.NewPasswordSetupTokenRepository(f.gdb),
+		Clock:       f.clock,
+	})
+	f.challenge(t, "new-device") // 再確認のチャレンジと、そのコードを1件ずつ作る
+	tables := []string{"verification_codes", "login_challenges"}
+	for _, tb := range tables {
+		if got := f.count(t, tb); got != 1 {
+			t.Fatalf("準備: %s = %d", tb, got)
+		}
+	}
+	setupTokens := f.count(t, "password_setup_tokens") // 準備の登録で使ったトークン
+
+	f.clock.Advance(auth.LoginChallengeTTL)
+	if n, err := cleanup.DeleteExpiredCodes(ctx); err != nil || n != int(setupTokens)+1 {
+		t.Fatalf("チャレンジの期限の後: n=%d err=%v（チャレンジとパスワード設定のトークンを消し、コードは残す）", n, err)
+	}
+	if got := f.count(t, "verification_codes"); got != 1 {
+		t.Errorf("作ってから24時間未満のコードを消した: %d", got)
+	}
+
+	f.clock.Advance(auth.CodeRetention - auth.LoginChallengeTTL)
+	if n, err := cleanup.DeleteExpiredCodes(ctx); err != nil || n != 1 {
+		t.Fatalf("作ってから24時間の後: n=%d err=%v want 1", n, err)
+	}
+	for _, tb := range append(tables, "password_setup_tokens") {
+		if got := f.count(t, tb); got != 0 {
+			t.Errorf("%s の残り = %d", tb, got)
+		}
+	}
+}
