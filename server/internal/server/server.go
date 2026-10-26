@@ -25,6 +25,8 @@ type Deps struct {
 	Sessions Authenticator
 	// Admins は管理者の学籍番号の許可リスト（ADMIN, ADR 0015）
 	Admins domain.AdminList
+	// Jobs は内部用エンドポイント（`/api/internal/**`）の呼び出し元を確かめる（JOBS-1, ADR 0027）
+	Jobs JobAuthenticator
 }
 
 // New はミドルウェアとエラーハンドラーを設定し、生成したルートを登録した Echo を返す。
@@ -44,7 +46,7 @@ func New(d Deps) *echo.Echo {
 	e.Use(accessLog(d.Logger, d.Clock))
 	e.Use(middleware.Recover())
 
-	strict := api.NewStrictHandler(d.Handler, []api.StrictMiddlewareFunc{sessionMiddleware(d.Sessions, d.Admins, public)})
+	strict := api.NewStrictHandler(d.Handler, []api.StrictMiddlewareFunc{sessionMiddleware(d.Sessions, d.Admins, d.Jobs, public)})
 	api.RegisterHandlersWithBaseURL(e, strict, BasePath)
 	return e
 }

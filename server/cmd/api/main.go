@@ -15,6 +15,7 @@ import (
 	"github.com/takuma0403/osagari_web/server/internal/db"
 	"github.com/takuma0403/osagari_web/server/internal/domain"
 	"github.com/takuma0403/osagari_web/server/internal/handler"
+	"github.com/takuma0403/osagari_web/server/internal/jobs"
 	"github.com/takuma0403/osagari_web/server/internal/logging"
 	"github.com/takuma0403/osagari_web/server/internal/mail"
 	"github.com/takuma0403/osagari_web/server/internal/payment"
@@ -36,6 +37,8 @@ type config struct {
 	ItemImageBucket string
 	// Admins は管理者の学籍番号の許可リスト（ADMIN, ADR 0015）
 	Admins domain.AdminList
+	// Jobs は内部用エンドポイントの呼び出し元の確認。本番は Cloud Scheduler の OIDC、ローカルは共有シークレット（JOBS-1, ADR 0027）
+	Jobs server.JobAuthenticator
 }
 
 func main() {
@@ -80,6 +83,7 @@ func run(logger *slog.Logger) error {
 		Handler:  h,
 		Sessions: sessions,
 		Admins:   cfg.Admins,
+		Jobs:     cfg.Jobs,
 	})
 	return e.Start(":" + cfg.Port)
 }
@@ -94,6 +98,7 @@ func wire(cfg config, gdb *gorm.DB, clk clock.Clock, mailer mail.Mailer, store s
 	devices := repository.NewTrustedDeviceRepository(gdb)
 	tokens := repository.NewPasswordSetupTokenRepository(gdb)
 	failures := repository.NewLoginFailureRepository(gdb)
+	challenges := repository.NewLoginChallengeRepository(gdb)
 
 	signup := service.NewSignupService(service.SignupDeps{
 		Tx:       tx,
@@ -110,7 +115,7 @@ func wire(cfg config, gdb *gorm.DB, clk clock.Clock, mailer mail.Mailer, store s
 		Tx:         tx,
 		Users:      users,
 		Codes:      codes,
-		Challenges: repository.NewLoginChallengeRepository(gdb),
+		Challenges: challenges,
 		Failures:   failures,
 		Sessions:   sessions,
 		Devices:    devices,
@@ -156,6 +161,7 @@ func wire(cfg config, gdb *gorm.DB, clk clock.Clock, mailer mail.Mailer, store s
 	})
 	items := repository.NewItemRepository(gdb)
 	transactions := repository.NewTransactionRepository(gdb)
+	handoverTokens := repository.NewHandoverTokenRepository(gdb)
 	settings := repository.NewSettingRepository(gdb)
 	// フェーズ1の決済はモック。payments に記録するだけで外部の決済APIは呼ばない（JOBS-2）
 	payments := payment.NewMock(repository.NewPaymentRepository(gdb), clk)
@@ -174,10 +180,17 @@ func wire(cfg config, gdb *gorm.DB, clk clock.Clock, mailer mail.Mailer, store s
 		Items:          items,
 		Users:          users,
 		Transactions:   transactions,
-		HandoverTokens: repository.NewHandoverTokenRepository(gdb),
+		HandoverTokens: handoverTokens,
 		Settings:       settings,
 		Payments:       payments,
 		Clock:          clk,
+	})
+	cleanup := service.NewAuthCleanupService(service.AuthCleanupDeps{
+		Failures:    failures,
+		Codes:       codes,
+		Challenges:  challenges,
+		SetupTokens: tokens,
+		Clock:       clk,
 	})
 	return handler.New(handler.Deps{
 		Signup:        signup,
@@ -190,6 +203,13 @@ func wire(cfg config, gdb *gorm.DB, clk clock.Clock, mailer mail.Mailer, store s
 		Setting:       service.NewSettingService(service.SettingDeps{Settings: settings}),
 
 		AdminStudentCard: adminStudentCard,
+		// 自動完了（DEAL-5）は導入するか未定のため入れない
+		ShortJob: jobs.NewShort(logger,
+			jobs.Step{Name: "expire_requests", Run: deal.ExpireRequests},
+			jobs.Step{Name: "delete_stale_login_failures", Run: cleanup.DeleteStaleLoginFailures},
+			jobs.Step{Name: "delete_expired_codes", Run: cleanup.DeleteExpiredCodes},
+			jobs.Step{Name: "delete_expired_handover_tokens", Run: deal.DeleteExpiredHandoverTokens},
+		),
 	}), session
 }
 
@@ -232,7 +252,31 @@ func loadConfig() (config, error) {
 		return config{}, fmt.Errorf("環境変数 SMTP_STARTTLS が true / false ではありません")
 	}
 	cfg.SMTP.StartTLS = startTLS
+	jobAuth, err := loadJobAuth()
+	if err != nil {
+		return config{}, err
+	}
+	cfg.Jobs = jobAuth
 	return cfg, nil
+}
+
+// loadJobAuth は内部用エンドポイントの呼び出し元の確認方法を選ぶ（JOBS-1, ADR 0027）。
+// 本番は JOBS_OIDC_AUDIENCE と JOBS_SERVICE_ACCOUNT_EMAIL、ローカルは JOBS_LOCAL_SECRET のどちらか一方だけを設定する。
+func loadJobAuth() (server.JobAuthenticator, error) {
+	audience := os.Getenv("JOBS_OIDC_AUDIENCE")
+	account := os.Getenv("JOBS_SERVICE_ACCOUNT_EMAIL")
+	secret := os.Getenv("JOBS_LOCAL_SECRET")
+	oidc := audience != "" || account != ""
+	switch {
+	case oidc && secret != "":
+		return nil, fmt.Errorf("環境変数 JOBS_LOCAL_SECRET は JOBS_OIDC_AUDIENCE・JOBS_SERVICE_ACCOUNT_EMAIL と同時に設定できません")
+	case secret != "":
+		return jobs.SecretVerifier{Secret: secret}, nil
+	case audience != "" && account != "":
+		return jobs.OIDCVerifier{Audience: audience, ServiceAccount: account}, nil
+	default:
+		return nil, fmt.Errorf("環境変数 JOBS_OIDC_AUDIENCE と JOBS_SERVICE_ACCOUNT_EMAIL（ローカルは JOBS_LOCAL_SECRET）が設定されていません")
+	}
 }
 
 func envOr(key, def string) string {

@@ -18,6 +18,14 @@ type Authenticator interface {
 	Authenticate(ctx context.Context, token string) (*domain.User, error)
 }
 
+// JobAuthenticator は内部用エンドポイントの呼び出し元が Cloud Scheduler かを Authorization ヘッダーで確かめる（jobs.OIDCVerifier など）。
+type JobAuthenticator interface {
+	Verify(ctx context.Context, authorization string) error
+}
+
+// internalPathPrefix は内部用エンドポイント（定期処理）のパスの接頭辞（JOBS-1）。
+const internalPathPrefix = BasePath + "/internal/"
+
 // adminPathPrefix は管理APIのパスの接頭辞（ADMIN）。
 const adminPathPrefix = BasePath + "/admin/"
 
@@ -27,7 +35,8 @@ func isAdminPath(path string) bool { return strings.HasPrefix(path, adminPathPre
 // sessionMiddleware は `__session` Cookie の値を context に入れ、セッションが必要な操作ではユーザーを確かめて context に入れる（AUTHN-5）。
 // セッションが要らない操作は、OpenAPI で `security: []` を付けたものだけ（API 契約が正本。それ以外はすべてセッション必須）。
 // 管理API（`/api/admin/**`）は、未ログイン・管理者でなければ存在しないパスと同じ 404 にする（ADR 0015）。
-func sessionMiddleware(authn Authenticator, admins domain.AdminList, public map[string]bool) api.StrictMiddlewareFunc {
+// 内部用エンドポイント（`/api/internal/**`）はセッションを使わず、Cloud Scheduler からの呼び出しと確かめられなければ 404 にする（JOBS-1, ADR 0027）。
+func sessionMiddleware(authn Authenticator, admins domain.AdminList, jobs JobAuthenticator, public map[string]bool) api.StrictMiddlewareFunc {
 	return func(f api.StrictHandlerFunc, operationID string) api.StrictHandlerFunc {
 		required := !public[operationID]
 		return func(c *echo.Context, req any) (any, error) {
@@ -37,7 +46,11 @@ func sessionMiddleware(authn Authenticator, admins domain.AdminList, public map[
 				token = ck.Value
 			}
 			ctx = auth.WithSessionToken(ctx, token)
-			if isAdminPath(c.Path()) {
+			if strings.HasPrefix(c.Path(), internalPathPrefix) {
+				if jobs == nil || jobs.Verify(ctx, c.Request().Header.Get(echo.HeaderAuthorization)) != nil {
+					return nil, apperr.NotFound("")
+				}
+			} else if isAdminPath(c.Path()) {
 				u, err := authn.Authenticate(ctx, token)
 				if err != nil && apperr.CodeOf(err) == apperr.CodeInternal {
 					return nil, err
