@@ -13,8 +13,10 @@ Cloud Scheduler から Cloud Run の内部用エンドポイントを定期的�
 | 短周期ジョブ | 15分ごと | 48時間たった購入希望の期限切れ処理と枠の解放、期限切れのログインコード・受け渡しトークンの削除、24時間更新のないパスワードの入力ミスの記録の削除、自動完了（暫定）と催促通知 |
 | 日次ジョブ | 毎日深夜 | アカウントの失効、削除予定日を過ぎた学生証画像の削除、DBのバックアップ |
 
-- 内部用エンドポイントは、Cloud Scheduler のサービスアカウントからの呼び出しだけを受け付けるようにします。
+- 内部用エンドポイント（`/api/internal/**`）は、Cloud Scheduler のサービスアカウントからの呼び出しだけを受け付けるようにします。Cloud Scheduler が付ける OIDC ID トークン（`Authorization: Bearer`）をアプリで検証し、audience とサービスアカウントのメールアドレスを照合します。確かめられなければ 404 を返します。ローカルは Cloud Scheduler がないため、環境変数の共有シークレットを代わりに使います（[ADR 0027](../decisions/0027-short-job-endpoint.md)）。
+- 短周期ジョブは `POST /api/internal/jobs/short` です。購入希望の期限切れは1件ずつ条件付きUPDATE で行い、承認待ちがなくなった商品は公開中に戻します（[ADR 0022](../decisions/0022-deal-request-item-status-and-approval-deadline.md)）。削除するのは、期限切れの認証コード・ログインの再確認・パスワード設定・受け渡しのトークンです。どの処理も何度行っても結果は同じにし、失敗したら 500 を返して Cloud Scheduler に再試行させます。
 - 認証コード（`verification_codes`）は送信数の制限と全体の送信数に使うため、期限が切れても作ってから24時間は消しません（[AUTHN-6](auth.md)）。
+- 自動完了（暫定）と催促通知は、導入するかが決まるまで実装しません（[DEAL-5](../product/05-deal-flow.md)）。
 
 ### JOBS-2 決済モック
 
