@@ -71,3 +71,45 @@ const (
 	TransactionRoleBuyer  TransactionRole = "buyer"
 	TransactionRoleSeller TransactionRole = "seller"
 )
+
+// TransactionRoles は TransactionRole のすべての値。
+var TransactionRoles = []TransactionRole{TransactionRoleBuyer, TransactionRoleSeller}
+
+func (v TransactionRole) Valid() bool { return enumValid(v, TransactionRoles) }
+
+// 取引一覧の1回に返す件数（終了した取引。ADR 0028）。
+const (
+	TransactionListDefaultLimit = 20
+	TransactionListMaxLimit     = 50
+)
+
+// TransactionListStatuses は取引一覧で role・phase の区分に出す取引のステータス（ADR 0028）。
+// 出品側の進行中の購入希望（requested）は商品ごとにまとめて別に数えるため含めない。出品側の却下・期限切れは出さない。
+func TransactionListStatuses(role TransactionRole, phase TransactionPhase) []TransactionStatus {
+	switch {
+	case role == TransactionRoleBuyer && phase == TransactionPhaseActive:
+		return []TransactionStatus{TransactionStatusRequested, TransactionStatusInDeal}
+	case role == TransactionRoleBuyer && phase == TransactionPhaseEnded:
+		return []TransactionStatus{TransactionStatusRejected, TransactionStatusExpired, TransactionStatusCancelled, TransactionStatusCompleted}
+	case role == TransactionRoleSeller && phase == TransactionPhaseActive:
+		return []TransactionStatus{TransactionStatusInDeal}
+	case role == TransactionRoleSeller && phase == TransactionPhaseEnded:
+		return []TransactionStatus{TransactionStatusCancelled, TransactionStatusCompleted}
+	}
+	return nil
+}
+
+// TransactionCursor は取引一覧の続きの位置。最後に動いた順（UpdatedAt の新しい順、同じなら ID の大きい順）で、この取引より後ろを返す。
+type TransactionCursor struct {
+	UpdatedAt time.Time
+	ID        string
+}
+
+// TransactionRequestGroup は出品者の商品ごとの承認待ちの購入希望のまとまり（取引一覧の出品側。ADR 0028）。
+type TransactionRequestGroup struct {
+	ItemID string
+	// Count は承認待ちの購入希望の件数
+	Count int
+	// LatestRequestedAt は最新の購入希望を出した日時
+	LatestRequestedAt time.Time
+}

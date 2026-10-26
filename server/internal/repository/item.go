@@ -232,29 +232,59 @@ func (r *ItemRepository) ListPublic(ctx context.Context, f domain.ItemFilter, af
 	if err := q.Select("items.*").Order("items.published_at DESC, items.id DESC").Limit(limit).Find(&rows).Error; err != nil {
 		return nil, 0, err
 	}
+	items, err := r.withThumbnails(ctx, rows)
+	if err != nil {
+		return nil, 0, err
+	}
+	return items, int(total), nil
+}
+
+// FindByIDs は ID で商品をまとめて探し、ID ごとの対応で返す（取引一覧。ADR 0028）。ステータスは問わない。
+// 写真は1枚目だけを Images に入れる。見つからない ID は結果に含めない。
+func (r *ItemRepository) FindByIDs(ctx context.Context, ids []string) (map[string]*domain.Item, error) {
+	out := make(map[string]*domain.Item, len(ids))
+	if len(ids) == 0 {
+		return out, nil
+	}
+	var rows []itemRow
+	if err := conn(ctx, r.db).Where("id IN ?", ids).Find(&rows).Error; err != nil {
+		return nil, err
+	}
+	items, err := r.withThumbnails(ctx, rows)
+	if err != nil {
+		return nil, err
+	}
+	for _, it := range items {
+		out[it.ID] = it
+	}
+	return out, nil
+}
+
+// withThumbnails は商品の行の並びに、1枚目の写真だけを付けて返す（一覧のサムネイル）。写真がなければ Images は空。
+func (r *ItemRepository) withThumbnails(ctx context.Context, rows []itemRow) ([]*domain.Item, error) {
 	items := make([]*domain.Item, 0, len(rows))
 	ids := make([]string, 0, len(rows))
 	for _, row := range rows {
 		it, err := row.toDomain()
 		if err != nil {
-			return nil, 0, err
+			return nil, err
 		}
 		it.Images = []domain.ItemImage{}
 		items = append(items, it)
 		ids = append(ids, it.ID)
 	}
 	if len(ids) == 0 {
-		return items, int(total), nil
+		return items, nil
 	}
 	var imgRows []itemImageRow
 	if err := conn(ctx, r.db).Where("item_id IN ? AND position = 0", ids).Find(&imgRows).Error; err != nil {
-		return nil, 0, err
+		return nil, err
 	}
 	byItem := make(map[string]domain.ItemImage, len(imgRows))
 	for _, ir := range imgRows {
 		img, err := ir.toDomain()
 		if err != nil {
-			return nil, 0, err
+			return nil, err
 		}
 		byItem[img.ItemID] = img
 	}
@@ -263,7 +293,7 @@ func (r *ItemRepository) ListPublic(ctx context.Context, f domain.ItemFilter, af
 			it.Images = []domain.ItemImage{img}
 		}
 	}
-	return items, int(total), nil
+	return items, nil
 }
 
 // publicQuery は一覧・検索の条件（並びと位置を除く）を組み立てる。users と結合するので列には items. を付ける。
