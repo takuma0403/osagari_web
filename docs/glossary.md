@@ -41,6 +41,7 @@
 | 決済の種別 | `PaymentKind` | `authorize` 枠の確保 / `capture` 預かり / `release` 枠の解放 / `refund` 返金 / `settle` 売上の確定 / `payout` 出金 |
 | 支払い方法 | `PaymentMethod` | `card` / `paypay` |
 | 決済のステータス | `PaymentStatus` | `pending` 処理中 / `succeeded` 成功 / `failed` 失敗（モックは常に `succeeded`。[ADR 0021](decisions/0021-transaction-payment-columns.md)） |
+| 売上の状態 | `SalesEntryState` | `awaiting_handover` 受け渡し待ち / `settled` 確定（出金できる）/ `paid_out` 出金済み（[ADR 0029](decisions/0029-sales-and-payout-mock.md)） |
 | 商品の状態 | `ItemCondition` | `new_like` 新品同様 / `good` 目立った傷なし / `fair` やや傷あり |
 | カテゴリ | `ItemCategory` | `textbook` 教科書・参考書 / `furniture_appliance` 家具・家電 / `game_other` ゲーム・その他 |
 | キャンパス | `Campus` | `honjo` 本庄 / `nabeshima` 鍋島 |
@@ -65,6 +66,7 @@
 | 手数料率 | `feeRate` | 取引ごとに記録する。整数のベーシスポイント（1% = 100）で保持し、浮動小数点を使わない |
 | 手数料 | `fee` | 円（整数） |
 | 出品者の売上 | `sellerProceeds` | 商品価格 − 手数料 |
+| 売上の明細 | `SalesEntry` | 売上管理（Sales）の1行。成立した取引1件（[PAY-5](product/06-payment.md)） |
 | 承認期限 | `approvalDeadline` | 購入希望から48時間 |
 | 共有用ID | `shareId` | 商品ページの固定URL `/items/:shareId` に使う |
 | 確認モーダルへの同意日時 | `sellerAcknowledgedAt` | [DEAL-2](product/05-deal-flow.md) |
