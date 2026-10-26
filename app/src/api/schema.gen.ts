@@ -285,6 +285,69 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/me/items": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * 自分の出品を一覧する
+         * @description AUTH-3, ITEM: マイページ（MyPage）の「出品した商品」に出す、本人のすべての出品（下書き・取り下げ・停止を含む）を、最後に更新した日時の新しい順に全件返す（ADR 0029）。
+         *     承認待ちの購入希望の件数を商品ごとに付ける。購入した商品は `GET /transactions?role=buyer` を使う。
+         */
+        get: operations["listOwnItems"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/me/sales": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * 売上の明細と集計を取得する
+         * @description PAY, PAY-2: 売上管理（Sales）に出す、本人が出品者として成立した取引（取引中・完了）の売上の明細と集計を返す（ADR 0029）。キャンセルした取引は含めない。
+         *     手数料は取引ごとに成立時点で記録した料率・金額をそのまま返す（ADR 0003, ADR 0017）。並びは最後に動いた日時の新しい順で全件。
+         */
+        get: operations["getSales"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/me/sales/payouts": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * 出金できる売上をすべて出金する（モック）
+         * @description PAY, JOBS-2: 出金できる売上（受け渡しが完了して未出金の取引）をすべて出金し、取引ごとに出金（payout）を記録する（ADR 0029）。フェーズ1はモックで、実際のお金は動かさない。
+         *     出金できる売上がない（同時に申請された場合を含む）なら 409 invalid_status_transition。応答は出金後の売上。
+         */
+        post: operations["requestPayout"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/student-cards/uploads": {
         parameters: {
             query?: never;
@@ -1299,6 +1362,31 @@ export interface components {
             /** Format: date-time */
             updatedAt: string;
         };
+        /** @description AUTH-3 マイページの自分の出品の一覧 */
+        OwnItemList: {
+            /** @description 最後に更新した日時の新しい順 */
+            items: components["schemas"]["OwnItemSummary"][];
+        };
+        /** @description AUTH-3 マイページの出品の1行 */
+        OwnItemSummary: {
+            /** @description 商品のID（出品の編集 `/sell/:itemId` に使う） */
+            id: string;
+            /** @description 商品ページの固定URL `/items/:shareId` に使う */
+            shareId: string;
+            status: components["schemas"]["ItemStatus"];
+            title: string;
+            /**
+             * Format: int64
+             * @description 価格（円）。下書きで未入力なら null
+             */
+            price: number | null;
+            /** @description 1枚目の写真 */
+            thumbnail: components["schemas"]["ItemImage"] | null;
+            /** @description 承認待ちの購入希望の件数 */
+            requestCount: number;
+            /** Format: date-time */
+            updatedAt: string;
+        };
         /** @description BROWSE 商品の一覧・検索の結果 */
         ItemList: {
             /** @description 新着順 */
@@ -1566,6 +1654,69 @@ export interface components {
             category: components["schemas"]["ItemCategory"];
             /** @description 1枚目の写真 */
             thumbnail: components["schemas"]["ItemImage"] | null;
+        };
+        /**
+         * @description 売上の状態。awaiting_handover 受け渡し待ち / settled 確定（出金できる）/ paid_out 出金済み
+         * @enum {string}
+         */
+        SalesEntryState: "awaiting_handover" | "settled" | "paid_out";
+        /** @description PAY 売上管理（Sales）の集計と明細。金額はすべて円 */
+        Sales: {
+            /**
+             * Format: int64
+             * @description 出金できる売上（settled の売上の合計）
+             */
+            availableAmount: number;
+            /**
+             * Format: int64
+             * @description 受け渡し待ちの売上（awaiting_handover の売上の合計）
+             */
+            awaitingHandoverAmount: number;
+            /**
+             * Format: int64
+             * @description 出金済みの売上（paid_out の売上の合計）
+             */
+            paidOutAmount: number;
+            /** @description 最後に動いた日時の新しい順 */
+            entries: components["schemas"]["SalesEntry"][];
+        };
+        /** @description PAY-2 売上の明細の1行（取引1件）。売上 = 金額 − 手数料 */
+        SalesEntry: {
+            transactionId: string;
+            item: components["schemas"]["TransactionListItem"];
+            state: components["schemas"]["SalesEntryState"];
+            /**
+             * Format: int64
+             * @description 取引の金額（円）
+             */
+            price: number;
+            /** @description 取引に適用した手数料率（ベーシスポイント。取引成立時点の値） */
+            feeRateBasisPoints: number;
+            /**
+             * Format: int64
+             * @description 手数料（円）
+             */
+            fee: number;
+            /**
+             * Format: int64
+             * @description 出品者の売上（円）
+             */
+            sellerProceeds: number;
+            /**
+             * Format: date-time
+             * @description 取引が成立（出品者が承認）した日時
+             */
+            approvedAt: string;
+            /**
+             * Format: date-time
+             * @description 受け渡しが完了した日時。受け渡し待ちなら null
+             */
+            completedAt: string | null;
+            /**
+             * Format: date-time
+             * @description 出金した日時。出金前は null
+             */
+            paidOutAt: string | null;
         };
         PurchaseRequestList: {
             /** @description 希望の古い順 */
@@ -1970,6 +2121,69 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["CurrentUser"];
+                };
+            };
+            default: components["responses"]["Error"];
+        };
+    };
+    listOwnItems: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description 自分の出品の一覧 */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["OwnItemList"];
+                };
+            };
+            default: components["responses"]["Error"];
+        };
+    };
+    getSales: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description 売上 */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Sales"];
+                };
+            };
+            default: components["responses"]["Error"];
+        };
+    };
+    requestPayout: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description 出金後の売上 */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Sales"];
                 };
             };
             default: components["responses"]["Error"];

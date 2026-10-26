@@ -164,7 +164,8 @@ func wire(cfg config, gdb *gorm.DB, clk clock.Clock, mailer mail.Mailer, store s
 	handoverTokens := repository.NewHandoverTokenRepository(gdb)
 	settings := repository.NewSettingRepository(gdb)
 	// フェーズ1の決済はモック。payments に記録するだけで外部の決済APIは呼ばない（JOBS-2）
-	payments := payment.NewMock(repository.NewPaymentRepository(gdb), clk)
+	paymentRecords := repository.NewPaymentRepository(gdb)
+	payments := payment.NewMock(paymentRecords, clk)
 	item := service.NewItemService(service.ItemDeps{
 		Tx:           tx,
 		Items:        items,
@@ -187,6 +188,16 @@ func wire(cfg config, gdb *gorm.DB, clk clock.Clock, mailer mail.Mailer, store s
 		Bucket:         cfg.ItemImageBucket,
 		Clock:          clk,
 	})
+	sales := service.NewSalesService(service.SalesDeps{
+		Tx:           tx,
+		Items:        items,
+		Transactions: transactions,
+		Payouts:      paymentRecords,
+		Payments:     payments,
+		Storage:      store,
+		Bucket:       cfg.ItemImageBucket,
+		Clock:        clk,
+	})
 	cleanup := service.NewAuthCleanupService(service.AuthCleanupDeps{
 		Failures:    failures,
 		Codes:       codes,
@@ -202,6 +213,7 @@ func wire(cfg config, gdb *gorm.DB, clk clock.Clock, mailer mail.Mailer, store s
 		StudentCard:   studentCard,
 		Item:          item,
 		Deal:          deal,
+		Sales:         sales,
 		Setting:       service.NewSettingService(service.SettingDeps{Settings: settings}),
 
 		AdminStudentCard: adminStudentCard,

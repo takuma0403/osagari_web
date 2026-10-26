@@ -18,6 +18,7 @@ type ItemService interface {
 	Withdraw(ctx context.Context, u *domain.User, id string) (*service.ItemView, error)
 	List(ctx context.Context, q service.ItemListQuery) (*service.ItemListPage, error)
 	GetPublic(ctx context.Context, u *domain.User, shareID string) (*service.PublicItemView, error)
+	ListOwn(ctx context.Context, u *domain.User) ([]*service.OwnItemSummaryView, error)
 }
 
 // CreateItemImageUpload は商品写真のアップロード用の署名付きURLを発行する（POST /api/items/image-uploads。ITEM, STORAGE）。
@@ -155,6 +156,23 @@ func (h *Handler) GetPublicItem(ctx context.Context, req api.GetPublicItemReques
 	return api.GetPublicItem200JSONResponse(toPublicItem(v)), nil
 }
 
+// ListOwnItems は本人のすべての出品を返す（GET /api/me/items。AUTH-3, ADR 0029）。
+func (h *Handler) ListOwnItems(ctx context.Context, _ api.ListOwnItemsRequestObject) (api.ListOwnItemsResponseObject, error) {
+	u, err := currentUser(ctx)
+	if err != nil {
+		return nil, err
+	}
+	vs, err := h.d.Item.ListOwn(ctx, u)
+	if err != nil {
+		return nil, err
+	}
+	out := api.ListOwnItems200JSONResponse{Items: make([]api.OwnItemSummary, len(vs))}
+	for i, v := range vs {
+		out.Items[i] = toOwnItemSummary(v)
+	}
+	return out, nil
+}
+
 func toItemContent(in api.ItemInput) domain.ItemContent {
 	c := domain.ItemContent{
 		Title:       in.Title,
@@ -190,6 +208,23 @@ func toOwnItem(v *service.ItemView) api.OwnItem {
 		PublishedAt:        v.PublishedAt,
 		CreatedAt:          v.CreatedAt,
 		UpdatedAt:          v.UpdatedAt,
+	}
+	return out
+}
+
+// toOwnItemSummary はマイページの出品の1行にする。下書きは価格がないことがある。
+func toOwnItemSummary(v *service.OwnItemSummaryView) api.OwnItemSummary {
+	out := api.OwnItemSummary{
+		Id:           v.Item.ID,
+		ShareId:      v.Item.ShareID,
+		Status:       api.ItemStatus(v.Item.Status),
+		Title:        v.Item.Title,
+		Price:        v.Item.Price,
+		RequestCount: v.RequestCount,
+		UpdatedAt:    v.Item.UpdatedAt,
+	}
+	if images := toItemImages(v.Item); len(images) > 0 {
+		out.Thumbnail = &images[0]
 	}
 	return out
 }

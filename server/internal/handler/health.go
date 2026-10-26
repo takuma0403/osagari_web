@@ -18,6 +18,8 @@ type Deps struct {
 	Item ItemService
 	// Deal は購入希望・承認・却下と取引の詳細（DEAL-1, DEAL-2）
 	Deal DealService
+	// Sales は売上管理と出金申請（PAY, ADR 0029）
+	Sales SalesService
 	// Setting は手数料率などの設定（PAY-2）
 	Setting SettingService
 	// AdminStudentCard は管理者による学生証の審査（ADMIN）
