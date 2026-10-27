@@ -8,7 +8,7 @@ import { TextField } from '../../../../components/TextField/TextField'
 import { formatDate, formatShortDateTime } from '../../../../lib/format'
 import { normalizeStudentId, STUDENT_ID_LENGTH } from '../../../../lib/studentId'
 import type { AdminStudentCard, StudentCardView } from '../../api'
-import { departmentLabel } from '../../departmentLabel'
+import { departmentLabel } from '../../../../lib/department'
 import type { CardImageState, ReviewDecision } from '../../hooks/useStudentCardReview'
 import styles from './CardReviewPanel.module.css'
 

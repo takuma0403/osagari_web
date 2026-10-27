@@ -1,6 +1,6 @@
 import { formatShortDateTime } from '../../../../lib/format'
 import type { AdminStudentCard } from '../../api'
-import { departmentLabel } from '../../departmentLabel'
+import { departmentLabel } from '../../../../lib/department'
 import styles from './CardQueue.module.css'
 
 type Props = {
