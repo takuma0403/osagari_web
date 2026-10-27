@@ -19,6 +19,10 @@ type Storage interface {
 	SignedGetURL(ctx context.Context, bucket, object string, expiresAt time.Time) (SignedURL, error)
 	// Stat はオブジェクトの大きさと形式を返す。なければ ErrNotFound。
 	Stat(ctx context.Context, bucket, object string) (ObjectInfo, error)
+	// Delete はオブジェクトを消す。なければ ErrNotFound（学生証画像の削除。JOBS-1, ADR 0033）。
+	Delete(ctx context.Context, bucket, object string) error
+	// List はバケットのすべてのオブジェクトの名前と作成日時を返す（登録されなかった学生証の削除。ADR 0033）。
+	List(ctx context.Context, bucket string) ([]ObjectEntry, error)
 }
 
 // SignedURL はブラウザに渡す署名付きURL。Headers は署名に含まれるので、リクエストにそのまま付ける（GET では空）。
@@ -33,6 +37,12 @@ type SignedURL struct {
 type ObjectInfo struct {
 	Size        int64
 	ContentType string
+}
+
+// ObjectEntry はバケットの一覧の1件。
+type ObjectEntry struct {
+	Name    string
+	Created time.Time
 }
 
 // ErrNotFound はオブジェクトがないときに返す。
