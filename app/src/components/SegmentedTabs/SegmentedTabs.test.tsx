@@ -5,10 +5,11 @@ import { SegmentedTabs } from './SegmentedTabs'
 
 type Kind = 'buy' | 'sell'
 
-function Harness() {
+function Harness({ variant }: { variant?: 'pill' | 'underline' }) {
   const [value, setValue] = useState<Kind>('buy')
   return (
     <SegmentedTabs
+      variant={variant}
       label="取引の種類"
       options={[
         { value: 'buy', label: '購入', panelId: 'panel-buy' },
@@ -49,5 +50,11 @@ describe('SegmentedTabs', () => {
 
     await userEvent.keyboard('{ArrowRight}')
     expect(screen.getByRole('tab', { name: '購入' })).toHaveAttribute('aria-selected', 'true')
+  })
+
+  it('下線版でも同じように選択を切り替える', async () => {
+    render(<Harness variant="underline" />)
+    await userEvent.click(screen.getByRole('tab', { name: '出品' }))
+    expect(screen.getByRole('tab', { name: '出品' })).toHaveAttribute('aria-selected', 'true')
   })
 })

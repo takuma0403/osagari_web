@@ -31,16 +31,18 @@ export function listPurchaseRequests(itemId: string, signal?: AbortSignal) {
 
 /**
  * 自分が当事者の取引を、購入（buyer）／出品（seller）と進行中（active）／終了（ended）の区分で取得する（DEAL-1、ADR 0028）。
- * 出品側の承認待ちの購入希望は商品ごとに1行。active は全件、ended は nextCursor を cursor に入れて続きを取る
+ * 出品側の承認待ちの購入希望は商品ごとに1行。active は全件、ended は nextCursor を cursor に入れて続きを取る（limit は ended の1回の件数。省略で20）
  */
 export function listTransactions(
   role: TransactionRole,
   phase: TransactionPhase,
   cursor?: string,
   signal?: AbortSignal,
+  limit?: number,
 ) {
   const params = new URLSearchParams({ role, phase })
   if (cursor) params.set('cursor', cursor)
+  if (limit) params.set('limit', String(limit))
   return request<TransactionList>(`/transactions?${params.toString()}`, { signal })
 }
 

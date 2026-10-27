@@ -18,6 +18,7 @@ import { RequestPage } from './features/deals/pages/RequestPage'
 import { DetailPage } from './features/items/pages/DetailPage'
 import { MainPage } from './features/items/pages/MainPage'
 import { SearchPage } from './features/items/pages/SearchPage'
+import { MyPagePage } from './features/mypage/pages/MyPagePage'
 import { SellPage } from './features/sell/pages/SellPage'
 import { StudentCardPage } from './features/student-card/pages/StudentCardPage'
 import { PlaceholderPage } from './components/PlaceholderPage/PlaceholderPage'
@@ -71,7 +72,7 @@ export const routes: RouteObject[] = [
           { path: '/', element: <MainPage /> },
           { path: '/search', element: <SearchPage /> },
           { path: '/deals', element: <DealListPage /> },
-          placeholder('/mypage', 'マイページ'),
+          { path: '/mypage', element: <MyPagePage /> },
         ],
       },
       {
