@@ -168,7 +168,7 @@ DS-3 の部品を作るために足した補助の部品（画面からも使え
 | 取引一覧 | [DealList](screens/DealList.dc.html) | `tab`：購入／出品、`empty` | DEAL-1・3・4 |
 | 出品・編集 | [Sell](screens/Sell.dc.html)（高さ1040） | — | ITEM, PAY-2, [STORAGE](../tech/storage.md) |
 | 学生証登録 | [StudentCard](screens/StudentCard.dc.html) | — | [CARD](../product/02-student-card.md) |
-| マイページ | [MyPage](screens/MyPage.dc.html) | 実装では、購入した商品は取引中・完了だけを出し、出品の行はデザインにない状態（公開中・取り下げ・停止中・売却済み）も出す（[ADR 0030](../decisions/0030-mypage-history.md)） | AUTH-3, ITEM |
+| マイページ | [MyPage](screens/MyPage.dc.html) | 実装では、購入した商品は取引中・完了だけを出し、出品の行はデザインにない状態（公開中・取り下げ・停止中・売却済み）も出す（[ADR 0030](../decisions/0030-mypage-history.md)）。タブの下に、デザインにない状態の絞り込み（Chip）と並べ替え（新しい順／古い順の SelectField）を置く（[ADR 0031](../decisions/0031-mypage-filter-and-sort.md)。デザインは後で直す） | AUTH-3, ITEM |
 | 売上管理 | [Sales](screens/Sales.dc.html) | — | PAY-2, [JOBS-2](../tech/jobs-payment-mock.md) |
 | 管理：学生証審査 | [AdminCard](screens/AdminCard.dc.html)（PC 1280幅・流体） | — | CARD, [ADMIN](../product/07-admin.md) |
 | 管理：ユーザー | [AdminUsers](screens/AdminUsers.dc.html)（PC 1280幅・流体） | — | ADMIN, AUTH-3 |
