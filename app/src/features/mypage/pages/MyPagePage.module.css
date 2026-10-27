@@ -68,6 +68,28 @@
 .panel {
   display: flex;
   flex-direction: column;
+  gap: var(--space-gap);
+}
+
+.toolbar {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+/* 状態のチップは横にスクロールする（商品一覧のカテゴリと同じ） */
+.statuses {
+  display: flex;
+  gap: 8px;
+  margin: -4px calc(var(--space-page) * -1);
+  padding: 4px var(--space-page);
+  overflow-x: auto;
+  scrollbar-width: none;
+}
+
+.order {
+  align-self: flex-end;
+  width: 140px;
 }
 
 .list {

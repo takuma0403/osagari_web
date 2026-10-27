@@ -1,6 +1,13 @@
 import { transactionListEntry } from '../deals/test/fixtures'
 import type { OwnItemSummary } from './api'
-import { isPurchased, ownItemDisplay, purchaseDisplay } from './myPageDisplay'
+import {
+  isPurchased,
+  ownItemDisplay,
+  ownStatusLabels,
+  presentStatuses,
+  purchaseDisplay,
+  sortByUpdatedAt,
+} from './myPageDisplay'
 
 function ownItem(overrides: Partial<OwnItemSummary> = {}): OwnItemSummary {
   return {
@@ -48,5 +55,29 @@ describe('purchaseDisplay', () => {
     expect(
       purchaseDisplay(transactionListEntry({ transactionId: 'tx9', status: 'completed' })),
     ).toEqual({ to: '/deals/tx9', status: '完了', tone: 'neutral' })
+  })
+})
+
+describe('presentStatuses', () => {
+  it('一覧にある状態だけを、名前の表の順に返す', () => {
+    const list = [
+      ownItem({ status: 'draft' }),
+      ownItem({ status: 'published' }),
+      ownItem({ status: 'draft' }),
+    ]
+    expect(presentStatuses(ownStatusLabels, list)).toEqual(['published', 'draft'])
+  })
+})
+
+describe('sortByUpdatedAt', () => {
+  const a = ownItem({ id: 'a', updatedAt: '2026-10-01T00:00:00Z' })
+  const b = ownItem({ id: 'b', updatedAt: '2026-10-03T00:00:00Z' })
+  const c = ownItem({ id: 'c', updatedAt: '2026-10-02T00:00:00Z' })
+
+  it('新しい順と古い順に並べ、元の配列は変えない', () => {
+    const list = [a, b, c]
+    expect(sortByUpdatedAt(list, 'desc').map((x) => x.id)).toEqual(['b', 'c', 'a'])
+    expect(sortByUpdatedAt(list, 'asc').map((x) => x.id)).toEqual(['a', 'c', 'b'])
+    expect(list.map((x) => x.id)).toEqual(['a', 'b', 'c'])
   })
 })

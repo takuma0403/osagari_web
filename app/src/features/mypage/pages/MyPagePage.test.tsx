@@ -44,12 +44,18 @@ const ownItems: OwnItemSummary[] = [
   },
 ]
 
-const entry = (id: string, status: TransactionListEntry['status'], title: string) =>
+const entry = (
+  id: string,
+  status: TransactionListEntry['status'],
+  title: string,
+  updatedAt = '2026-10-07T03:40:00Z',
+) =>
   transactionListEntry({
     transactionId: id,
     status,
     approvalDeadline: null,
     item: { shareId: `s-${id}`, title, category: 'textbook', thumbnail: null },
+    updatedAt,
   })
 
 const activePath = 'GET /api/transactions?role=buyer&phase=active'
@@ -59,16 +65,25 @@ const handlers = {
   'GET /api/me/items': () => json({ items: ownItems }),
   [activePath]: () =>
     json({
-      entries: [entry('tx1', 'in_deal', '微分積分学'), entry('tx2', 'requested', '物理学')],
+      entries: [
+        entry('tx1', 'in_deal', '微分積分学', '2026-10-09T00:00:00Z'),
+        entry('tx2', 'requested', '物理学'),
+      ],
       nextCursor: null,
     }),
   [endedPath]: () =>
     json({
-      entries: [entry('tx3', 'expired', '化学'), entry('tx4', 'completed', 'ローテーブル')],
+      entries: [
+        entry('tx3', 'expired', '化学'),
+        entry('tx4', 'completed', 'ローテーブル', '2026-10-08T00:00:00Z'),
+      ],
       nextCursor: 'c2',
     }),
   'GET /api/transactions?role=buyer&phase=ended&cursor=c2&limit=50': () =>
-    json({ entries: [entry('tx5', 'completed', '電子レンジ')], nextCursor: null }),
+    json({
+      entries: [entry('tx5', 'completed', '電子レンジ', '2026-10-01T00:00:00Z')],
+      nextCursor: null,
+    }),
 }
 
 function setup(at = '/mypage', overrides: Partial<CurrentUser> = {}) {
@@ -172,5 +187,56 @@ describe('MyPagePage', () => {
     const card = within(nav).getByRole('link', { name: /学生証の登録/ })
     expect(card).toHaveAttribute('href', '/mypage/student-card')
     expect(card).toHaveTextContent('審査中')
+  })
+
+  it('一覧にある状態のチップで絞り込み、タブを替えると絞り込みを外す', async () => {
+    stubDealsFetch(handlers)
+    const { router } = setup()
+    const group = await screen.findByRole('group', { name: '状態で絞り込む' })
+    expect(
+      within(group)
+        .getAllByRole('button')
+        .map((b) => b.textContent),
+    ).toEqual(['すべて', '購入希望あり', '下書き'])
+    await userEvent.click(within(group).getByRole('button', { name: '下書き' }))
+    expect(within(group).getByRole('button', { name: '下書き' })).toHaveAttribute(
+      'aria-pressed',
+      'true',
+    )
+    expect(screen.queryByRole('link', { name: /線形代数入門/ })).not.toBeInTheDocument()
+    expect(screen.getByRole('link', { name: /電気スタンド/ })).toBeInTheDocument()
+    expect(router.state.location.search).toBe('?status=draft')
+
+    await userEvent.click(screen.getByRole('tab', { name: '購入した商品 3' }))
+    expect(router.state.location.search).toBe('?tab=bought')
+    const bought = screen.getByRole('group', { name: '状態で絞り込む' })
+    await userEvent.click(within(bought).getByRole('button', { name: '取引中' }))
+    expect(within(screen.getByRole('tabpanel')).getAllByRole('link')).toHaveLength(1)
+  })
+
+  it('購入した商品を新しい順・古い順に並べ替える', async () => {
+    stubDealsFetch(handlers)
+    const { router } = setup('/mypage?tab=bought')
+    const hrefs = () =>
+      within(screen.getByRole('tabpanel'))
+        .getAllByRole('link')
+        .map((l) => l.getAttribute('href'))
+    expect(await screen.findByRole('combobox', { name: '並び順' })).toHaveValue('desc')
+    expect(hrefs()).toEqual(['/deals/tx1', '/deals/tx4', '/deals/tx5'])
+
+    await userEvent.selectOptions(screen.getByRole('combobox', { name: '並び順' }), 'asc')
+    expect(hrefs()).toEqual(['/deals/tx5', '/deals/tx4', '/deals/tx1'])
+    expect(router.state.location.search).toBe('?tab=bought&order=asc')
+  })
+
+  it('一覧にない状態が URL にあれば、絞り込まずにすべてを出す', async () => {
+    stubDealsFetch(handlers)
+    setup('/mypage?status=suspended')
+    const group = await screen.findByRole('group', { name: '状態で絞り込む' })
+    expect(within(group).getByRole('button', { name: 'すべて' })).toHaveAttribute(
+      'aria-pressed',
+      'true',
+    )
+    expect(screen.getAllByRole('link', { name: /線形代数入門|電気スタンド/ })).toHaveLength(2)
   })
 })

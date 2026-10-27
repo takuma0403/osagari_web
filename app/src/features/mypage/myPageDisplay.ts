@@ -62,3 +62,46 @@ export const sellerStatusLabels: Record<CurrentUser['sellerStatus'], string> = {
   approved: '承認済み',
   rejected: '差し戻し',
 }
+
+/** 「出品した商品」の状態の絞り込みの名前。並びはチップに出す順 */
+export const ownStatusLabels: Record<OwnItemSummary['status'], string> = {
+  published: '公開中',
+  requested: '購入希望あり',
+  in_deal: '取引中',
+  completed: '売却済み',
+  draft: '下書き',
+  withdrawn: '取り下げ',
+  suspended: '停止中',
+}
+
+type PurchaseStatus = Extract<TransactionListEntry['status'], 'in_deal' | 'completed'>
+
+/** 「購入した商品」の状態の絞り込みの名前（取引中・完了だけを出すため。ADR 0030） */
+export const purchaseStatusLabels: Record<PurchaseStatus, string> = {
+  in_deal: '取引中',
+  completed: '完了',
+}
+
+/** 一覧にある状態だけを、名前の表の順に返す（絞り込みのチップに出す。ADR 0031） */
+export function presentStatuses<S extends string>(
+  labels: Record<S, string>,
+  list: { status: string }[],
+): S[] {
+  return (Object.keys(labels) as S[]).filter((s) => list.some((row) => row.status === s))
+}
+
+export type SortOrder = 'desc' | 'asc'
+
+export const sortOrderOptions: { value: SortOrder; label: string }[] = [
+  { value: 'desc', label: '新しい順' },
+  { value: 'asc', label: '古い順' },
+]
+
+/**
+ * 最後に動いた日時（updatedAt）で並べる（ADR 0031）。出品は編集と状態の変化（購入希望・承認・完了など）で、
+ * 購入は取引の状態の変化で updatedAt が変わる。同じ日時なら元の並びを保つ。
+ */
+export function sortByUpdatedAt<T extends { updatedAt: string }>(list: T[], order: SortOrder): T[] {
+  const sign = order === 'asc' ? 1 : -1
+  return list.toSorted((a, b) => sign * (Date.parse(a.updatedAt) - Date.parse(b.updatedAt)))
+}
