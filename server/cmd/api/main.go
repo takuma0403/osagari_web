@@ -205,6 +205,18 @@ func wire(cfg config, gdb *gorm.DB, clk clock.Clock, mailer mail.Mailer, store s
 		SetupTokens: tokens,
 		Clock:       clk,
 	})
+	expiry := service.NewAccountExpiryService(service.AccountExpiryDeps{
+		Tx:           tx,
+		Users:        users,
+		StudentCards: cards,
+		Items:        items,
+		Transactions: transactions,
+		Sessions:     sessions,
+		Payments:     payments,
+		Storage:      store,
+		Bucket:       cfg.StudentCardBucket,
+		Clock:        clk,
+	})
 	return handler.New(handler.Deps{
 		Signup:        signup,
 		Login:         login,
@@ -224,7 +236,12 @@ func wire(cfg config, gdb *gorm.DB, clk clock.Clock, mailer mail.Mailer, store s
 			jobs.Step{Name: "delete_expired_codes", Run: cleanup.DeleteExpiredCodes},
 			jobs.Step{Name: "delete_expired_handover_tokens", Run: deal.DeleteExpiredHandoverTokens},
 		),
-		DailyJob: jobs.NewDaily(logger),
+		// DB のバックアップは日次ジョブに入れず別に扱う（ADR 0033）
+		DailyJob: jobs.NewDaily(logger,
+			jobs.Step{Name: "expire_accounts", Run: expiry.ExpireAccounts},
+			jobs.Step{Name: "delete_student_card_images", Run: expiry.DeleteStudentCardImages},
+			jobs.Step{Name: "delete_unregistered_student_card_images", Run: expiry.DeleteUnregisteredStudentCardImages},
+		),
 	}), session
 }
 
