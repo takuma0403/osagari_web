@@ -231,6 +231,17 @@ func (r *TransactionRepository) FindRequestedByItemAndBuyer(ctx context.Context,
 	return rows[0].toDomain()
 }
 
+// ListByPartyAndStatus は購入者または出品者として userID が当事者の、ステータスが status の取引を、古い順に返す（アカウントの失効。ADR 0033）。
+func (r *TransactionRepository) ListByPartyAndStatus(ctx context.Context, userID string, status domain.TransactionStatus) ([]*domain.Transaction, error) {
+	var rows []transactionRow
+	err := conn(ctx, r.db).Where("(buyer_id = ? OR seller_id = ?) AND status = ?", userID, userID, string(status)).
+		Order("created_at ASC, id ASC").Find(&rows).Error
+	if err != nil {
+		return nil, err
+	}
+	return toTransactions(rows)
+}
+
 // CountRequestedByItem は商品の承認待ちの購入希望の件数を返す。
 func (r *TransactionRepository) CountRequestedByItem(ctx context.Context, itemID string) (int, error) {
 	var n int64
@@ -333,6 +344,15 @@ func (r *TransactionRepository) AgreeCancel(ctx context.Context, id, userID stri
 func (r *TransactionRepository) Cancel(ctx context.Context, id string, now time.Time) error {
 	res := conn(ctx, r.db).Model(&transactionRow{}).
 		Where("id = ? AND status = ? AND buyer_cancel_agreed_at IS NOT NULL AND seller_cancel_agreed_at IS NOT NULL", id, string(domain.TransactionStatusInDeal)).
+		Updates(map[string]any{"status": string(domain.TransactionStatusCancelled), "updated_at": formatTime(now)})
+	return rowsAffected(res)
+}
+
+// CancelBySystem は取引中の取引を、当事者の同意なしにキャンセルにする（当事者のアカウントの失効。DEAL-4 の例外, ADR 0033）。
+// 同意日時は入れないので、利用者のキャンセル回数には数えない。取引中でなければ ErrConflict。
+func (r *TransactionRepository) CancelBySystem(ctx context.Context, id string, now time.Time) error {
+	res := conn(ctx, r.db).Model(&transactionRow{}).
+		Where("id = ? AND status = ?", id, string(domain.TransactionStatusInDeal)).
 		Updates(map[string]any{"status": string(domain.TransactionStatusCancelled), "updated_at": formatTime(now)})
 	return rowsAffected(res)
 }

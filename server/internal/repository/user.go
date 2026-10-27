@@ -194,3 +194,34 @@ func (r *UserRepository) ExistsByEmail(ctx context.Context, email string) (bool,
 	}
 	return n > 0, nil
 }
+
+// expirableStatuses は有効期限で失効させる状態（有効・停止。ADR 0033）。
+var expirableStatuses = []domain.UserStatus{domain.UserStatusActive, domain.UserStatusSuspended}
+
+// ListToExpire は有効期限が today（日本時間の日付）より前で、まだ失効させていないユーザー（有効・停止）を、有効期限の古い順に返す（AUTH-3, JOBS-1）。
+func (r *UserRepository) ListToExpire(ctx context.Context, today time.Time) ([]*domain.User, error) {
+	var rows []userRow
+	err := conn(ctx, r.db).Where("status IN ? AND expires_on < ?", enumStrings(expirableStatuses), today.Format(dateLayout)).
+		Order("expires_on ASC, id ASC").Find(&rows).Error
+	if err != nil {
+		return nil, err
+	}
+	users := make([]*domain.User, 0, len(rows))
+	for _, row := range rows {
+		u, err := row.toDomain()
+		if err != nil {
+			return nil, err
+		}
+		users = append(users, u)
+	}
+	return users, nil
+}
+
+// Expire は有効・停止で有効期限が today より前のユーザーだけを失効にする（条件付きUPDATE。AUTH-3, DB）。
+// ユーザーがいない、またはすでに失効・削除しているなら ErrConflict。
+func (r *UserRepository) Expire(ctx context.Context, id string, today, now time.Time) error {
+	res := conn(ctx, r.db).Model(&userRow{}).
+		Where("id = ? AND status IN ? AND expires_on < ?", id, enumStrings(expirableStatuses), today.Format(dateLayout)).
+		Updates(map[string]any{"status": string(domain.UserStatusExpired), "updated_at": formatTime(now)})
+	return rowsAffected(res)
+}
