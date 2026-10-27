@@ -1,0 +1,82 @@
+.summary {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  padding: 18px var(--space-page);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-card);
+  background: var(--color-surface);
+}
+
+/* 出金できる売上を1行目いっぱいに、受け渡し待ち・出金済みを2列に並べる */
+.amounts {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 10px;
+  margin: 0;
+}
+
+.available,
+.sub {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.available {
+  grid-column: 1 / -1;
+  margin-bottom: 4px;
+}
+
+.available dt {
+  color: var(--color-text-muted);
+  font-size: var(--text-label);
+}
+
+.sub {
+  padding: 10px 12px;
+  border-radius: var(--radius-input);
+  background: var(--color-bg);
+}
+
+.sub dt {
+  color: var(--color-text-muted);
+  font-size: var(--text-note);
+}
+
+.amounts dd,
+.destination dd {
+  margin: 0;
+}
+
+.availableAmount,
+.subAmount {
+  font-family: var(--font-num);
+  font-weight: 700;
+}
+
+.availableAmount {
+  font-size: var(--text-display-lg);
+}
+
+.subAmount {
+  font-size: var(--text-subheading);
+}
+
+.destination {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin: 0;
+  padding-top: 12px;
+  border-top: 1px solid var(--color-border);
+  font-size: var(--text-label);
+}
+
+.destination dt {
+  color: var(--color-text-muted);
+}
+
+.destination dd {
+  font-weight: 700;
+}

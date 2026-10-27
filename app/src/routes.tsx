@@ -19,6 +19,7 @@ import { DetailPage } from './features/items/pages/DetailPage'
 import { MainPage } from './features/items/pages/MainPage'
 import { SearchPage } from './features/items/pages/SearchPage'
 import { MyPagePage } from './features/mypage/pages/MyPagePage'
+import { SalesPage } from './features/sales/pages/SalesPage'
 import { SellPage } from './features/sell/pages/SellPage'
 import { StudentCardPage } from './features/student-card/pages/StudentCardPage'
 import { PlaceholderPage } from './components/PlaceholderPage/PlaceholderPage'
@@ -88,7 +89,7 @@ export const routes: RouteObject[] = [
           { path: '/deals/:dealId/scan', element: <DealScanPage /> },
           { path: '/deals/:dealId/complete', element: <DealCompletePage /> },
           { path: '/mypage/student-card', element: <StudentCardPage /> },
-          placeholder('/mypage/sales', '売上管理'),
+          { path: '/mypage/sales', element: <SalesPage /> },
         ],
       },
       {

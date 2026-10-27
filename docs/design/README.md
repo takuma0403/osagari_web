@@ -169,7 +169,7 @@ DS-3 の部品を作るために足した補助の部品（画面からも使え
 | 出品・編集 | [Sell](screens/Sell.dc.html)（高さ1040） | — | ITEM, PAY-2, [STORAGE](../tech/storage.md) |
 | 学生証登録 | [StudentCard](screens/StudentCard.dc.html) | — | [CARD](../product/02-student-card.md) |
 | マイページ | [MyPage](screens/MyPage.dc.html) | 実装では、購入した商品は取引中・完了だけを出し、出品の行はデザインにない状態（公開中・取り下げ・停止中・売却済み）も出す（[ADR 0030](../decisions/0030-mypage-history.md)）。タブの下に、デザインにない状態の絞り込み（Chip）と並べ替え（新しい順／古い順の SelectField）を置く（[ADR 0031](../decisions/0031-mypage-filter-and-sort.md)。デザインは後で直す） | AUTH-3, ITEM |
-| 売上管理 | [Sales](screens/Sales.dc.html) | — | PAY-2, [JOBS-2](../tech/jobs-payment-mock.md) |
+| 売上管理 | [Sales](screens/Sales.dc.html) | 実装では、明細の行に取引成立時の料率を「¥1,550 − 手数料（5%） ¥77」の形で出し、下の注記「手数料率は仮の値（10%）で表示しています。」は出さない。明細の行は商品詳細へのリンクにする。「出金を申請する」は ConfirmDialog で確認してから申請する。出金できる売上が 0 円なら押せない（[ADR 0032](../decisions/0032-sales-screen-note-and-payout-confirm.md)。デザインは後で直す） | PAY-2, [JOBS-2](../tech/jobs-payment-mock.md) |
 | 管理：学生証審査 | [AdminCard](screens/AdminCard.dc.html)（PC 1280幅・流体） | — | CARD, [ADMIN](../product/07-admin.md) |
 | 管理：ユーザー | [AdminUsers](screens/AdminUsers.dc.html)（PC 1280幅・流体） | — | ADMIN, AUTH-3 |
 | 管理：出品・取引 | [AdminDeals](screens/AdminDeals.dc.html)（PC 1280幅・流体） | `tab`：出品／取引 | ADMIN, DEAL-4 |
