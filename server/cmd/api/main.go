@@ -224,6 +224,7 @@ func wire(cfg config, gdb *gorm.DB, clk clock.Clock, mailer mail.Mailer, store s
 			jobs.Step{Name: "delete_expired_codes", Run: cleanup.DeleteExpiredCodes},
 			jobs.Step{Name: "delete_expired_handover_tokens", Run: deal.DeleteExpiredHandoverTokens},
 		),
+		DailyJob: jobs.NewDaily(logger),
 	}), session
 }
 

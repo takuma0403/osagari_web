@@ -994,6 +994,29 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/internal/jobs/daily": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * 日次ジョブを実行する（毎日深夜）
+         * @description JOBS-1, AUTH-3, CARD, STORAGE: Cloud Scheduler から毎日深夜に呼ぶ。有効期限を過ぎたアカウントを失効させ、本人の商品の取り下げ・購入希望の期限切れ・
+         *     取引中の取引のキャンセルと返金・学生証の削除予定日の記録・セッションの無効化を行う（ADR 0033）。
+         *     続けて、削除予定日を過ぎた学生証画像と、登録されなかった学生証のオブジェクトを消す。何度呼んでも結果は同じ（冪等）。
+         *     `Authorization: Bearer` で Cloud Scheduler の OIDC ID トークン（ローカルは代替のシークレット）を送る。確かめられなければ 404 not_found（ADR 0027）。
+         */
+        post: operations["runDailyJob"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
 }
 export type webhooks = Record<string, never>;
 export interface components {
@@ -2954,6 +2977,25 @@ export interface operations {
         };
     };
     runShortJob: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description 実行した */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            default: components["responses"]["Error"];
+        };
+    };
+    runDailyJob: {
         parameters: {
             query?: never;
             header?: never;
