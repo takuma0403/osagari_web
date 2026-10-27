@@ -43,3 +43,16 @@ export const AdminDeals: Story = {
     ),
   ],
 }
+
+/** 選択中に下線を引く形（マイページの出品・購入の切り替え） */
+export const Underline: Story = {
+  args: {
+    label: '履歴の種類',
+    options: [
+      { value: 'sold', label: '出品した商品 3' },
+      { value: 'bought', label: '購入した商品 1' },
+    ],
+    value: 'sold',
+    variant: 'underline',
+  },
+}

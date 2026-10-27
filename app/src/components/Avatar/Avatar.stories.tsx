@@ -14,3 +14,15 @@ export const Default: Story = {}
 
 /** 学部が分からないとき */
 export const Unknown: Story = { args: { departmentName: null } }
+
+/** マイページのプロフィール（primary の面の上） */
+export const LargeInverse: Story = {
+  args: { size: 'lg', inverse: true },
+  decorators: [
+    (Story) => (
+      <div style={{ padding: 16, background: 'var(--color-primary)' }}>
+        <Story />
+      </div>
+    ),
+  ],
+}
