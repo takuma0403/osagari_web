@@ -3,11 +3,18 @@ import { createMemoryRouter, RouterProvider } from 'react-router'
 import { SessionContext, type Session } from './features/auth/session'
 import { routes } from './routes'
 
-const me = {
+const me: Session['user'] = {
   id: 'u1',
   email: '26238001@edu.cc.saga-u.ac.jp',
+  studentNumber: '26238001',
+  admissionYear: 2026,
+  departmentCode: '238',
+  department: '238',
+  departmentName: '理工学部 理工学科',
+  expiresOn: '2030-03-31',
+  status: 'active',
   sellerStatus: 'approved',
-} as Session['user']
+}
 
 /** user を省くとログイン中。undefined を渡すと確認中 */
 function renderAt(path: string, options: { user?: Session['user']; state?: unknown } = {}) {
