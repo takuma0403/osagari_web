@@ -47,6 +47,9 @@ type AccountExpiryDeps struct {
 	Clock  clock.Clock
 }
 
+// errAlreadyExpired は、一覧で読んだ後に別の処理で失効・削除されたユーザーを表す（失効の対象から外す）。
+var errAlreadyExpired = errors.New("service: すでに失効・削除しています")
+
 // AccountExpiryService はアカウントの失効と学生証画像の削除を行う。日次ジョブ（JOBS-1, ADR 0033）から呼ぶ。
 type AccountExpiryService struct {
 	d AccountExpiryDeps
@@ -58,6 +61,7 @@ func NewAccountExpiryService(d AccountExpiryDeps) *AccountExpiryService {
 
 // ExpireAccounts は有効期限（日本時間）を過ぎた有効・停止のアカウントを失効させ、失効させた人数を返す（AUTH-3, ADR 0033）。
 // 1人ずつトランザクションで行い、その間に失効・削除された人は飛ばす（何度呼んでも結果は同じ）。1人が失敗しても残りは続け、失敗をまとめて返す。
+// 商品・取引の更新が並行した操作と競合したときは、その人の失効を取り消して失敗として返す（Cloud Scheduler が再試行する）。
 func (s *AccountExpiryService) ExpireAccounts(ctx context.Context) (int, error) {
 	now := s.d.Clock.Now()
 	today := domain.JSTDate(now)
@@ -72,7 +76,7 @@ func (s *AccountExpiryService) ExpireAccounts(ctx context.Context) (int, error) 
 			return s.expire(ctx, u, today, now)
 		})
 		switch {
-		case errors.Is(err, repository.ErrConflict):
+		case errors.Is(err, errAlreadyExpired):
 		case err != nil:
 			errs = append(errs, err)
 		default:
@@ -85,9 +89,13 @@ func (s *AccountExpiryService) ExpireAccounts(ctx context.Context) (int, error) 
 	return n, nil
 }
 
-// expire は1人のアカウントを失効させる。トランザクションの中で呼ぶ。すでに失効・削除していれば repository.ErrConflict。
+// expire は1人のアカウントを失効させる。トランザクションの中で呼ぶ。すでに失効・削除していれば errAlreadyExpired。
 func (s *AccountExpiryService) expire(ctx context.Context, u *domain.User, today, now time.Time) error {
-	if err := s.d.Users.Expire(ctx, u.ID, today, now); err != nil {
+	err := s.d.Users.Expire(ctx, u.ID, today, now)
+	if errors.Is(err, repository.ErrConflict) {
+		return errAlreadyExpired
+	}
+	if err != nil {
 		return err
 	}
 	// 学生証は再提出で置き換えたものも含めて、失効日から3年で消す（ADR 0014）
