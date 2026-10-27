@@ -209,7 +209,7 @@ func (s *DealService) Reject(ctx context.Context, u *domain.User, id string) (*T
 	}
 	now := s.d.Clock.Now()
 	err = s.d.Tx.Do(ctx, func(ctx context.Context) error {
-		return s.endRequest(ctx, tr, domain.TransactionStatusRejected, now)
+		return endRequest(ctx, s.d.Transactions, s.d.Items, s.d.Payments, tr, domain.TransactionStatusRejected, now)
 	})
 	if err := dealError(err); err != nil {
 		return nil, err
@@ -230,7 +230,7 @@ func (s *DealService) ExpireRequests(ctx context.Context) (int, error) {
 	var errs []error
 	for _, tr := range reqs {
 		err := s.d.Tx.Do(ctx, func(ctx context.Context) error {
-			return s.endRequest(ctx, tr, domain.TransactionStatusExpired, now)
+			return endRequest(ctx, s.d.Transactions, s.d.Items, s.d.Payments, tr, domain.TransactionStatusExpired, now)
 		})
 		switch {
 		case errors.Is(err, repository.ErrConflict):
@@ -257,15 +257,16 @@ func (s *DealService) DeleteExpiredHandoverTokens(ctx context.Context) (int, err
 
 // endRequest は承認待ちの購入希望を to（却下・期限切れ）にして枠を解放し、
 // 承認待ちの購入希望がなくなったら商品を公開中に戻す（DEAL-1, ADR 0022）。トランザクションの中で呼ぶ。承認待ちでなければ repository.ErrConflict。
-func (s *DealService) endRequest(ctx context.Context, tr *domain.Transaction, to domain.TransactionStatus, now time.Time) error {
-	if err := closeRequest(ctx, s.d.Transactions, s.d.Payments, tr, to, now); err != nil {
+// アカウントの失効（ADR 0033）からも呼ぶ。
+func endRequest(ctx context.Context, txs TransactionStore, items ItemStore, gw payment.Gateway, tr *domain.Transaction, to domain.TransactionStatus, now time.Time) error {
+	if err := closeRequest(ctx, txs, gw, tr, to, now); err != nil {
 		return err
 	}
-	n, err := s.d.Transactions.CountRequestedByItem(ctx, tr.ItemID)
+	n, err := txs.CountRequestedByItem(ctx, tr.ItemID)
 	if err != nil || n > 0 {
 		return err
 	}
-	err = s.d.Items.UpdateDealStatus(ctx, tr.ItemID, tr.SellerID, []domain.ItemStatus{domain.ItemStatusRequested}, domain.ItemStatusPublished, now)
+	err = items.UpdateDealStatus(ctx, tr.ItemID, tr.SellerID, []domain.ItemStatus{domain.ItemStatusRequested}, domain.ItemStatusPublished, now)
 	// 商品が購入希望ありでなければ（停止など）そのままにする
 	if errors.Is(err, repository.ErrConflict) {
 		return nil

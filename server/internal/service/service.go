@@ -115,12 +115,14 @@ type TransactionStore interface {
 	CountCompletedByUsers(ctx context.Context, userIDs []string) (map[string]int, error)
 	ListByParty(ctx context.Context, role domain.TransactionRole, userID string, statuses []domain.TransactionStatus, after *domain.TransactionCursor, limit int) ([]*domain.Transaction, error)
 	ListRequestGroupsBySeller(ctx context.Context, sellerID string) ([]domain.TransactionRequestGroup, error)
+	ListByPartyAndStatus(ctx context.Context, userID string, status domain.TransactionStatus) ([]*domain.Transaction, error)
 	Approve(ctx context.Context, id, sellerID string, feeRateBP int, fee, proceeds int64, now time.Time) error
 	UpdateStatus(ctx context.Context, id string, from, to domain.TransactionStatus, now time.Time) error
 	Acknowledge(ctx context.Context, id, sellerID string, now time.Time) error
 	Complete(ctx context.Context, id, buyerID string, method domain.HandoverMethod, now time.Time) error
 	AgreeCancel(ctx context.Context, id, userID string, role domain.TransactionRole, now time.Time) error
 	Cancel(ctx context.Context, id string, now time.Time) error
+	CancelBySystem(ctx context.Context, id string, now time.Time) error
 	WithdrawCancel(ctx context.Context, id, userID string, role domain.TransactionRole, now time.Time) error
 }
 
