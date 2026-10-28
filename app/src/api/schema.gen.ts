@@ -950,6 +950,242 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/admin/users": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * ユーザーを一覧する
+         * @description ADMIN, AUTH-3: ユーザーを登録の新しい順に返す（AdminUsers）。`q` は学籍番号の前方一致（数字1〜8桁）、`filter` は状態での絞り込み
+         *     （withdrawal_requested は退学を申請して削除されていない人。ADR 0034）。応答の `withdrawalRequestCount` は絞り込みに関係なく数える。
+         *     続きは応答の `nextCursor` を `cursor` に入れて取る。条件が不正（数字でない q、壊れた cursor など）なら 400 bad_request。
+         */
+        get: operations["listAdminUsers"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/admin/users/{userId}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * ユーザーの詳細を取る
+         * @description ADMIN: ユーザー1人の情報を返す。ユーザーがいなければ 404 not_found。
+         */
+        get: operations["getAdminUser"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/admin/users/{userId}/suspend": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * アカウントを停止する
+         * @description ADMIN: 有効なアカウントを停止にし、セッションをすべて無効にする。商品は一覧・商品ページから除かれ、取引はそのまま残る（ADR 0034）。
+         *     有効でなければ 409 invalid_status_transition。ユーザーがいなければ 404 not_found。
+         */
+        post: operations["suspendUser"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/admin/users/{userId}/unsuspend": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * アカウントの停止を解除する
+         * @description ADMIN: 停止中のアカウントを有効に戻す（ADR 0034）。停止中でなければ 409 invalid_status_transition。ユーザーがいなければ 404 not_found。
+         */
+        post: operations["unsuspendUser"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/admin/users/{userId}/expires-on": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        /**
+         * 有効期限を変更する
+         * @description ADMIN, AUTH-3: 有効・停止のアカウントの有効期限を変える（延長の仕組みができるまでの暫定。ADR 0034）。
+         *     今日（日本時間）より前の日付なら 400 bad_request。有効・停止でなければ 409 invalid_status_transition。ユーザーがいなければ 404 not_found。
+         */
+        put: operations["updateUserExpiresOn"];
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/admin/users/{userId}/delete": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * 退学によりアカウントを削除する
+         * @description ADMIN, AUTH-3: 有効・停止のアカウントを削除にし、失効と同じ後処理（商品の取り下げ、購入希望の期限切れ、取引中の取引のキャンセルと返金、
+         *     学生証の削除予定日を削除日 + 3年、セッションの無効化）を行う（ADR 0033, ADR 0034）。
+         *     有効・停止でなければ 409 invalid_status_transition。ユーザーがいなければ 404 not_found。
+         */
+        post: operations["deleteUser"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/admin/items": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * 出品を一覧する
+         * @description ADMIN: すべての出品（下書き・取り下げ・停止を含む）を作った日時の新しい順に返す（AdminDeals の出品）。
+         *     続きは応答の `nextCursor` を `cursor` に入れて取る。壊れた cursor は 400 bad_request。
+         */
+        get: operations["listAdminItems"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/admin/items/{itemId}/suspend": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * 出品を停止する
+         * @description ADMIN, ITEM-1: 下書き・公開中・購入希望あり・取引中の商品を停止にする。購入希望ありなら承認待ちの購入希望をすべて却下して枠を解放する。
+         *     取引中なら取引は続ける（ADR 0034）。それ以外のステータスなら 409 invalid_status_transition。商品がなければ 404 not_found。
+         */
+        post: operations["suspendItem"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/admin/transactions": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * 取引を一覧する
+         * @description ADMIN: すべての取引（購入希望を含む）を最後に動いた日時の新しい順に返す（AdminDeals の取引）。
+         *     続きは応答の `nextCursor` を `cursor` に入れて取る。壊れた cursor は 400 bad_request。
+         */
+        get: operations["listAdminTransactions"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/admin/transactions/{transactionId}/cancel": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * 取引をキャンセルして返金する（モック）
+         * @description ADMIN, DEAL-4: トラブル対応として、取引中の取引をキャンセルし、代金を購入者に返金する（モック）。当事者の同意日時は入れず、
+         *     キャンセル回数に数えない。商品は取引中なら公開中に戻し、それ以外（停止など）ならそのままにする（ADR 0034）。
+         *     取引中でなければ（受け渡し完了後を含む）409 invalid_status_transition。取引がなければ 404 not_found。
+         */
+        post: operations["cancelTransactionByAdmin"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/admin/settings/fee-rate": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * 手数料率と最終更新を取る
+         * @description ADMIN, PAY-2: 現在の手数料率と、最後に変更した日時・管理者を返す（AdminSettings。ADR 0034）。
+         */
+        get: operations["getAdminFeeRate"];
+        /**
+         * 手数料率を変更する
+         * @description ADMIN, PAY-2: 手数料率（0〜10000 ベーシスポイント）を変える。変更後に成立する取引から使われ、成立済みの取引の料率は変わらない（ADR 0003）。
+         *     範囲外なら 400 bad_request。
+         */
+        put: operations["updateFeeRate"];
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/webhooks/payment": {
         parameters: {
             query?: never;
@@ -1247,6 +1483,120 @@ export interface components {
             viewedAt: string;
             /** @description 閲覧した管理者の学籍番号 */
             adminStudentNumber: string;
+        };
+        /**
+         * @description 管理画面のユーザーの絞り込み。all すべて / active 有効 / suspended 停止 / expired 失効 / withdrawal_requested 退学申請（削除されていない人）
+         * @enum {string}
+         */
+        AdminUserFilter: "all" | "active" | "suspended" | "expired" | "withdrawal_requested";
+        /** @description ADMIN 管理画面のユーザーの一覧 */
+        AdminUserList: {
+            /** @description 登録の新しい順 */
+            entries: components["schemas"]["AdminUser"][];
+            /** @description 退学を申請して削除されていない人の数（絞り込みに関係なく数える） */
+            withdrawalRequestCount: number;
+            /** @description 続きを取るときに cursor に入れる値。続きがなければ null */
+            nextCursor: string | null;
+        };
+        /** @description ADMIN 管理者に見せるユーザーの情報 */
+        AdminUser: {
+            id: string;
+            studentNumber: string;
+            /** @description 学部・学科の表示名。不明なら null */
+            departmentName: string | null;
+            admissionYear: number;
+            /** Format: date */
+            expiresOn: string;
+            status: components["schemas"]["UserStatus"];
+            sellerStatus: components["schemas"]["SellerStatus"];
+            /** @description キャンセル回数。双方の同意でキャンセルになった取引の数（DEAL-4, ADR 0034） */
+            cancelCount: number;
+            /** @description 当事者になっている取引中の取引の数 */
+            activeTransactionCount: number;
+            /**
+             * Format: date-time
+             * @description 退学を申請した日時。申請していなければ null
+             */
+            withdrawalRequestedAt: string | null;
+            /** Format: date-time */
+            createdAt: string;
+        };
+        ExpiresOnInput: {
+            /**
+             * Format: date
+             * @description 新しい有効期限（その日の終わりまで使える）
+             */
+            expiresOn: string;
+        };
+        /** @description ADMIN 管理画面の出品の一覧 */
+        AdminItemList: {
+            /** @description 作った日時の新しい順 */
+            entries: components["schemas"]["AdminItem"][];
+            /** @description 続きを取るときに cursor に入れる値。続きがなければ null */
+            nextCursor: string | null;
+        };
+        /** @description ADMIN 管理者に見せる出品 */
+        AdminItem: {
+            id: string;
+            shareId: string;
+            /** @description 下書きで未入力なら空文字 */
+            title: string;
+            /**
+             * Format: int64
+             * @description 価格（円）。下書きで未入力なら null
+             */
+            price: number | null;
+            status: components["schemas"]["ItemStatus"];
+            sellerStudentNumber: string;
+            /** @description 1枚目の写真 */
+            thumbnail: components["schemas"]["ItemImage"] | null;
+            /** Format: date-time */
+            createdAt: string;
+        };
+        /** @description ADMIN 管理画面の取引の一覧 */
+        AdminTransactionList: {
+            /** @description 最後に動いた日時の新しい順 */
+            entries: components["schemas"]["AdminTransaction"][];
+            /** @description 続きを取るときに cursor に入れる値。続きがなければ null */
+            nextCursor: string | null;
+        };
+        /** @description ADMIN 管理者に見せる取引。管理者には承認前でも当事者の学籍番号を見せる */
+        AdminTransaction: {
+            id: string;
+            status: components["schemas"]["TransactionStatus"];
+            item: components["schemas"]["TransactionItem"];
+            sellerStudentNumber: string;
+            buyerStudentNumber: string;
+            /**
+             * Format: int64
+             * @description 取引の金額（円）
+             */
+            price: number;
+            paymentMethod: components["schemas"]["PaymentMethod"];
+            /** @description この取引に適用した手数料率（ベーシスポイント）。成立前は null */
+            feeRateBasisPoints: number | null;
+            /** Format: date-time */
+            buyerCancelAgreedAt: string | null;
+            /** Format: date-time */
+            sellerCancelAgreedAt: string | null;
+            /** Format: date-time */
+            completedAt: string | null;
+            /** Format: date-time */
+            createdAt: string;
+            /** Format: date-time */
+            updatedAt: string;
+        };
+        /** @description ADMIN, PAY-2 管理画面の手数料率 */
+        AdminFeeRate: {
+            /** @description 手数料率（ベーシスポイント。500 = 5%） */
+            feeRateBasisPoints: number;
+            /**
+             * Format: date-time
+             * @description 最後に変更した日時
+             */
+            updatedAt: string;
+            /** @description 最後に変更した管理者の学籍番号。初期値のままなら null */
+            updatedByStudentNumber: string | null;
         };
         /**
          * @description アップロードする画像の形式（ブラウザで縮小・圧縮したもの。STORAGE）
@@ -1807,6 +2157,8 @@ export interface components {
         ShareId: string;
         /** @description 取引のID */
         TransactionId: string;
+        /** @description ユーザーのID */
+        UserId: string;
         /** @description ブラウザの localStorage に保存した端末識別子（AUTHN-3） */
         DeviceId: string;
     };
@@ -2952,6 +3304,302 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["AdminStudentCard"];
+                };
+            };
+            default: components["responses"]["Error"];
+        };
+    };
+    listAdminUsers: {
+        parameters: {
+            query?: {
+                /** @description 学籍番号の前方一致 */
+                q?: string;
+                filter?: components["schemas"]["AdminUserFilter"];
+                /** @description 前の応答の nextCursor。省略すると先頭から */
+                cursor?: string;
+                limit?: number;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description ユーザーの一覧 */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AdminUserList"];
+                };
+            };
+            default: components["responses"]["Error"];
+        };
+    };
+    getAdminUser: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description ユーザーのID */
+                userId: components["parameters"]["UserId"];
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description ユーザー */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AdminUser"];
+                };
+            };
+            default: components["responses"]["Error"];
+        };
+    };
+    suspendUser: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description ユーザーのID */
+                userId: components["parameters"]["UserId"];
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description 停止後のユーザー */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AdminUser"];
+                };
+            };
+            default: components["responses"]["Error"];
+        };
+    };
+    unsuspendUser: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description ユーザーのID */
+                userId: components["parameters"]["UserId"];
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description 解除後のユーザー */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AdminUser"];
+                };
+            };
+            default: components["responses"]["Error"];
+        };
+    };
+    updateUserExpiresOn: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description ユーザーのID */
+                userId: components["parameters"]["UserId"];
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["ExpiresOnInput"];
+            };
+        };
+        responses: {
+            /** @description 変更後のユーザー */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AdminUser"];
+                };
+            };
+            default: components["responses"]["Error"];
+        };
+    };
+    deleteUser: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description ユーザーのID */
+                userId: components["parameters"]["UserId"];
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description 削除後のユーザー */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AdminUser"];
+                };
+            };
+            default: components["responses"]["Error"];
+        };
+    };
+    listAdminItems: {
+        parameters: {
+            query?: {
+                /** @description 前の応答の nextCursor。省略すると先頭から */
+                cursor?: string;
+                limit?: number;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description 出品の一覧 */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AdminItemList"];
+                };
+            };
+            default: components["responses"]["Error"];
+        };
+    };
+    suspendItem: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description 商品のID */
+                itemId: components["parameters"]["ItemId"];
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description 停止後の商品 */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AdminItem"];
+                };
+            };
+            default: components["responses"]["Error"];
+        };
+    };
+    listAdminTransactions: {
+        parameters: {
+            query?: {
+                /** @description 前の応答の nextCursor。省略すると先頭から */
+                cursor?: string;
+                limit?: number;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description 取引の一覧 */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AdminTransactionList"];
+                };
+            };
+            default: components["responses"]["Error"];
+        };
+    };
+    cancelTransactionByAdmin: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description 取引のID */
+                transactionId: components["parameters"]["TransactionId"];
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description キャンセル後の取引 */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AdminTransaction"];
+                };
+            };
+            default: components["responses"]["Error"];
+        };
+    };
+    getAdminFeeRate: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description 現在の手数料率 */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AdminFeeRate"];
+                };
+            };
+            default: components["responses"]["Error"];
+        };
+    };
+    updateFeeRate: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["FeeRate"];
+            };
+        };
+        responses: {
+            /** @description 変更後の手数料率 */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AdminFeeRate"];
                 };
             };
             default: components["responses"]["Error"];

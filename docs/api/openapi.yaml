@@ -1115,6 +1115,291 @@ paths:
                 $ref: '#/components/schemas/AdminStudentCard'
         default:
           $ref: '#/components/responses/Error'
+  /admin/users:
+    get:
+      tags: [admin]
+      operationId: listAdminUsers
+      summary: ユーザーを一覧する
+      description: |
+        ADMIN, AUTH-3: ユーザーを登録の新しい順に返す（AdminUsers）。`q` は学籍番号の前方一致（数字1〜8桁）、`filter` は状態での絞り込み
+        （withdrawal_requested は退学を申請して削除されていない人。ADR 0034）。応答の `withdrawalRequestCount` は絞り込みに関係なく数える。
+        続きは応答の `nextCursor` を `cursor` に入れて取る。条件が不正（数字でない q、壊れた cursor など）なら 400 bad_request。
+      parameters:
+        - name: q
+          in: query
+          required: false
+          description: 学籍番号の前方一致
+          schema:
+            type: string
+        - name: filter
+          in: query
+          required: false
+          schema:
+            $ref: '#/components/schemas/AdminUserFilter'
+        - name: cursor
+          in: query
+          required: false
+          description: 前の応答の nextCursor。省略すると先頭から
+          schema:
+            type: string
+        - name: limit
+          in: query
+          required: false
+          schema:
+            type: integer
+            minimum: 1
+            maximum: 50
+            default: 20
+      responses:
+        '200':
+          description: ユーザーの一覧
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AdminUserList'
+        default:
+          $ref: '#/components/responses/Error'
+  /admin/users/{userId}:
+    get:
+      tags: [admin]
+      operationId: getAdminUser
+      summary: ユーザーの詳細を取る
+      description: |
+        ADMIN: ユーザー1人の情報を返す。ユーザーがいなければ 404 not_found。
+      parameters:
+        - $ref: '#/components/parameters/UserId'
+      responses:
+        '200':
+          description: ユーザー
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AdminUser'
+        default:
+          $ref: '#/components/responses/Error'
+  /admin/users/{userId}/suspend:
+    post:
+      tags: [admin]
+      operationId: suspendUser
+      summary: アカウントを停止する
+      description: |
+        ADMIN: 有効なアカウントを停止にし、セッションをすべて無効にする。商品は一覧・商品ページから除かれ、取引はそのまま残る（ADR 0034）。
+        有効でなければ 409 invalid_status_transition。ユーザーがいなければ 404 not_found。
+      parameters:
+        - $ref: '#/components/parameters/UserId'
+      responses:
+        '200':
+          description: 停止後のユーザー
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AdminUser'
+        default:
+          $ref: '#/components/responses/Error'
+  /admin/users/{userId}/unsuspend:
+    post:
+      tags: [admin]
+      operationId: unsuspendUser
+      summary: アカウントの停止を解除する
+      description: |
+        ADMIN: 停止中のアカウントを有効に戻す（ADR 0034）。停止中でなければ 409 invalid_status_transition。ユーザーがいなければ 404 not_found。
+      parameters:
+        - $ref: '#/components/parameters/UserId'
+      responses:
+        '200':
+          description: 解除後のユーザー
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AdminUser'
+        default:
+          $ref: '#/components/responses/Error'
+  /admin/users/{userId}/expires-on:
+    put:
+      tags: [admin]
+      operationId: updateUserExpiresOn
+      summary: 有効期限を変更する
+      description: |
+        ADMIN, AUTH-3: 有効・停止のアカウントの有効期限を変える（延長の仕組みができるまでの暫定。ADR 0034）。
+        今日（日本時間）より前の日付なら 400 bad_request。有効・停止でなければ 409 invalid_status_transition。ユーザーがいなければ 404 not_found。
+      parameters:
+        - $ref: '#/components/parameters/UserId'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ExpiresOnInput'
+      responses:
+        '200':
+          description: 変更後のユーザー
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AdminUser'
+        default:
+          $ref: '#/components/responses/Error'
+  /admin/users/{userId}/delete:
+    post:
+      tags: [admin]
+      operationId: deleteUser
+      summary: 退学によりアカウントを削除する
+      description: |
+        ADMIN, AUTH-3: 有効・停止のアカウントを削除にし、失効と同じ後処理（商品の取り下げ、購入希望の期限切れ、取引中の取引のキャンセルと返金、
+        学生証の削除予定日を削除日 + 3年、セッションの無効化）を行う（ADR 0033, ADR 0034）。
+        有効・停止でなければ 409 invalid_status_transition。ユーザーがいなければ 404 not_found。
+      parameters:
+        - $ref: '#/components/parameters/UserId'
+      responses:
+        '200':
+          description: 削除後のユーザー
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AdminUser'
+        default:
+          $ref: '#/components/responses/Error'
+  /admin/items:
+    get:
+      tags: [admin]
+      operationId: listAdminItems
+      summary: 出品を一覧する
+      description: |
+        ADMIN: すべての出品（下書き・取り下げ・停止を含む）を作った日時の新しい順に返す（AdminDeals の出品）。
+        続きは応答の `nextCursor` を `cursor` に入れて取る。壊れた cursor は 400 bad_request。
+      parameters:
+        - name: cursor
+          in: query
+          required: false
+          description: 前の応答の nextCursor。省略すると先頭から
+          schema:
+            type: string
+        - name: limit
+          in: query
+          required: false
+          schema:
+            type: integer
+            minimum: 1
+            maximum: 50
+            default: 20
+      responses:
+        '200':
+          description: 出品の一覧
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AdminItemList'
+        default:
+          $ref: '#/components/responses/Error'
+  /admin/items/{itemId}/suspend:
+    post:
+      tags: [admin]
+      operationId: suspendItem
+      summary: 出品を停止する
+      description: |
+        ADMIN, ITEM-1: 下書き・公開中・購入希望あり・取引中の商品を停止にする。購入希望ありなら承認待ちの購入希望をすべて却下して枠を解放する。
+        取引中なら取引は続ける（ADR 0034）。それ以外のステータスなら 409 invalid_status_transition。商品がなければ 404 not_found。
+      parameters:
+        - $ref: '#/components/parameters/ItemId'
+      responses:
+        '200':
+          description: 停止後の商品
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AdminItem'
+        default:
+          $ref: '#/components/responses/Error'
+  /admin/transactions:
+    get:
+      tags: [admin]
+      operationId: listAdminTransactions
+      summary: 取引を一覧する
+      description: |
+        ADMIN: すべての取引（購入希望を含む）を最後に動いた日時の新しい順に返す（AdminDeals の取引）。
+        続きは応答の `nextCursor` を `cursor` に入れて取る。壊れた cursor は 400 bad_request。
+      parameters:
+        - name: cursor
+          in: query
+          required: false
+          description: 前の応答の nextCursor。省略すると先頭から
+          schema:
+            type: string
+        - name: limit
+          in: query
+          required: false
+          schema:
+            type: integer
+            minimum: 1
+            maximum: 50
+            default: 20
+      responses:
+        '200':
+          description: 取引の一覧
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AdminTransactionList'
+        default:
+          $ref: '#/components/responses/Error'
+  /admin/transactions/{transactionId}/cancel:
+    post:
+      tags: [admin]
+      operationId: cancelTransactionByAdmin
+      summary: 取引をキャンセルして返金する（モック）
+      description: |
+        ADMIN, DEAL-4: トラブル対応として、取引中の取引をキャンセルし、代金を購入者に返金する（モック）。当事者の同意日時は入れず、
+        キャンセル回数に数えない。商品は取引中なら公開中に戻し、それ以外（停止など）ならそのままにする（ADR 0034）。
+        取引中でなければ（受け渡し完了後を含む）409 invalid_status_transition。取引がなければ 404 not_found。
+      parameters:
+        - $ref: '#/components/parameters/TransactionId'
+      responses:
+        '200':
+          description: キャンセル後の取引
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AdminTransaction'
+        default:
+          $ref: '#/components/responses/Error'
+  /admin/settings/fee-rate:
+    get:
+      tags: [admin]
+      operationId: getAdminFeeRate
+      summary: 手数料率と最終更新を取る
+      description: |
+        ADMIN, PAY-2: 現在の手数料率と、最後に変更した日時・管理者を返す（AdminSettings。ADR 0034）。
+      responses:
+        '200':
+          description: 現在の手数料率
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AdminFeeRate'
+        default:
+          $ref: '#/components/responses/Error'
+    put:
+      tags: [admin]
+      operationId: updateFeeRate
+      summary: 手数料率を変更する
+      description: |
+        ADMIN, PAY-2: 手数料率（0〜10000 ベーシスポイント）を変える。変更後に成立する取引から使われ、成立済みの取引の料率は変わらない（ADR 0003）。
+        範囲外なら 400 bad_request。
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/FeeRate'
+      responses:
+        '200':
+          description: 変更後の手数料率
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AdminFeeRate'
+        default:
+          $ref: '#/components/responses/Error'
   /webhooks/payment:
     post:
       tags: [webhooks]
@@ -1201,6 +1486,13 @@ components:
       in: path
       required: true
       description: 取引のID
+      schema:
+        type: string
+    UserId:
+      name: userId
+      in: path
+      required: true
+      description: ユーザーのID
       schema:
         type: string
     DeviceId:
@@ -1515,6 +1807,189 @@ components:
         adminStudentNumber:
           type: string
           description: 閲覧した管理者の学籍番号
+    AdminUserFilter:
+      type: string
+      description: 管理画面のユーザーの絞り込み。all すべて / active 有効 / suspended 停止 / expired 失効 / withdrawal_requested 退学申請（削除されていない人）
+      enum: [all, active, suspended, expired, withdrawal_requested]
+    AdminUserList:
+      type: object
+      description: ADMIN 管理画面のユーザーの一覧
+      required: [entries, withdrawalRequestCount, nextCursor]
+      properties:
+        entries:
+          type: array
+          description: 登録の新しい順
+          items:
+            $ref: '#/components/schemas/AdminUser'
+        withdrawalRequestCount:
+          type: integer
+          description: 退学を申請して削除されていない人の数（絞り込みに関係なく数える）
+        nextCursor:
+          type: string
+          nullable: true
+          description: 続きを取るときに cursor に入れる値。続きがなければ null
+    AdminUser:
+      type: object
+      description: ADMIN 管理者に見せるユーザーの情報
+      required: [id, studentNumber, departmentName, admissionYear, expiresOn, status, sellerStatus, cancelCount, activeTransactionCount, withdrawalRequestedAt, createdAt]
+      properties:
+        id:
+          type: string
+        studentNumber:
+          type: string
+        departmentName:
+          type: string
+          nullable: true
+          description: 学部・学科の表示名。不明なら null
+        admissionYear:
+          type: integer
+        expiresOn:
+          type: string
+          format: date
+        status:
+          $ref: '#/components/schemas/UserStatus'
+        sellerStatus:
+          $ref: '#/components/schemas/SellerStatus'
+        cancelCount:
+          type: integer
+          description: キャンセル回数。双方の同意でキャンセルになった取引の数（DEAL-4, ADR 0034）
+        activeTransactionCount:
+          type: integer
+          description: 当事者になっている取引中の取引の数
+        withdrawalRequestedAt:
+          type: string
+          format: date-time
+          nullable: true
+          description: 退学を申請した日時。申請していなければ null
+        createdAt:
+          type: string
+          format: date-time
+    ExpiresOnInput:
+      type: object
+      required: [expiresOn]
+      properties:
+        expiresOn:
+          type: string
+          format: date
+          description: 新しい有効期限（その日の終わりまで使える）
+    AdminItemList:
+      type: object
+      description: ADMIN 管理画面の出品の一覧
+      required: [entries, nextCursor]
+      properties:
+        entries:
+          type: array
+          description: 作った日時の新しい順
+          items:
+            $ref: '#/components/schemas/AdminItem'
+        nextCursor:
+          type: string
+          nullable: true
+          description: 続きを取るときに cursor に入れる値。続きがなければ null
+    AdminItem:
+      type: object
+      description: ADMIN 管理者に見せる出品
+      required: [id, shareId, title, price, status, sellerStudentNumber, thumbnail, createdAt]
+      properties:
+        id:
+          type: string
+        shareId:
+          type: string
+        title:
+          type: string
+          description: 下書きで未入力なら空文字
+        price:
+          type: integer
+          format: int64
+          nullable: true
+          description: 価格（円）。下書きで未入力なら null
+        status:
+          $ref: '#/components/schemas/ItemStatus'
+        sellerStudentNumber:
+          type: string
+        thumbnail:
+          description: 1枚目の写真
+          allOf:
+            - $ref: '#/components/schemas/ItemImage'
+          nullable: true
+        createdAt:
+          type: string
+          format: date-time
+    AdminTransactionList:
+      type: object
+      description: ADMIN 管理画面の取引の一覧
+      required: [entries, nextCursor]
+      properties:
+        entries:
+          type: array
+          description: 最後に動いた日時の新しい順
+          items:
+            $ref: '#/components/schemas/AdminTransaction'
+        nextCursor:
+          type: string
+          nullable: true
+          description: 続きを取るときに cursor に入れる値。続きがなければ null
+    AdminTransaction:
+      type: object
+      description: ADMIN 管理者に見せる取引。管理者には承認前でも当事者の学籍番号を見せる
+      required: [id, status, item, sellerStudentNumber, buyerStudentNumber, price, paymentMethod, feeRateBasisPoints, buyerCancelAgreedAt, sellerCancelAgreedAt, completedAt, createdAt, updatedAt]
+      properties:
+        id:
+          type: string
+        status:
+          $ref: '#/components/schemas/TransactionStatus'
+        item:
+          $ref: '#/components/schemas/TransactionItem'
+        sellerStudentNumber:
+          type: string
+        buyerStudentNumber:
+          type: string
+        price:
+          type: integer
+          format: int64
+          description: 取引の金額（円）
+        paymentMethod:
+          $ref: '#/components/schemas/PaymentMethod'
+        feeRateBasisPoints:
+          type: integer
+          nullable: true
+          description: この取引に適用した手数料率（ベーシスポイント）。成立前は null
+        buyerCancelAgreedAt:
+          type: string
+          format: date-time
+          nullable: true
+        sellerCancelAgreedAt:
+          type: string
+          format: date-time
+          nullable: true
+        completedAt:
+          type: string
+          format: date-time
+          nullable: true
+        createdAt:
+          type: string
+          format: date-time
+        updatedAt:
+          type: string
+          format: date-time
+    AdminFeeRate:
+      type: object
+      description: ADMIN, PAY-2 管理画面の手数料率
+      required: [feeRateBasisPoints, updatedAt, updatedByStudentNumber]
+      properties:
+        feeRateBasisPoints:
+          type: integer
+          minimum: 0
+          maximum: 10000
+          description: 手数料率（ベーシスポイント。500 = 5%）
+        updatedAt:
+          type: string
+          format: date-time
+          description: 最後に変更した日時
+        updatedByStudentNumber:
+          type: string
+          nullable: true
+          description: 最後に変更した管理者の学籍番号。初期値のままなら null
     ImageContentType:
       type: string
       description: アップロードする画像の形式（ブラウザで縮小・圧縮したもの。STORAGE）
