@@ -23,7 +23,7 @@
 | パスワード設定用の一時トークン | `PasswordSetupToken` | `password_setup_tokens` | コードの確認後に発行する15分有効・一度だけのトークン（ハッシュで保存。[ADR 0007](decisions/0007-signup-flow.md)） |
 | ログインチャレンジ | `LoginChallenge` | `login_challenges` | パスワードが一致したが再確認が必要なときに発行する、15分有効・一度だけのトークン。コードの確認・再送に使う（ハッシュで保存。[ADR 0009](decisions/0009-login-recheck-challenge.md)） |
 | パスワードの入力ミスの記録 | — | `login_failures` | メールアドレスごとの入力ミスの回数とログインを止める期限（AUTHN-6。[ADR 0011](decisions/0011-rate-limits.md)） |
-| 設定 | `Setting` | `settings` | 手数料率（`fee_rate_bp`、ベーシスポイント）など。1行だけのテーブル（[ADR 0017](decisions/0017-fee-rounding-and-provisional-rate.md)） |
+| 設定 | `Setting` | `settings` | 手数料率（`fee_rate_bp`、ベーシスポイント）と、最後に変更した管理者（`fee_rate_updated_by`）など。1行だけのテーブル（[ADR 0017](decisions/0017-fee-rounding-and-provisional-rate.md)、[ADR 0034](decisions/0034-admin-users-deals-settings.md)） |
 
 ## 列挙値
 
@@ -71,3 +71,5 @@
 | 共有用ID | `shareId` | 商品ページの固定URL `/items/:shareId` に使う |
 | 確認モーダルへの同意日時 | `sellerAcknowledgedAt` | [DEAL-2](product/05-deal-flow.md) |
 | 学籍番号の開示日時 | `identityDisclosedAt` | 承認時に記録 |
+| 退学の申請日時 | `withdrawalRequestedAt` / `withdrawal_requested_at` | 本人が退学を申請した日時。管理者が削除するまで残る（[ADR 0034](decisions/0034-admin-users-deals-settings.md)） |
+| キャンセル回数 | `cancelCount` | 双方の同意でキャンセルになった取引の数。購入者・出品者の両方に数える（[DEAL-4](product/05-deal-flow.md)、[ADR 0034](decisions/0034-admin-users-deals-settings.md)） |
