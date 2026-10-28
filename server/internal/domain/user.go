@@ -47,6 +47,9 @@ func (u User) IsExpired(now time.Time) bool {
 	return JSTDate(now).After(time.Date(ey, em, ed, 0, 0, 0, 0, time.UTC))
 }
 
+// ExpiredOn は失効日（有効期限の翌日）を返す（AUTH-3, ADR 0033）。
+func (u User) ExpiredOn() time.Time { return u.ExpiresOn.AddDate(0, 0, 1) }
+
 // IsActive は now の時点でアカウントが使える（有効で、失効していない）かを返す。
 func (u User) IsActive(now time.Time) bool {
 	return u.Status == UserStatusActive && !u.IsExpired(now)

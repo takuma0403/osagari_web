@@ -32,7 +32,7 @@ func Test内部用エンドポイントは呼び出し元を確かめる(t *test
 	e := server.New(server.Deps{
 		Logger:   logging.New(&logs, slog.LevelInfo),
 		Clock:    clock.NewFake(time.Date(2026, 10, 14, 9, 0, 0, 0, time.UTC)),
-		Handler:  handler.New(handler.Deps{ShortJob: job}),
+		Handler:  handler.New(handler.Deps{ShortJob: job, DailyJob: job}),
 		Sessions: adminAuthenticator{},
 		Jobs:     jobs.SecretVerifier{Secret: "local-secret"},
 	})
@@ -47,24 +47,26 @@ func Test内部用エンドポイントは呼び出し元を確かめる(t *test
 		{"管理者のセッションだけ", "", "admin", http.StatusNotFound},
 		{"シークレットが正しい", "Bearer local-secret", "", http.StatusNoContent},
 	}
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			before := job.calls
-			req := httptest.NewRequest(http.MethodPost, "/api/internal/jobs/short", nil)
-			if tt.authorization != "" {
-				req.Header.Set("Authorization", tt.authorization)
-			}
-			if tt.session != "" {
-				req.AddCookie(&http.Cookie{Name: auth.SessionCookieName, Value: tt.session})
-			}
-			rec := httptest.NewRecorder()
-			e.ServeHTTP(rec, req)
-			if rec.Code != tt.want {
-				t.Fatalf("status = %d, want %d: %s", rec.Code, tt.want, rec.Body)
-			}
-			if ran := job.calls > before; ran != (tt.want == http.StatusNoContent) {
-				t.Errorf("ジョブを実行したか = %v", ran)
-			}
-		})
+	for _, path := range []string{"/api/internal/jobs/short", "/api/internal/jobs/daily"} {
+		for _, tt := range tests {
+			t.Run(path+"/"+tt.name, func(t *testing.T) {
+				before := job.calls
+				req := httptest.NewRequest(http.MethodPost, path, nil)
+				if tt.authorization != "" {
+					req.Header.Set("Authorization", tt.authorization)
+				}
+				if tt.session != "" {
+					req.AddCookie(&http.Cookie{Name: auth.SessionCookieName, Value: tt.session})
+				}
+				rec := httptest.NewRecorder()
+				e.ServeHTTP(rec, req)
+				if rec.Code != tt.want {
+					t.Fatalf("status = %d, want %d: %s", rec.Code, tt.want, rec.Body)
+				}
+				if ran := job.calls > before; ran != (tt.want == http.StatusNoContent) {
+					t.Errorf("ジョブを実行したか = %v", ran)
+				}
+			})
+		}
 	}
 }

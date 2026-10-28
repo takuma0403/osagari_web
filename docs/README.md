@@ -28,7 +28,7 @@
 | --- | --- | --- | --- | --- | --- |
 | 新規登録・ログイン・再確認・パスワード再設定 | [AUTH-1](product/01-account-auth.md) | [AUTHN-1〜7](tech/auth.md), [API](tech/api.md)（`__session`） | Login, SignUp, Code, Password, Recheck | User, セッション, 認証コード, 端末 | 教職員の利用 |
 | 学籍番号からの学部・有効期限の推定 | [AUTH-2〜4](product/01-account-auth.md) | [AUTHN-2](tech/auth.md) | SignUp, Password, MyPage | User | 学部コードの最新版、大学院、延長 |
-| アカウントの失効・削除 | [AUTH-3](product/01-account-auth.md) | [JOBS-1](tech/jobs-payment-mock.md) | MyPage | User | 失効時の取引・売上の扱い |
+| アカウントの失効・削除 | [AUTH-3](product/01-account-auth.md) | [JOBS-1](tech/jobs-payment-mock.md) | MyPage | User, StudentCard | 失効時の売上の扱い |
 | 学生証登録・審査 | [CARD](product/02-student-card.md), [ADMIN](product/07-admin.md) | [STORAGE](tech/storage.md), [JOBS-1](tech/jobs-payment-mock.md) | StudentCard, AdminCard | StudentCard | 利用規約・プライバシーポリシー |
 | 出品・編集・取り下げ | [ITEM](product/03-listing.md) | [STORAGE](tech/storage.md) | Sell, MyPage | Item, ItemImage | 禁止出品物、取引中の取り下げ |
 | 一覧・検索 | [BROWSE](product/04-browse-search-share.md) | [FE](tech/frontend.md), [DB](tech/database.md) | Main, Search | Item | — |

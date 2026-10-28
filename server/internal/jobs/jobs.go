@@ -15,28 +15,35 @@ type Step struct {
 	Run  func(ctx context.Context) (int, error)
 }
 
-// Short は短周期ジョブ（15分ごと。JOBS-1）。
-type Short struct {
+// Runner は steps を順に行う定期処理（短周期ジョブ・日次ジョブ。JOBS-1）。
+type Runner struct {
+	// name はログの見出しに使うジョブの名前
+	name   string
 	logger *slog.Logger
 	steps  []Step
 }
 
-// NewShort は steps を順に行う短周期ジョブを返す。
-func NewShort(logger *slog.Logger, steps ...Step) *Short {
-	return &Short{logger: logger, steps: steps}
+// NewShort は steps を順に行う短周期ジョブ（15分ごと）を返す。
+func NewShort(logger *slog.Logger, steps ...Step) *Runner {
+	return &Runner{name: "短周期ジョブ", logger: logger, steps: steps}
+}
+
+// NewDaily は steps を順に行う日次ジョブ（毎日深夜。ADR 0033）を返す。
+func NewDaily(logger *slog.Logger, steps ...Step) *Runner {
+	return &Runner{name: "日次ジョブ", logger: logger, steps: steps}
 }
 
 // Run はすべての処理を順に行い、処理ごとの件数をログに出す。
 // 1つが失敗してもほかの処理は続け、失敗をまとめて返す（Cloud Scheduler が再試行する。どの処理も何度行っても結果は同じ）。
-func (s *Short) Run(ctx context.Context) error {
+func (r *Runner) Run(ctx context.Context) error {
 	var errs []error
-	for _, st := range s.steps {
+	for _, st := range r.steps {
 		n, err := st.Run(ctx)
 		if err != nil {
 			errs = append(errs, fmt.Errorf("jobs: %s: %w", st.Name, err))
 			continue
 		}
-		s.logger.InfoContext(ctx, "短周期ジョブ", "step", st.Name, "count", n)
+		r.logger.InfoContext(ctx, r.name, "step", st.Name, "count", n)
 	}
 	return errors.Join(errs...)
 }

@@ -9,6 +9,7 @@ import (
 	"time"
 
 	"github.com/google/uuid"
+	"gorm.io/gorm"
 
 	"github.com/takuma0403/osagari_web/server/internal/apperr"
 	"github.com/takuma0403/osagari_web/server/internal/clock"
@@ -35,6 +36,8 @@ type itemFixture struct {
 	storage  *storage.Memory
 	clock    *clock.Fake
 	seller   *domain.User
+	// gdb はリポジトリを足すテスト（アカウントの失効など）で使う
+	gdb *gorm.DB
 }
 
 func newItemFixture(t *testing.T) *itemFixture {
@@ -47,6 +50,7 @@ func newItemFixture(t *testing.T) *itemFixture {
 		payments: repository.NewPaymentRepository(gdb),
 		storage:  storage.NewMemory(),
 		clock:    clock.NewFake(t0),
+		gdb:      gdb,
 	}
 	tx := repository.NewTransactor(gdb)
 	gw := payment.NewMock(f.payments, f.clock)

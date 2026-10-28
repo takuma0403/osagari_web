@@ -19,7 +19,7 @@ type Gateway interface {
 	Capture(ctx context.Context, tr *domain.Transaction) error
 	// Release は却下・期限切れのときに枠を解放する
 	Release(ctx context.Context, tr *domain.Transaction) error
-	// Refund は双方同意のキャンセルのときに返金する（DEAL-4）
+	// Refund は双方同意のキャンセルと、当事者のアカウントの失効によるキャンセルのときに返金する（DEAL-4, ADR 0033）
 	Refund(ctx context.Context, tr *domain.Transaction) error
 	// Settle は受け渡し完了のときに、手数料を引いた金額を出品者の売上として確定する（DEAL-3, PAY-2）
 	Settle(ctx context.Context, tr *domain.Transaction) error

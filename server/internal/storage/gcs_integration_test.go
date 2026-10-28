@@ -112,4 +112,31 @@ func TestGCSEmulator(t *testing.T) {
 	if gres.StatusCode != http.StatusOK || string(got) != body {
 		t.Fatalf("GET status = %d body = %q", gres.StatusCode, got)
 	}
+
+	// 日次ジョブの一覧と削除（ADR 0033）
+	list, err := g.List(ctx, bucket)
+	if err != nil {
+		t.Fatal(err)
+	}
+	found := false
+	for _, e := range list {
+		if e.Name == object {
+			found = true
+			if e.Created.IsZero() {
+				t.Errorf("作成日時が空: %+v", e)
+			}
+		}
+	}
+	if !found {
+		t.Fatalf("一覧に %s がない: %+v", object, list)
+	}
+	if err := g.Delete(ctx, bucket, object); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := g.Stat(ctx, bucket, object); !errors.Is(err, storage.ErrNotFound) {
+		t.Fatalf("削除後の Stat: err = %v, want ErrNotFound", err)
+	}
+	if err := g.Delete(ctx, bucket, object); !errors.Is(err, storage.ErrNotFound) {
+		t.Fatalf("2回目の Delete: err = %v, want ErrNotFound", err)
+	}
 }

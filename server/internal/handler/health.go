@@ -25,7 +25,9 @@ type Deps struct {
 	// AdminStudentCard は管理者による学生証の審査（ADMIN）
 	AdminStudentCard AdminStudentCardService
 	// ShortJob は15分ごとの短周期ジョブ（JOBS-1）
-	ShortJob ShortJob
+	ShortJob Job
+	// DailyJob は毎日深夜の日次ジョブ（JOBS-1, ADR 0033）
+	DailyJob Job
 }
 
 // Handler は api.StrictServerInterface の実装。

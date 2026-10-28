@@ -191,3 +191,41 @@ func (r *StudentCardRepository) Review(ctx context.Context, id string, to domain
 	}
 	return nil
 }
+
+// SetDeleteAfter は本人のすべての学生証（再提出で置き換えたものを含む）に、まだ入っていなければ画像の削除予定日 date を入れ、
+// 入れた件数を返す（アカウントの失効・削除。ADR 0014, ADR 0033）。
+func (r *StudentCardRepository) SetDeleteAfter(ctx context.Context, userID string, date, now time.Time) (int, error) {
+	res := conn(ctx, r.db).Model(&studentCardRow{}).
+		Where("user_id = ? AND delete_after IS NULL", userID).
+		Updates(map[string]any{"delete_after": date.UTC().Format(dateLayout), "updated_at": formatTime(now)})
+	return int(res.RowsAffected), res.Error
+}
+
+// ListImagesToDelete は削除予定日が today（日本時間の日付）以前で、画像をまだ消していない学生証を、削除予定日の古い順に返す（JOBS-1）。
+func (r *StudentCardRepository) ListImagesToDelete(ctx context.Context, today time.Time) ([]*domain.StudentCard, error) {
+	var rows []studentCardRow
+	if err := conn(ctx, r.db).
+		Where("delete_after <= ? AND image_deleted_at IS NULL", today.UTC().Format(dateLayout)).
+		Order("delete_after ASC, id ASC").Find(&rows).Error; err != nil {
+		return nil, err
+	}
+	cards := make([]*domain.StudentCard, 0, len(rows))
+	for _, row := range rows {
+		c, err := row.toDomain()
+		if err != nil {
+			return nil, err
+		}
+		cards = append(cards, c)
+	}
+	return cards, nil
+}
+
+// MarkImageDeleted は画像を消した日時を、まだ入っていなければ入れる（条件付きUPDATE。JOBS-1）。行は消さない。
+// 学生証がない、またはすでに記録済みなら ErrConflict。
+func (r *StudentCardRepository) MarkImageDeleted(ctx context.Context, id string, now time.Time) error {
+	ts := formatTime(now)
+	res := conn(ctx, r.db).Model(&studentCardRow{}).
+		Where("id = ? AND image_deleted_at IS NULL", id).
+		Updates(map[string]any{"image_deleted_at": ts, "updated_at": ts})
+	return rowsAffected(res)
+}

@@ -15,6 +15,7 @@ Cloud Scheduler から Cloud Run の内部用エンドポイントを定期的�
 
 - 内部用エンドポイント（`/api/internal/**`）は、Cloud Scheduler のサービスアカウントからの呼び出しだけを受け付けるようにします。Cloud Scheduler が付ける OIDC ID トークン（`Authorization: Bearer`）をアプリで検証し、audience とサービスアカウントのメールアドレスを照合します。確かめられなければ 404 を返します。ローカルは Cloud Scheduler がないため、環境変数の共有シークレットを代わりに使います（[ADR 0027](../decisions/0027-short-job-endpoint.md)）。
 - 短周期ジョブは `POST /api/internal/jobs/short` です。購入希望の期限切れは1件ずつ条件付きUPDATE で行い、承認待ちがなくなった商品は公開中に戻します（[ADR 0022](../decisions/0022-deal-request-item-status-and-approval-deadline.md)）。削除するのは、期限切れの認証コード・ログインの再確認・パスワード設定・受け渡しのトークンです。どの処理も何度行っても結果は同じにし、失敗したら 500 を返して Cloud Scheduler に再試行させます。
+- 日次ジョブは `POST /api/internal/jobs/daily` です。有効期限（日本時間）を過ぎた有効・停止中のアカウントを1人ずつ1トランザクションで失効させ、商品の取り下げ、購入希望の期限切れ、取引中の取引のキャンセルと返金、学生証の削除予定日（失効日 + 3年）の記録、セッションの無効化を行います。続けて、削除予定日を過ぎた学生証画像と、登録されなかった学生証のオブジェクトを消します（[ADR 0033](../decisions/0033-account-expiry-and-daily-job.md)）。DBのバックアップは別に扱います。
 - 認証コード（`verification_codes`）は送信数の制限と全体の送信数に使うため、期限が切れても作ってから24時間は消しません（[AUTHN-6](auth.md)）。
 - 自動完了（暫定）と催促通知は、導入するかが決まるまで実装しません（[DEAL-5](../product/05-deal-flow.md)）。
 

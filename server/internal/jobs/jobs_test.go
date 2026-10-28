@@ -13,7 +13,7 @@ import (
 )
 
 // 1つの処理が失敗してもほかの処理は続け、失敗をまとめて返す（JOBS-1）。
-func TestShortRun(t *testing.T) {
+func TestRunnerRun(t *testing.T) {
 	var logs bytes.Buffer
 	var ran []string
 	step := func(name string, n int, err error) jobs.Step {
@@ -35,6 +35,20 @@ func TestShortRun(t *testing.T) {
 	}
 	if got := strings.Count(logs.String(), "短周期ジョブ"); got != 2 {
 		t.Errorf("件数のログ = %d 行, want 2（成功した処理だけ）\n%s", got, logs.String())
+	}
+}
+
+// 日次ジョブは見出しを「日次ジョブ」にしてログに出す。
+func TestDailyLogName(t *testing.T) {
+	var logs bytes.Buffer
+	err := jobs.NewDaily(logging.New(&logs, slog.LevelInfo),
+		jobs.Step{Name: "a", Run: func(context.Context) (int, error) { return 1, nil }},
+	).Run(context.Background())
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !strings.Contains(logs.String(), "日次ジョブ") {
+		t.Errorf("ログに日次ジョブの見出しがない\n%s", logs.String())
 	}
 }
 

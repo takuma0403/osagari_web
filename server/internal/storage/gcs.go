@@ -7,6 +7,7 @@ import (
 	"time"
 
 	gcs "cloud.google.com/go/storage"
+	"google.golang.org/api/iterator"
 )
 
 // GCSConfig は Cloud Storage の設定。
@@ -97,4 +98,36 @@ func (g *GCS) Stat(ctx context.Context, bucket, object string) (ObjectInfo, erro
 		return ObjectInfo{}, fmt.Errorf("storage: オブジェクトを確認できません: %w", err)
 	}
 	return ObjectInfo{Size: attrs.Size, ContentType: attrs.ContentType}, nil
+}
+
+// Delete はオブジェクトを消す。
+func (g *GCS) Delete(ctx context.Context, bucket, object string) error {
+	err := g.client.Bucket(bucket).Object(object).Delete(ctx)
+	if errors.Is(err, gcs.ErrObjectNotExist) {
+		return ErrNotFound
+	}
+	if err != nil {
+		return fmt.Errorf("storage: オブジェクトを消せません: %w", err)
+	}
+	return nil
+}
+
+// List はバケットのオブジェクトを名前と作成日時だけ読む。
+func (g *GCS) List(ctx context.Context, bucket string) ([]ObjectEntry, error) {
+	q := &gcs.Query{}
+	if err := q.SetAttrSelection([]string{"Name", "Created"}); err != nil {
+		return nil, fmt.Errorf("storage: 一覧の条件を作れません: %w", err)
+	}
+	var out []ObjectEntry
+	it := g.client.Bucket(bucket).Objects(ctx, q)
+	for {
+		attrs, err := it.Next()
+		if errors.Is(err, iterator.Done) {
+			return out, nil
+		}
+		if err != nil {
+			return nil, fmt.Errorf("storage: オブジェクトの一覧を読めません: %w", err)
+		}
+		out = append(out, ObjectEntry{Name: attrs.Name, Created: attrs.Created})
+	}
 }
