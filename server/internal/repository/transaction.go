@@ -253,6 +253,23 @@ func (r *TransactionRepository) CountRequestedByItem(ctx context.Context, itemID
 // CountCompletedByUsers はユーザーごとに、購入者・出品者として完了した取引の件数を返す（DEAL-1 の購入希望一覧）。
 // 完了した取引がないユーザーは結果に含めない。
 func (r *TransactionRepository) CountCompletedByUsers(ctx context.Context, userIDs []string) (map[string]int, error) {
+	return r.countByUsers(ctx, userIDs, "status = ?", string(domain.TransactionStatusCompleted))
+}
+
+// CountCancelledByUsers はユーザーごとのキャンセル回数を返す（DEAL-4, ADR 0034）。
+// 双方の同意でキャンセルになった取引を、購入者・出品者の両方に数える。同意のそろわないキャンセル（失効・削除・管理者）は数えない。
+func (r *TransactionRepository) CountCancelledByUsers(ctx context.Context, userIDs []string) (map[string]int, error) {
+	return r.countByUsers(ctx, userIDs, "status = ? AND buyer_cancel_agreed_at IS NOT NULL AND seller_cancel_agreed_at IS NOT NULL",
+		string(domain.TransactionStatusCancelled))
+}
+
+// CountInDealByUsers はユーザーごとに、購入者・出品者として取引中の取引の件数を返す（ADMIN）。
+func (r *TransactionRepository) CountInDealByUsers(ctx context.Context, userIDs []string) (map[string]int, error) {
+	return r.countByUsers(ctx, userIDs, "status = ?", string(domain.TransactionStatusInDeal))
+}
+
+// countByUsers はユーザーごとに、購入者・出品者として cond に合う取引の件数を足して返す。0件のユーザーは結果に含めない。
+func (r *TransactionRepository) countByUsers(ctx context.Context, userIDs []string, cond string, args ...any) (map[string]int, error) {
 	out := make(map[string]int, len(userIDs))
 	if len(userIDs) == 0 {
 		return out, nil
@@ -263,7 +280,7 @@ func (r *TransactionRepository) CountCompletedByUsers(ctx context.Context, userI
 			N      int
 		}
 		err := conn(ctx, r.db).Model(&transactionRow{}).Select(col+" AS user_id, COUNT(*) AS n").
-			Where(col+" IN ? AND status = ?", userIDs, string(domain.TransactionStatusCompleted)).
+			Where(col+" IN ?", userIDs).Where(cond, args...).
 			Group(col).Scan(&rows).Error
 		if err != nil {
 			return nil, err
@@ -273,6 +290,20 @@ func (r *TransactionRepository) CountCompletedByUsers(ctx context.Context, userI
 		}
 	}
 	return out, nil
+}
+
+// ListForAdmin はすべての取引（購入希望を含む）を、最後に動いた順（同じなら ID の大きい順）に after より後ろから limit 件返す（ADMIN）。
+func (r *TransactionRepository) ListForAdmin(ctx context.Context, after *domain.AdminCursor, limit int) ([]*domain.Transaction, error) {
+	q := conn(ctx, r.db)
+	if after != nil {
+		at := formatTime(after.At)
+		q = q.Where("(updated_at < ? OR (updated_at = ? AND id < ?))", at, at, after.ID)
+	}
+	var rows []transactionRow
+	if err := q.Order("updated_at DESC, id DESC").Limit(limit).Find(&rows).Error; err != nil {
+		return nil, err
+	}
+	return toTransactions(rows)
 }
 
 // Approve は出品者 sellerID の承認待ちの購入希望を、承認期限 now より前のときだけ取引中にする（DEAL-1, DB）。

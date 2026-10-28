@@ -98,62 +98,9 @@ func (s *AccountExpiryService) expire(ctx context.Context, u *domain.User, today
 	if err != nil {
 		return err
 	}
-	// 学生証は再提出で置き換えたものも含めて、失効日から3年で消す（ADR 0014）
-	if _, err := s.d.StudentCards.SetDeleteAfter(ctx, u.ID, domain.StudentCardDeleteAfter(u.ExpiredOn()), now); err != nil {
-		return err
-	}
-	// 本人が出した、または本人の商品への承認待ちの購入希望は期限切れにして枠を解放する
-	reqs, err := s.d.Transactions.ListByPartyAndStatus(ctx, u.ID, domain.TransactionStatusRequested)
-	if err != nil {
-		return err
-	}
-	for _, tr := range reqs {
-		if err := endRequest(ctx, s.d.Transactions, s.d.Items, s.d.Payments, tr, domain.TransactionStatusExpired, now); err != nil {
-			return err
-		}
-	}
-	// 取引中の取引は同意なしでキャンセルして返金する（DEAL-4 の例外）
-	deals, err := s.d.Transactions.ListByPartyAndStatus(ctx, u.ID, domain.TransactionStatusInDeal)
-	if err != nil {
-		return err
-	}
-	for _, tr := range deals {
-		if err := s.cancelDeal(ctx, u, tr, now); err != nil {
-			return err
-		}
-	}
-	// 本人の商品を取り下げる。購入希望は上で期限切れにしたので残っていない
-	items, err := s.d.Items.ListBySeller(ctx, u.ID)
-	if err != nil {
-		return err
-	}
-	for _, it := range items {
-		if !it.CanWithdraw() {
-			continue
-		}
-		if err := s.d.Items.UpdateStatus(ctx, it.ID, u.ID, domain.ItemWithdrawableStatuses, nil, domain.ItemStatusWithdrawn, now); err != nil {
-			return err
-		}
-	}
-	return s.d.Sessions.RevokeAllByUser(ctx, u.ID, now)
-}
-
-// cancelDeal は失効した u が当事者の取引中の取引をキャンセルして返金する。
-// 商品は、u が出品者なら取り下げ、購入者なら公開中に戻す（ADR 0033）。
-func (s *AccountExpiryService) cancelDeal(ctx context.Context, u *domain.User, tr *domain.Transaction, now time.Time) error {
-	if err := s.d.Transactions.CancelBySystem(ctx, tr.ID, now); err != nil {
-		return err
-	}
-	to := domain.ItemStatusPublished
-	if tr.SellerID == u.ID {
-		to = domain.ItemStatusWithdrawn
-	}
-	err := s.d.Items.UpdateDealStatus(ctx, tr.ItemID, tr.SellerID, []domain.ItemStatus{domain.ItemStatusInDeal}, to, now)
-	// 商品が取引中でなければ（管理者の停止など）そのままにする。キャンセルと返金は止めない
-	if err != nil && !errors.Is(err, repository.ErrConflict) {
-		return err
-	}
-	return s.d.Payments.Refund(ctx, tr)
+	return accountCloser{
+		StudentCards: s.d.StudentCards, Items: s.d.Items, Transactions: s.d.Transactions, Sessions: s.d.Sessions, Payments: s.d.Payments,
+	}.close(ctx, u, u.ExpiredOn(), now)
 }
 
 // DeleteStudentCardImages は削除予定日（日本時間の日付）を過ぎた学生証画像を消し、消した件数を返す（CARD, JOBS-1）。

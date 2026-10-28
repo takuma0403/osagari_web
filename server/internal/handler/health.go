@@ -24,6 +24,10 @@ type Deps struct {
 	Setting SettingService
 	// AdminStudentCard は管理者による学生証の審査（ADMIN）
 	AdminStudentCard AdminStudentCardService
+	// AdminUser は管理者によるユーザーの検索・停止・有効期限の変更・削除（ADMIN, ADR 0034）
+	AdminUser AdminUserService
+	// AdminDeal は管理者による出品・取引の確認、出品の停止、取引のキャンセル（ADMIN, ADR 0034）
+	AdminDeal AdminDealService
 	// ShortJob は15分ごとの短周期ジョブ（JOBS-1）
 	ShortJob Job
 	// DailyJob は毎日深夜の日次ジョブ（JOBS-1, ADR 0033）

@@ -35,12 +35,7 @@ func (s *DealService) Cancel(ctx context.Context, u *domain.User, id string) (*T
 		if err != nil {
 			return err
 		}
-		err = s.d.Items.UpdateDealStatus(ctx, tr.ItemID, tr.SellerID, []domain.ItemStatus{domain.ItemStatusInDeal}, domain.ItemStatusPublished, now)
-		// 商品が取引中でなければ（管理者の停止など）そのままにする。キャンセルと返金は止めない
-		if err != nil && !errors.Is(err, repository.ErrConflict) {
-			return err
-		}
-		return s.d.Payments.Refund(ctx, tr)
+		return refundCancelled(ctx, s.d.Items, s.d.Payments, tr, domain.ItemStatusPublished, now)
 	})
 	if errors.Is(err, repository.ErrConflict) {
 		// 二度押し・同時に押された場合は、最初の同意のまま返す

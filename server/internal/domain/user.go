@@ -17,8 +17,10 @@ type User struct {
 	PasswordHash string
 	// CodeVerifiedAt は最後にメールのコードで確認した日時（AUTHN-3）
 	CodeVerifiedAt time.Time
-	CreatedAt      time.Time
-	UpdatedAt      time.Time
+	// WithdrawalRequestedAt は退学を申請した日時。申請していなければ nil（AUTH-3, ADR 0034）
+	WithdrawalRequestedAt *time.Time
+	CreatedAt             time.Time
+	UpdatedAt             time.Time
 }
 
 // DepartmentName は学部・学科の表示名を返す。不明なら nil。

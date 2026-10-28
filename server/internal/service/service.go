@@ -102,6 +102,7 @@ type ItemStore interface {
 	ListPublic(ctx context.Context, f domain.ItemFilter, after *domain.ItemCursor, limit int, now time.Time) ([]*domain.Item, int, error)
 	FindByIDs(ctx context.Context, ids []string) (map[string]*domain.Item, error)
 	ListBySeller(ctx context.Context, sellerID string) ([]*domain.Item, error)
+	ListForAdmin(ctx context.Context, after *domain.AdminCursor, limit int) ([]*domain.Item, error)
 }
 
 // TransactionStore は transactions の読み書き（repository.TransactionRepository）。
@@ -113,6 +114,9 @@ type TransactionStore interface {
 	CountRequestedByItem(ctx context.Context, itemID string) (int, error)
 	FindRequestedByItemAndBuyer(ctx context.Context, itemID, buyerID string) (*domain.Transaction, error)
 	CountCompletedByUsers(ctx context.Context, userIDs []string) (map[string]int, error)
+	CountCancelledByUsers(ctx context.Context, userIDs []string) (map[string]int, error)
+	CountInDealByUsers(ctx context.Context, userIDs []string) (map[string]int, error)
+	ListForAdmin(ctx context.Context, after *domain.AdminCursor, limit int) ([]*domain.Transaction, error)
 	ListByParty(ctx context.Context, role domain.TransactionRole, userID string, statuses []domain.TransactionStatus, after *domain.TransactionCursor, limit int) ([]*domain.Transaction, error)
 	ListRequestGroupsBySeller(ctx context.Context, sellerID string) ([]domain.TransactionRequestGroup, error)
 	ListByPartyAndStatus(ctx context.Context, userID string, status domain.TransactionStatus) ([]*domain.Transaction, error)
@@ -144,6 +148,21 @@ type PaymentStore interface {
 // SettingStore は settings の読み書き（repository.SettingRepository）。
 type SettingStore interface {
 	FeeRate(ctx context.Context) (int, error)
+}
+
+// AdminSettingStore は管理画面での手数料率の読み書き（repository.SettingRepository。ADR 0034）。
+type AdminSettingStore interface {
+	FeeRateSetting(ctx context.Context) (domain.FeeRateSetting, error)
+	UpdateFeeRate(ctx context.Context, bp int, adminUserID string, now time.Time) error
+}
+
+// AdminUserStore は管理画面でのユーザーの読み書き（repository.UserRepository。ADR 0034）。
+type AdminUserStore interface {
+	FindByID(ctx context.Context, id string) (*domain.User, error)
+	ListForAdmin(ctx context.Context, f domain.AdminUserQuery, after *domain.AdminCursor, limit int) ([]*domain.User, error)
+	CountWithdrawalRequested(ctx context.Context) (int, error)
+	UpdateStatus(ctx context.Context, id string, from []domain.UserStatus, to domain.UserStatus, now time.Time) error
+	UpdateExpiresOn(ctx context.Context, id string, from []domain.UserStatus, expiresOn, now time.Time) error
 }
 
 // loggerOrDefault は l が nil なら slog.Default() を返す。
