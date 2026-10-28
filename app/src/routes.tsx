@@ -3,6 +3,7 @@ import { BottomNav } from './components/BottomNav/BottomNav'
 import { NotFoundPage } from './components/NotFoundPage/NotFoundPage'
 import { AdminCardPage } from './features/admin/pages/AdminCardPage'
 import { AdminDealsPage } from './features/admin/pages/AdminDealsPage'
+import { AdminSettingsPage } from './features/admin/pages/AdminSettingsPage'
 import { AdminUsersPage } from './features/admin/pages/AdminUsersPage'
 import { RequireAdmin } from './features/admin/RequireAdmin'
 import { GuestOnly, RequireAuth } from './features/auth/guards'
@@ -106,7 +107,7 @@ export const routes: RouteObject[] = [
               { path: 'student-cards', element: <AdminCardPage /> },
               { path: 'users', element: <AdminUsersPage /> },
               { path: 'items', element: <AdminDealsPage /> },
-              placeholder('settings', '設定（手数料率）'),
+              { path: 'settings', element: <AdminSettingsPage /> },
             ],
           },
         ],

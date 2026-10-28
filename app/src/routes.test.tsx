@@ -64,7 +64,7 @@ describe('routes', () => {
     ['/admin/student-cards', '学生証審査'],
     ['/admin/users', 'ユーザー'],
     ['/admin/items', '出品・取引'],
-    ['/admin/settings', '設定（手数料率）'],
+    ['/admin/settings', '設定'],
     ['/terms', '利用規約'],
     ['/privacy', 'プライバシーポリシー'],
   ])('ログイン中は %s で「%s」を表示する', async (path, title) => {
