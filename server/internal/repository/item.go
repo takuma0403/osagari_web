@@ -270,6 +270,21 @@ func (r *ItemRepository) ListBySeller(ctx context.Context, sellerID string) ([]*
 	return r.withThumbnails(ctx, rows)
 }
 
+// ListForAdmin はすべての商品（下書き・取り下げ・停止を含む）を、作った日時の新しい順（同じなら ID の大きい順）に
+// after より後ろから limit 件返す。写真は1枚目だけ（ADMIN）。
+func (r *ItemRepository) ListForAdmin(ctx context.Context, after *domain.AdminCursor, limit int) ([]*domain.Item, error) {
+	q := conn(ctx, r.db)
+	if after != nil {
+		at := formatTime(after.At)
+		q = q.Where("(created_at < ? OR (created_at = ? AND id < ?))", at, at, after.ID)
+	}
+	var rows []itemRow
+	if err := q.Order("created_at DESC, id DESC").Limit(limit).Find(&rows).Error; err != nil {
+		return nil, err
+	}
+	return r.withThumbnails(ctx, rows)
+}
+
 // withThumbnails は商品の行の並びに、1枚目の写真だけを付けて返す（一覧のサムネイル）。写真がなければ Images は空。
 func (r *ItemRepository) withThumbnails(ctx context.Context, rows []itemRow) ([]*domain.Item, error) {
 	items := make([]*domain.Item, 0, len(rows))

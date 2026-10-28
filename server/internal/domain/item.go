@@ -27,6 +27,8 @@ var (
 	ItemWithdrawableStatuses = []ItemStatus{ItemStatusDraft, ItemStatusPublished, ItemStatusRequested}
 	// ItemPublishableStatuses は公開（再出品を含む）できるステータス
 	ItemPublishableStatuses = []ItemStatus{ItemStatusDraft, ItemStatusWithdrawn}
+	// ItemSuspendableStatuses は管理者が停止できるステータス。取引中を停止しても取引は続ける（ADMIN, ADR 0034）
+	ItemSuspendableStatuses = []ItemStatus{ItemStatusDraft, ItemStatusPublished, ItemStatusRequested, ItemStatusInDeal}
 )
 
 // ほかの利用者に見せる商品のステータス（BROWSE, ADR 0018）。どちらも出品者のアカウントが使える（User.IsActive）ときだけ見せる。
@@ -138,6 +140,9 @@ func (i Item) CanEdit() bool { return slices.Contains(ItemEditableStatuses, i.St
 
 // CanWithdraw は取り下げられるステータスかを返す。
 func (i Item) CanWithdraw() bool { return slices.Contains(ItemWithdrawableStatuses, i.Status) }
+
+// CanSuspend は管理者が停止できるステータスかを返す（ADR 0034）。
+func (i Item) CanSuspend() bool { return slices.Contains(ItemSuspendableStatuses, i.Status) }
 
 // CanPublish は公開できるステータスかを返す。
 func (i Item) CanPublish() bool { return slices.Contains(ItemPublishableStatuses, i.Status) }

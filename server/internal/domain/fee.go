@@ -1,5 +1,7 @@
 package domain
 
+import "time"
+
 // FeeRateBasisPointsMax は手数料率の上限（100% = 10000 ベーシスポイント。PAY-2）。
 const FeeRateBasisPointsMax = 10000
 
@@ -8,4 +10,12 @@ const FeeRateBasisPointsMax = 10000
 func CalcFee(price int64, feeRateBP int) (fee, proceeds int64) {
 	fee = price * int64(feeRateBP) / FeeRateBasisPointsMax
 	return fee, price - fee
+}
+
+// FeeRateSetting は手数料率と、最後に変更した日時・管理者（PAY-2, ADR 0034）。
+type FeeRateSetting struct {
+	BasisPoints int
+	UpdatedAt   time.Time
+	// UpdatedBy は最後に変更した管理者のユーザーID。初期値のままなら nil
+	UpdatedBy *string
 }

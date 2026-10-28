@@ -10,7 +10,7 @@ import (
 	"github.com/takuma0403/osagari_web/server/internal/domain"
 )
 
-// userRow は users の1行（migrations/000001_create_users）。
+// userRow は users の1行（migrations/000001_create_users、000017_add_users_withdrawal_requested_at）。
 type userRow struct {
 	ID             string
 	Email          string
@@ -23,8 +23,10 @@ type userRow struct {
 	SellerStatus   string
 	PasswordHash   string
 	CodeVerifiedAt string
-	CreatedAt      string
-	UpdatedAt      string
+	// WithdrawalRequestedAt は退学を申請した日時（ADR 0034）
+	WithdrawalRequestedAt *string
+	CreatedAt             string
+	UpdatedAt             string
 }
 
 func (userRow) TableName() string { return "users" }
@@ -54,6 +56,9 @@ func (r userRow) toDomain() (*domain.User, error) {
 			return nil, fmt.Errorf("repository: users: %w", err)
 		}
 	}
+	if u.WithdrawalRequestedAt, err = parseTimePtr(r.WithdrawalRequestedAt); err != nil {
+		return nil, fmt.Errorf("repository: users.withdrawal_requested_at: %w", err)
+	}
 	return u, nil
 }
 
@@ -72,19 +77,20 @@ func (r *UserRepository) Create(ctx context.Context, u *domain.User) error {
 		u.ID = newID()
 	}
 	row := userRow{
-		ID:             u.ID,
-		Email:          u.Email,
-		StudentNumber:  u.StudentNumber,
-		AdmissionYear:  u.AdmissionYear,
-		DepartmentCode: u.DepartmentCode,
-		Department:     u.Department,
-		ExpiresOn:      u.ExpiresOn.Format(dateLayout),
-		Status:         string(u.Status),
-		SellerStatus:   string(u.SellerStatus),
-		PasswordHash:   u.PasswordHash,
-		CodeVerifiedAt: formatTime(u.CodeVerifiedAt),
-		CreatedAt:      formatTime(u.CreatedAt),
-		UpdatedAt:      formatTime(u.UpdatedAt),
+		ID:                    u.ID,
+		Email:                 u.Email,
+		StudentNumber:         u.StudentNumber,
+		AdmissionYear:         u.AdmissionYear,
+		DepartmentCode:        u.DepartmentCode,
+		Department:            u.Department,
+		ExpiresOn:             u.ExpiresOn.Format(dateLayout),
+		Status:                string(u.Status),
+		SellerStatus:          string(u.SellerStatus),
+		PasswordHash:          u.PasswordHash,
+		CodeVerifiedAt:        formatTime(u.CodeVerifiedAt),
+		WithdrawalRequestedAt: formatTimePtr(u.WithdrawalRequestedAt),
+		CreatedAt:             formatTime(u.CreatedAt),
+		UpdatedAt:             formatTime(u.UpdatedAt),
 	}
 	if err := conn(ctx, r.db).Create(&row).Error; err != nil {
 		if isUniqueViolation(err) {
@@ -223,5 +229,65 @@ func (r *UserRepository) Expire(ctx context.Context, id string, today, now time.
 	res := conn(ctx, r.db).Model(&userRow{}).
 		Where("id = ? AND status IN ? AND expires_on < ?", id, enumStrings(expirableStatuses), today.Format(dateLayout)).
 		Updates(map[string]any{"status": string(domain.UserStatusExpired), "updated_at": formatTime(now)})
+	return rowsAffected(res)
+}
+
+// withdrawalRequestedCondition は退学を申請して、まだ削除していない人の条件（ADR 0034）。
+const withdrawalRequestedCondition = "withdrawal_requested_at IS NOT NULL AND status <> 'deleted'"
+
+// ListForAdmin は管理画面のユーザーを、登録の新しい順（同じなら ID の大きい順）に after より後ろから limit 件返す（ADMIN）。
+func (r *UserRepository) ListForAdmin(ctx context.Context, f domain.AdminUserQuery, after *domain.AdminCursor, limit int) ([]*domain.User, error) {
+	q := conn(ctx, r.db)
+	if f.StudentNumberPrefix != "" {
+		// 数字だけなので LIKE のエスケープは要らない（domain.ValidStudentNumberPrefix）
+		q = q.Where("student_number LIKE ?", f.StudentNumberPrefix+"%")
+	}
+	switch f.Filter {
+	case domain.AdminUserFilterActive, domain.AdminUserFilterSuspended, domain.AdminUserFilterExpired:
+		q = q.Where("status = ?", string(f.Filter))
+	case domain.AdminUserFilterWithdrawalRequested:
+		q = q.Where(withdrawalRequestedCondition)
+	}
+	if after != nil {
+		at := formatTime(after.At)
+		q = q.Where("(created_at < ? OR (created_at = ? AND id < ?))", at, at, after.ID)
+	}
+	var rows []userRow
+	if err := q.Order("created_at DESC, id DESC").Limit(limit).Find(&rows).Error; err != nil {
+		return nil, err
+	}
+	users := make([]*domain.User, 0, len(rows))
+	for _, row := range rows {
+		u, err := row.toDomain()
+		if err != nil {
+			return nil, err
+		}
+		users = append(users, u)
+	}
+	return users, nil
+}
+
+// CountWithdrawalRequested は退学を申請して、まだ削除していない人の数を返す（ADMIN, ADR 0034）。
+func (r *UserRepository) CountWithdrawalRequested(ctx context.Context) (int, error) {
+	var n int64
+	if err := conn(ctx, r.db).Model(&userRow{}).Where(withdrawalRequestedCondition).Count(&n).Error; err != nil {
+		return 0, err
+	}
+	return int(n), nil
+}
+
+// UpdateStatus は状態が from のどれかのときだけ to に更新する（条件付きUPDATE。管理者の停止・解除・削除。DB, ADR 0034）。
+// ユーザーがいない、または状態が from のどれでもないなら ErrConflict。
+func (r *UserRepository) UpdateStatus(ctx context.Context, id string, from []domain.UserStatus, to domain.UserStatus, now time.Time) error {
+	res := conn(ctx, r.db).Model(&userRow{}).Where("id = ? AND status IN ?", id, enumStrings(from)).
+		Updates(map[string]any{"status": string(to), "updated_at": formatTime(now)})
+	return rowsAffected(res)
+}
+
+// UpdateExpiresOn は状態が from のどれかのときだけ有効期限を変える（条件付きUPDATE。AUTH-3, ADR 0034）。
+// ユーザーがいない、または状態が from のどれでもないなら ErrConflict。
+func (r *UserRepository) UpdateExpiresOn(ctx context.Context, id string, from []domain.UserStatus, expiresOn, now time.Time) error {
+	res := conn(ctx, r.db).Model(&userRow{}).Where("id = ? AND status IN ?", id, enumStrings(from)).
+		Updates(map[string]any{"expires_on": expiresOn.Format(dateLayout), "updated_at": formatTime(now)})
 	return rowsAffected(res)
 }
