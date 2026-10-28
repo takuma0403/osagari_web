@@ -217,6 +217,35 @@ func wire(cfg config, gdb *gorm.DB, clk clock.Clock, mailer mail.Mailer, store s
 		Bucket:       cfg.StudentCardBucket,
 		Clock:        clk,
 	})
+	adminUser := service.NewAdminUserService(service.AdminUserDeps{
+		Tx:           tx,
+		Users:        users,
+		StudentCards: cards,
+		Items:        items,
+		Transactions: transactions,
+		Sessions:     sessions,
+		Payments:     payments,
+		Admins:       cfg.Admins,
+		Clock:        clk,
+	})
+	adminDeal := service.NewAdminDealService(service.AdminDealDeps{
+		Tx:           tx,
+		Users:        users,
+		Items:        items,
+		Transactions: transactions,
+		Payments:     payments,
+		Storage:      store,
+		Bucket:       cfg.ItemImageBucket,
+		Admins:       cfg.Admins,
+		Clock:        clk,
+	})
+	setting := service.NewSettingService(service.SettingDeps{
+		Settings:      settings,
+		AdminSettings: settings,
+		Users:         users,
+		Admins:        cfg.Admins,
+		Clock:         clk,
+	})
 	return handler.New(handler.Deps{
 		Signup:        signup,
 		Login:         login,
@@ -226,9 +255,11 @@ func wire(cfg config, gdb *gorm.DB, clk clock.Clock, mailer mail.Mailer, store s
 		Item:          item,
 		Deal:          deal,
 		Sales:         sales,
-		Setting:       service.NewSettingService(service.SettingDeps{Settings: settings}),
+		Setting:       setting,
 
 		AdminStudentCard: adminStudentCard,
+		AdminUser:        adminUser,
+		AdminDeal:        adminDeal,
 		// 自動完了（DEAL-5）は導入するか未定のため入れない
 		ShortJob: jobs.NewShort(logger,
 			jobs.Step{Name: "expire_requests", Run: deal.ExpireRequests},

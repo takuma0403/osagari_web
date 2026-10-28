@@ -1897,7 +1897,6 @@ components:
           type: string
         title:
           type: string
-          description: 下書きで未入力なら空文字
         price:
           type: integer
           format: int64

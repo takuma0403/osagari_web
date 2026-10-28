@@ -95,6 +95,18 @@ func Test管理APIは管理者でなければ404(t *testing.T) {
 		{http.MethodGet, "/api/admin/student-cards/c1/views"},
 		{http.MethodPost, "/api/admin/student-cards/c1/approve"},
 		{http.MethodPost, "/api/admin/student-cards/c1/reject"},
+		{http.MethodGet, "/api/admin/users"},
+		{http.MethodGet, "/api/admin/users/u1"},
+		{http.MethodPost, "/api/admin/users/u1/suspend"},
+		{http.MethodPost, "/api/admin/users/u1/unsuspend"},
+		{http.MethodPut, "/api/admin/users/u1/expires-on"},
+		{http.MethodPost, "/api/admin/users/u1/delete"},
+		{http.MethodGet, "/api/admin/items"},
+		{http.MethodPost, "/api/admin/items/i1/suspend"},
+		{http.MethodGet, "/api/admin/transactions"},
+		{http.MethodPost, "/api/admin/transactions/t1/cancel"},
+		{http.MethodGet, "/api/admin/settings/fee-rate"},
+		{http.MethodPut, "/api/admin/settings/fee-rate"},
 		// メソッド違いも 405 にしない
 		{http.MethodDelete, "/api/admin/session"},
 	}

@@ -1539,7 +1539,6 @@ export interface components {
         AdminItem: {
             id: string;
             shareId: string;
-            /** @description 下書きで未入力なら空文字 */
             title: string;
             /**
              * Format: int64
