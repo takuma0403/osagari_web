@@ -64,10 +64,7 @@ type StudentCardViewEntry struct {
 
 // RequireAdmin は管理者でなければ、存在しないパスと同じ 404 を返す。
 func (s *AdminStudentCardService) RequireAdmin(u *domain.User) error {
-	if !s.d.Admins.Contains(u) {
-		return apperr.NotFound("")
-	}
-	return nil
+	return requireAdmin(s.d.Admins, u)
 }
 
 // ListPending は審査待ちの学生証を提出の古い順に返す。
