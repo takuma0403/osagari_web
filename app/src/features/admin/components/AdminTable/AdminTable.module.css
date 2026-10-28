@@ -64,6 +64,11 @@
   font-family: var(--font-num);
 }
 
+.price {
+  font-family: var(--font-num);
+  font-weight: 700;
+}
+
 .strong {
   font-weight: 500;
 }

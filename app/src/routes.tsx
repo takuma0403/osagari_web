@@ -2,6 +2,7 @@ import { Navigate, type RouteObject } from 'react-router'
 import { BottomNav } from './components/BottomNav/BottomNav'
 import { NotFoundPage } from './components/NotFoundPage/NotFoundPage'
 import { AdminCardPage } from './features/admin/pages/AdminCardPage'
+import { AdminDealsPage } from './features/admin/pages/AdminDealsPage'
 import { AdminUsersPage } from './features/admin/pages/AdminUsersPage'
 import { RequireAdmin } from './features/admin/RequireAdmin'
 import { GuestOnly, RequireAuth } from './features/auth/guards'
@@ -104,7 +105,7 @@ export const routes: RouteObject[] = [
               { index: true, element: <Navigate to="/admin/student-cards" replace /> },
               { path: 'student-cards', element: <AdminCardPage /> },
               { path: 'users', element: <AdminUsersPage /> },
-              placeholder('items', '出品・取引'),
+              { path: 'items', element: <AdminDealsPage /> },
               placeholder('settings', '設定（手数料率）'),
             ],
           },

@@ -5,8 +5,8 @@ import styles from './AdminTable.module.css'
 export type AdminColumn<T> = {
   header: string
   cell: (row: T) => ReactNode
-  /** 学籍番号・金額は num（Outfit）、日付などは muted */
-  tone?: 'num' | 'strong' | 'muted'
+  /** 学籍番号は num（Outfit）、金額は price（Outfit の太字）、商品名は strong、日付などは muted */
+  tone?: 'num' | 'price' | 'strong' | 'muted'
 }
 
 type Props<T> = {
