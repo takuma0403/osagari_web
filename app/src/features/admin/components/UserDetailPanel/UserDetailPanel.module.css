@@ -1,0 +1,27 @@
+.head {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 10px;
+}
+
+.number {
+  font-family: var(--font-num);
+  font-size: var(--text-code);
+  font-weight: 700;
+}
+
+.num {
+  font-family: var(--font-num);
+}
+
+.date {
+  width: 160px;
+}
+
+.error {
+  margin-top: 8px;
+  color: var(--color-danger);
+  font-size: var(--text-label);
+  font-weight: 700;
+}
