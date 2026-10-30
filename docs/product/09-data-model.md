@@ -17,5 +17,6 @@
 
 - 上表の Transaction の「ステータス」が重複しているのは元文書のまま。ステータスは1列（購入希望・却下・期限切れ・取引中・キャンセル・完了）として扱う。
 - 上表は主な項目のみ。認証に必要なデータ（パスワードハッシュ、セッション、認証コード、登録端末、送信数の記録など）は [tech/auth.md](../tech/auth.md) と [tech/database.md](../tech/database.md) から導く。
+- アカウントに結びつく情報は、失効・削除から3年で削除するか、個人を特定できない形にする（[プライバシーポリシー 第７条](../legal/privacy.md)、[ADR 0036](../decisions/0036-terms-and-privacy.md)）。学生証の画像は StudentCard の削除予定日に従う。
 - 設定（Setting）は1行だけで、手数料率と、最後に変更した日時・管理者を持つ（[ADR 0034](../decisions/0034-admin-users-deals-settings.md)）。
 - 支払い方法は購入希望のときに購入者が選び、Transaction と Payment の両方に持つ。出金も取引ごとに1行の Payment として記録する（[ADR 0021](../decisions/0021-transaction-payment-columns.md)）。
