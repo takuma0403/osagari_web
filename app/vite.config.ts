@@ -3,10 +3,11 @@ import { storybookTest } from '@storybook/addon-vitest/vitest-plugin'
 import react from '@vitejs/plugin-react'
 import { playwright } from '@vitest/browser-playwright'
 import { defineConfig } from 'vite'
+import { legalMarkdown } from './vite/legalMarkdown.ts'
 
 // https://vite.dev/config/
 export default defineConfig({
-  plugins: [react()],
+  plugins: [react(), legalMarkdown()],
   server: {
     // 本番は Firebase Hosting の rewrites で /api/** を Cloud Run に転送する（ARCH）。ローカルは server の compose（:8080）へ
     proxy: {
@@ -20,7 +21,7 @@ export default defineConfig({
         extends: true,
         test: {
           name: 'unit',
-          include: ['src/**/*.test.{ts,tsx}'],
+          include: ['src/**/*.test.{ts,tsx}', 'vite/**/*.test.ts'],
           environment: 'jsdom',
           globals: true,
           setupFiles: ['./src/test/setup.ts'],
