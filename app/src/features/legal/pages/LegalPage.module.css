@@ -15,7 +15,7 @@
   overflow-wrap: anywhere;
 }
 
-.body :global(h3) {
+.body :global(h2) {
   margin-top: var(--space-gap);
   font-size: var(--text-subheading);
   font-weight: 700;

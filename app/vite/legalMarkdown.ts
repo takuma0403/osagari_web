@@ -16,6 +16,11 @@ const APP_LINKS: Record<string, string> = {
 const marked = new Marked({
   gfm: true,
   renderer: {
+    // 正本の条見出しは ###。画面ではヘッダーの h1 の次なので h2 にして、見出しの階層を飛ばさない
+    heading({ tokens, depth }) {
+      const level = depth === 3 ? 2 : depth
+      return `<h${level}>${this.parser.parseInline(tokens)}</h${level}>\n`
+    },
     link({ href, tokens }) {
       if (/^https?:\/\//.test(href)) return false
       const text = this.parser.parseInline(tokens)

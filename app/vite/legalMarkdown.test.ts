@@ -40,7 +40,7 @@ describe('legalMarkdownToHtml', () => {
   })
 
   it('見出し・番号付きの条文・表を変換する', () => {
-    expect(html).toContain('<h3>第１条（本サービス）</h3>')
+    expect(html).toContain('<h2>第１条（本サービス）</h2>')
     expect(html).toContain('<ol>')
     expect(html).toContain('<th>情報</th>')
     expect(html).toContain('<td>学籍番号</td>')
