@@ -21,19 +21,13 @@ import { RequestPage } from './features/deals/pages/RequestPage'
 import { DetailPage } from './features/items/pages/DetailPage'
 import { MainPage } from './features/items/pages/MainPage'
 import { SearchPage } from './features/items/pages/SearchPage'
+import { LegalPage } from './features/legal/pages/LegalPage'
 import { MyPagePage } from './features/mypage/pages/MyPagePage'
 import { SalesPage } from './features/sales/pages/SalesPage'
 import { SellPage } from './features/sell/pages/SellPage'
 import { StudentCardPage } from './features/student-card/pages/StudentCardPage'
-import { PlaceholderPage } from './components/PlaceholderPage/PlaceholderPage'
 import { AdminLayout } from './layouts/AdminLayout/AdminLayout'
 import { MobileLayout } from './layouts/MobileLayout/MobileLayout'
-
-// 画面ごとの仮ページ。各画面の issue で features/<機能>/pages の画面に差し替える
-const placeholder = (path: string, title: string): RouteObject => ({
-  path,
-  element: <PlaceholderPage title={title} />,
-})
 
 /**
  * 全画面のルート（FE）。商品ページの共有リンク（/items/:shareId）を含め、すべて SPA のルートとして扱う。
@@ -60,9 +54,12 @@ export const routes: RouteObject[] = [
     ],
   },
   {
-    // 利用規約・プライバシーポリシー（内容は未決。product/open-questions）。ログインの有無にかかわらず見られる
+    // 利用規約・プライバシーポリシー（本文の正本は docs/legal）。ログインの有無にかかわらず見られる
     element: <MobileLayout />,
-    children: [placeholder('/terms', '利用規約'), placeholder('/privacy', 'プライバシーポリシー')],
+    children: [
+      { path: '/terms', element: <LegalPage doc="terms" /> },
+      { path: '/privacy', element: <LegalPage doc="privacy" /> },
+    ],
   },
   {
     // ここから下はログインが必要（AUTHN-5）。未ログインならログイン画面へ送り、ログイン後に戻す。

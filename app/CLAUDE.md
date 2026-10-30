@@ -13,6 +13,7 @@
 | APIの型 | openapi-typescript で `docs/api/openapi.yaml` から `src/api/schema.gen.ts` を生成（手書き禁止） | API-1 |
 | APIクライアント | `fetch` の薄いラッパー（`src/api/client.ts`）。`credentials: 'same-origin'`、`X-Device-Id` ヘッダー（`src/lib/deviceId.ts`）を付ける。失敗は `ApiError`（`status`・`code`・`message`）で投げ、通信自体の失敗はフロント専用の `network_error`（status 0） | AUTHN-3 |
 | QR・バーコード | QR の表示は `uqr`（行列を SVG で描く）。読み取りは QR・ISBN のバーコードとも `@zxing/browser` を動的 import で使う（`src/lib/cameraScan.ts`） | FE, ADR 0025 |
+| 規約の本文 | `docs/legal/*.md` を `vite/legalMarkdown.ts`（`marked`、devDependency）でビルド時に HTML にし、`virtual:legal/terms`・`virtual:legal/privacy` として読み込む。実行時に Markdown の変換を持ち込まない | FE-1, ADR 0038 |
 | テスト | Vitest + Testing Library（jsdom）+ user-event。story は addon-vitest で Chromium（Playwright）に描画し a11y も検査 | DS-1, ADR 0005 |
 | 部品カタログ | Storybook（`@storybook/react-vite` + addon-a11y + addon-vitest）。公開しない。全 story を CI で検査する | DS-3, ADR 0004, ADR 0005 |
 | Lint / Format | oxlint / Prettier（Markdown は対象外） | — |
@@ -36,11 +37,12 @@ app/
     layouts/            … MobileLayout（390px 基準・PC は中央寄せ）、AdminLayout（PC 幅）
     components/         … DS-3 の共通部品（Button, TextField, CodeInput, ItemCard, BottomNav …）
       Button/Button.tsx, Button.module.css, Button.test.tsx, Button.stories.tsx
-    features/<機能>/     … auth, items, deals, sell, student-card, mypage, sales, admin
+    features/<機能>/     … auth, items, deals, sell, student-card, mypage, sales, admin, legal
       pages/            … ルートに対応する画面
       components/       … その機能だけで使う部品
       hooks/, api.ts
     lib/                … 汎用関数（金額表示、日付、共有文の生成など）
+  vite/               … ビルド時に使う Vite プラグイン（legalMarkdown.ts：docs/legal の規約本文を HTML にする）
   public/
   .storybook/           … Storybook の設定（トークン・フォントの読み込み、390px のビューポート、ルーター）
 ```
