@@ -37,6 +37,7 @@ jobs:
             app:
               - 'app/**'
               - 'docs/api/**'
+              - 'docs/legal/**'
               - '.nvmrc'
               - '.github/workflows/ci.yml'
             docs:
