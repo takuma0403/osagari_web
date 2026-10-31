@@ -10,9 +10,10 @@ type Props = {
   children?: ReactNode
   confirmLabel: string
   onConfirm: () => void
-  cancelLabel: string
-  /** 取り消しボタン・Esc・背面の幕を押したとき */
-  onCancel: () => void
+  /** 省くと取り消しボタンを出さない */
+  cancelLabel?: string
+  /** 取り消しボタン・Esc・背面の幕を押したとき。省くと Esc・幕では閉じず、確定ボタンでだけ閉じる */
+  onCancel?: () => void
   /** 送信中など、確定ボタンを押せないとき */
   confirmDisabled?: boolean
   /** カメラ画面の上では dark */
@@ -22,6 +23,7 @@ type Props = {
 /**
  * 中央の確認モーダル（DS-3）。角丸18px、主要ボタン＋テキストボタン。
  * 受け渡し完了のように取り消せない操作の確認に使う（DEAL-3）。
+ * 取り消しを省くと、確定ボタンだけのお知らせになる（試験運用の初回ダイアログ。OVERVIEW）。
  */
 export function ConfirmDialog({
   open,
@@ -38,7 +40,7 @@ export function ConfirmDialog({
   return (
     <Modal
       open={open}
-      onClose={onCancel}
+      onClose={onCancel ?? (() => {})}
       labelledBy={titleId}
       placement="center"
       overlay={overlay}
@@ -52,9 +54,11 @@ export function ConfirmDialog({
         <Button fullWidth onClick={onConfirm} disabled={confirmDisabled}>
           {confirmLabel}
         </Button>
-        <Button variant="text" size="sm" fullWidth onClick={onCancel}>
-          {cancelLabel}
-        </Button>
+        {cancelLabel && (
+          <Button variant="text" size="sm" fullWidth onClick={onCancel}>
+            {cancelLabel}
+          </Button>
+        )}
       </div>
     </Modal>
   )

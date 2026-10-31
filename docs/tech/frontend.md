@@ -53,3 +53,7 @@ Vite + React のSPAを Firebase Hosting に置きます。ログイン必須の�
   - ログイン画面へ送るときは開こうとしていたページ（パス）を location.state に残し、ログイン（再確認を含む）に成功したらそこへ戻す。なければ商品一覧。
   - 共有リンク（`/items/:shareId`）もログインを求め、ログイン後に商品ページへ戻す（[ADR 0020](../decisions/0020-share-link-login-and-copy-only.md)）。
   - 管理画面（`/admin/**`）は `GET /api/admin/session` で管理者かどうかを確かめ、404 なら「ページが見つからない」を出す。管理画面への導線は UI に出さない（[ADR 0015](../decisions/0015-admin-authorization.md)）。
+- **試験運用の初回ダイアログ**（OVERVIEW、[利用規約 第２条](../legal/terms.md)、[ADR 0039](../decisions/0039-trial-notice-dialog.md)）：その端末で初めて開いたとき、ログイン前の画面・管理画面を含むすべての画面の上に、実際のお金は動かず実際の売買に使わないことを伝えるダイアログ（`ConfirmDialog` の確定ボタンだけの形）を出す。
+  - 閉じるのは「確認した」ボタンだけで、Esc・背面の幕では閉じない。確認したことは localStorage（キー `osagari.trialNoticeAcknowledged`）に保存し、以後は出さない。Cookie は使わない。
+  - localStorage が使えないときは、そのページの間だけ閉じたままにし、次に開いたときにまた出す。
+  - `/terms`・`/privacy` を開いているときは重ねない（規約から戻ったときに、まだ確認していなければ出す）。
