@@ -1,6 +1,7 @@
 import { render, screen } from '@testing-library/react'
 import { createMemoryRouter, RouterProvider } from 'react-router'
 import { SessionContext, type Session } from './features/auth/session'
+import { acknowledgeTrialNotice } from './lib/trialNotice'
 import { routes } from './routes'
 
 const me: Session['user'] = {
@@ -32,7 +33,9 @@ function renderAt(path: string, options: { user?: Session['user']; state?: unkno
 describe('routes', () => {
   // 管理者の確認（GET /api/admin/session）は管理者として 204 を返す。
   // ほかに画面が読み込みで呼ぶ API は応答を返さずに待たせる（ここではルートと見出しだけを確かめる）
+  // 試験運用の初回ダイアログは確認済みにしておく（出ることは最後の検査で確かめる）
   beforeEach(() => {
+    acknowledgeTrialNotice()
     vi.stubGlobal(
       'fetch',
       vi.fn((url: string) =>
@@ -45,6 +48,7 @@ describe('routes', () => {
 
   afterEach(() => {
     vi.unstubAllGlobals()
+    localStorage.clear()
   })
 
   it.each([
@@ -167,5 +171,21 @@ describe('routes', () => {
       screen.getByRole('heading', { level: 1, name: 'ページが見つかりません' }),
     ).toBeInTheDocument()
     expect(screen.getByRole('link', { name: '商品一覧へ戻る' })).toHaveAttribute('href', '/')
+  })
+
+  it.each([
+    ['/login', null],
+    ['/', me],
+    ['/no-such-page', null],
+  ])('未確認の端末では %s で試験運用の初回ダイアログを出す', (path, user) => {
+    localStorage.clear()
+    renderAt(path, { user })
+    expect(screen.getByRole('dialog', { name: '試験運用中です' })).toBeInTheDocument()
+  })
+
+  it.each(['/terms', '/privacy'])('未確認の端末でも %s では初回ダイアログを出さない', (path) => {
+    localStorage.clear()
+    renderAt(path, { user: null })
+    expect(screen.queryByRole('dialog')).not.toBeInTheDocument()
   })
 })
