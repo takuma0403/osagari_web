@@ -8,9 +8,9 @@ APIは Cloud Run で動かし、Firebase Hosting の rewrites で `/api/**` を�
 
 - **言語**：Go を使い、Webフレームワークは Echo にします。
 - **リージョン**：東京（asia-northeast1）にします。
-- **最小インスタンス数**：0にします。待機中の費用はかかりませんが、しばらくアクセスがないと初回の応答が遅れます。Go は単一のバイナリで起動が速いため、この遅れは小さく抑えられます。
+- **最小インスタンス数**：0にします。待機中の費用はかかりませんが、しばらくアクセスがないと初回の応答が遅れます。Go は単一のバイナリで起動が速いため、この遅れは小さく抑えられます。最大は2台、1台あたり 1 vCPU・512MiB で、CPU はリクエストの処理中だけ割り当てます（[ADR 0042](../decisions/0042-cloud-run-secret-manager-deploy.md)）。
 - **無料枠**：Cloud Run には毎月、200万リクエストと18万vCPU秒の無料枠があります（[Cloud Run pricing](https://cloud.google.com/run/pricing)、us-central1基準）。学内アプリの規模なら収まる見込みです。
-- **秘密情報**：Gmailのアプリパスワード、Tursoの接続トークン、セッション署名鍵は Secret Manager に保存します。
+- **秘密情報**：Turso の接続URL（トークン入り）、Gmail のアプリパスワード、管理者の学籍番号は Secret Manager に保存し、Cloud Run の「シークレットを環境変数として参照する」設定で渡します。アプリは環境変数を読むだけで、Secret Manager の API は呼びません。セッションは DB で管理するため署名鍵はありません（[ADR 0042](../decisions/0042-cloud-run-secret-manager-deploy.md)）。
 
 **Cookieの注意点**：Firebase Hosting から Cloud Run に転送するとき、Cookieは `__session` という名前のもの以外すべて削除されます（[Firebase: Manage cache behavior](https://firebase.google.com/docs/hosting/manage-cache)）。そのため、ログインセッションのCookie名は `__session` にします。
 

@@ -42,6 +42,7 @@ CLAUDE.md            … このファイル（索引）
 docs/                … 仕様（README.md が入口）
 app/                 … フロントエンド（規約: app/CLAUDE.md）
 server/              … バックエンド（規約: server/CLAUDE.md）。compose.yaml でローカル環境一式
+infra/               … 本番環境（Cloud Run・Secret Manager・Turso）の gcloud スクリプトと手順書（infra/README.md）
 scripts/             … check-docs.mjs（docs検査）、hooks/
 .claude/skills/      … 作業手順（下表）
 .claude/agents/      … spec-reviewer（仕様との照合）
@@ -68,6 +69,7 @@ scripts/             … check-docs.mjs（docs検査）、hooks/
 | docs の検査（リンク切れ・章ID重複） | `node scripts/check-docs.mjs` |
 | ローカル環境（DB・ストレージ・メール・API）の起動 | `cd server && docker compose up -d` |
 | app の開発サーバー | `cd app && nvm use && npm run dev` |
+| 本番へのデプロイ（API・マイグレーション） | `infra/deploy-server.sh`（初回の構築は [infra/README.md](infra/README.md)） |
 | app / server の個別コマンド | `app/CLAUDE.md`・`server/CLAUDE.md` の「コマンド」 |
 
 ## issue・ブランチ・PR の運用
