@@ -36,7 +36,7 @@ const tabOf = (tab: string | null): Tab => (tab === 'bought' ? 'bought' : 'sold'
 const orderOf = (order: string | null): SortOrder => (order === 'asc' ? 'asc' : 'desc')
 
 /**
- * マイページ（AUTH-3, ITEM、MyPage）。プロフィールとアカウントの有効期限、出品と購入の履歴、売上管理・学生証の登録への導線を出す。
+ * マイページ（AUTH-3, ITEM、MyPage）。プロフィールとアカウントの有効期限、出品と購入の履歴、売上管理・学生証の登録・利用規約・プライバシーポリシーへの導線を出す。
  * プロフィールはセッションの本人の情報（GET /me）、出品は GET /me/items、購入は購入側の取引のうち取引中・完了（ADR 0029・0030）。
  * 選んでいるタブ・状態の絞り込み・並び順は URL のクエリに持つ（行の先から戻ったときに同じ表示を出す。ADR 0031）。
  */
@@ -113,6 +113,12 @@ export function MyPagePage() {
           >
             {user && `${sellerStatusLabels[user.sellerStatus]} `}›
           </span>
+        </Link>
+        <Link to="/terms" className={styles.setting}>
+          利用規約<span className={styles.chevron}>›</span>
+        </Link>
+        <Link to="/privacy" className={styles.setting}>
+          プライバシーポリシー<span className={styles.chevron}>›</span>
         </Link>
       </nav>
     </div>
