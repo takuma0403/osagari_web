@@ -1,5 +1,5 @@
 import { Suspense, use, type MouseEvent } from 'react'
-import { useNavigate } from 'react-router'
+import { useLocation, useNavigate } from 'react-router'
 import { AppHeader } from '../../../components/AppHeader/AppHeader'
 import styles from './LegalPage.module.css'
 
@@ -51,12 +51,17 @@ function LegalBody({ doc }: { doc: Doc }) {
 
 /**
  * 利用規約・プライバシーポリシー（AUTH-1, FE-1）。ログインの有無にかかわらず見られる。
- * 戻るは商品一覧へ。未ログインならガードがログイン画面へ送る
+ * 戻るは開いた元の画面（ログイン・新規登録・マイページなど）へ。URL を直接開いて戻り先がなければ商品一覧へ
+ * （未ログインならガードがログイン画面へ送る）
  */
 export function LegalPage({ doc }: { doc: Doc }) {
+  const location = useLocation()
+  const navigate = useNavigate()
+  const back = () => (location.key === 'default' ? navigate('/') : navigate(-1))
+
   return (
     <div className={styles.page}>
-      <AppHeader title={TITLES[doc]} backTo="/" />
+      <AppHeader title={TITLES[doc]} onBack={back} />
       <Suspense>
         <LegalBody doc={doc} />
       </Suspense>
