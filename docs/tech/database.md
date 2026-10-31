@@ -4,7 +4,7 @@
 
 ## DB DB
 
-DBは Turso（SQLite互換）を使います。無料プランでもスリープしないため、夏休みなどの利用が少ない時期にも止まりません。
+DBは Turso（SQLite互換）を使います。無料プランでもスリープしないため、夏休みなどの利用が少ない時期にも止まりません。本番のDBは Cloud Run と同じ東京（aws-ap-northeast-1）に置きます（[ADR 0041](../decisions/0041-production-regions-and-domain.md)）。
 
 | 項目 | 無料プランの上限 |
 | --- | --- |
