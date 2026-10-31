@@ -50,6 +50,22 @@ describe('ConfirmDialog', () => {
     expect(onConfirm).not.toHaveBeenCalled()
   })
 
+  it('取り消しを省くと確定ボタンだけになり、Esc・背面の幕では閉じない', async () => {
+    const onConfirm = vi.fn()
+    render(
+      <ConfirmDialog open title="試験運用中です" confirmLabel="確認した" onConfirm={onConfirm}>
+        実際のお金は動きません。
+      </ConfirmDialog>,
+    )
+    expect(screen.getAllByRole('button')).toHaveLength(1)
+    await userEvent.keyboard('{Escape}')
+    await userEvent.click(screen.getByTestId('modal-overlay'))
+    expect(screen.getByRole('dialog', { name: '試験運用中です' })).toBeInTheDocument()
+    expect(onConfirm).not.toHaveBeenCalled()
+    await userEvent.click(screen.getByRole('button', { name: '確認した' }))
+    expect(onConfirm).toHaveBeenCalledTimes(1)
+  })
+
   it('confirmDisabled のときは確定できない', () => {
     renderDialog({ confirmDisabled: true })
     expect(screen.getByRole('button', { name: '受け取った' })).toBeDisabled()

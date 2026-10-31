@@ -43,6 +43,33 @@ type Story = StoryObj<typeof meta>
 
 export const Default: Story = {}
 
+// 確定ボタンだけのお知らせ（試験運用の初回ダイアログ）。Esc・背面の幕では閉じない
+export const ConfirmOnly: Story = {
+  args: {
+    title: '試験運用中です',
+    children:
+      '代金・手数料・売上・出金の表示と操作は試験用の記録で、実際のお金の支払い・受け取りは発生しません。',
+    confirmLabel: '確認した',
+    cancelLabel: undefined,
+  },
+  render: function Render(args) {
+    const [open, setOpen] = useState(args.open)
+    return (
+      <>
+        <Button variant="ghost" onClick={() => setOpen(true)}>
+          開く
+        </Button>
+        <ConfirmDialog
+          {...args}
+          open={open}
+          onConfirm={() => setOpen(false)}
+          onCancel={undefined}
+        />
+      </>
+    )
+  },
+}
+
 export const OnCamera: Story = {
   args: { overlay: 'dark' },
   decorators: [
