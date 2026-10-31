@@ -136,7 +136,7 @@ Google Fonts から `Zen+Kaku+Gothic+New:wght@400;500;700` と `Outfit:wght@500;
 | `InfoBox` | 角丸12px、アイコン＋文。info / warning / danger / neutral(bg) | Code, Recheck, Login, Password |
 | `DefinitionList` | 2列グリッドの `<dl>`（項目名は muted） | Detail, Password |
 | `BottomSheet` | 上端角丸20px＋つまみ＋背面の幕。見出しの右に操作（絞り込みの「クリア」）を置ける | DetailShare, DealCancel, SearchFilter, DealConfirm（つまみなし） |
-| `ConfirmDialog` | 中央モーダル、角丸18px、主要ボタン＋テキストボタン | DealScan, DealCompleteEnter |
+| `ConfirmDialog` | 中央モーダル、角丸18px、主要ボタン＋テキストボタン。テキストボタンを省いた確定ボタンだけの形は Esc・背面の幕で閉じない（試験運用の初回ダイアログ。デザインは後で足す。[ADR 0039](../decisions/0039-trial-notice-dialog.md)） | DealScan, DealCompleteEnter |
 | `SegmentedTabs` | 2択の切り替え（pill の枠内に高さ36pxのタブ2つ。選択中は primary 塗り）、`role="tablist"`。下線版（`variant="underline"`）は高さ44px・選択中に primary の下線3px＋700（[ADR 0030](../decisions/0030-mypage-history.md)） | DealList, AdminDeals, MyPage（下線版） |
 | `Toast` | 紺地・白文字・pill、`role="status"` | DetailShare |
 | `StepIndicator` | `STEP n / 3`（Outfit 13px / primary） | SignUp, Code, Password |
