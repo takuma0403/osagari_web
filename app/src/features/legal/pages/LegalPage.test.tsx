@@ -73,12 +73,12 @@ describe('LegalPage', () => {
     expect(screen.getByRole('heading', { level: 1, name })).toBeInTheDocument()
   })
 
-  it('戻るで開いた元の画面（新規登録）へ戻る', async () => {
-    const { router, user } = await setup('/signup')
+  it('戻るで開いた元の画面（ログイン）へ戻る', async () => {
+    const { router, user } = await setup('/login')
     await user.click(screen.getByRole('link', { name: '利用規約' }))
     expect(router.state.location.pathname).toBe('/terms')
     await user.click(screen.getByRole('button', { name: '戻る' }))
-    expect(router.state.location.pathname).toBe('/signup')
+    expect(router.state.location.pathname).toBe('/login')
   })
 
   it('URL を直接開いたときの戻るは商品一覧へ', async () => {

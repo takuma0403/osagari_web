@@ -1,0 +1,57 @@
+.body {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-gap);
+  font-size: var(--text-body);
+  line-height: 1.8;
+  overflow-wrap: anywhere;
+}
+
+.body :global(h2) {
+  margin-top: var(--space-gap);
+  font-size: var(--text-subheading);
+  font-weight: 700;
+}
+
+.body :global(ol) {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  padding-left: 1.5em;
+  list-style: decimal;
+}
+
+.body :global(strong) {
+  font-weight: 700;
+}
+
+.body :global(a) {
+  color: var(--color-primary);
+  text-decoration: underline;
+}
+
+.body :global(code) {
+  font-family: inherit;
+}
+
+/* 表は 390px に収まらないことがあるので、表だけ横にスクロールさせる */
+.body :global(table) {
+  display: block;
+  overflow-x: auto;
+  border-collapse: collapse;
+  font-size: var(--text-label);
+}
+
+.body :global(th),
+.body :global(td) {
+  min-width: 8em;
+  padding: 6px 8px;
+  border: 1px solid var(--color-border);
+  text-align: left;
+  vertical-align: top;
+}
+
+.body :global(th) {
+  background: var(--color-bg);
+  font-weight: 700;
+}
