@@ -42,8 +42,8 @@
 | 決済（モック）・手数料・売上 | [PAY](product/06-payment.md) | [JOBS-2](tech/jobs-payment-mock.md) | Request, Sales, Sell | Payment, Transaction | 決済サービス選定 |
 | 管理者機能 | [ADMIN](product/07-admin.md) | [API](tech/api.md) | AdminCard, AdminUsers, AdminDeals, AdminSettings | 全般 | — |
 | 定期処理・バックアップ | — | [JOBS-1](tech/jobs-payment-mock.md), [DB](tech/database.md) | — | — | — |
-| 利用規約・プライバシーポリシー | [利用規約](legal/terms.md), [プライバシーポリシー](legal/privacy.md) | [FE](tech/frontend.md)（`/terms`・`/privacy`） | — | 全般 | 問い合わせの窓口、保存先の国（リージョン） |
-| インフラ・費用 | [OVERVIEW](product/00-overview.md) | [ARCH・COST](tech/00-overview.md) | — | — | リージョン、独自ドメイン |
+| 利用規約・プライバシーポリシー | [利用規約](legal/terms.md), [プライバシーポリシー](legal/privacy.md) | [FE](tech/frontend.md)（`/terms`・`/privacy`） | — | 全般 | 問い合わせの窓口 |
+| インフラ・費用 | [OVERVIEW](product/00-overview.md) | [ARCH・COST](tech/00-overview.md) | — | — | — |
 
 ## 守るべき決まり（抜粋）
 
