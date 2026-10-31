@@ -33,7 +33,7 @@ Vite + React のSPAを Firebase Hosting に置きます。ログイン必須の�
   | `/signup`、`/signup/code`、`/signup/password` | 新規登録（メール入力 → 認証コード → パスワード設定） | スマホ |
   | `/password-reset`、`/password-reset/code`、`/password-reset/password` | パスワード再設定（同上） | スマホ |
   | `/recheck` | ログイン時の本人確認（AUTHN-3） | スマホ |
-  | `/terms`、`/privacy` | 利用規約、プライバシーポリシー（ログイン画面からリンク。本文の正本は [legal/terms.md](../legal/terms.md)・[legal/privacy.md](../legal/privacy.md)。ビルド時に HTML に変換し、画面を開いたときに読み込む。[ADR 0038](../decisions/0038-legal-pages-build-time-markdown.md)） | スマホ |
+  | `/terms`、`/privacy` | 利用規約、プライバシーポリシー（ログイン画面・新規登録画面・マイページからリンク。戻るは開いた元の画面、URL を直接開いて戻り先がなければ商品一覧（[ADR 0040](../decisions/0040-terms-consent-and-mypage-links.md)）。本文の正本は [legal/terms.md](../legal/terms.md)・[legal/privacy.md](../legal/privacy.md)。ビルド時に HTML に変換し、画面を開いたときに読み込む。[ADR 0038](../decisions/0038-legal-pages-build-time-markdown.md)） | スマホ |
   | `/` | 商品一覧（選んだカテゴリを `?category=` に持つ） | スマホ＋下部ナビ |
   | `/search` | 検索結果（条件を `?keyword=&category=&courseName=&priceMin=&priceMax=&campus=&condition=` に持つ。値は `GET /items` の query と同じ。[ADR 0019](../decisions/0019-browse-category-chips-and-filter.md)） | スマホ＋下部ナビ |
   | `/items/:shareId` | 商品詳細（共有リンク） | スマホ |

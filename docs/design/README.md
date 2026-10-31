@@ -148,7 +148,7 @@ DS-3 の部品を作るために足した補助の部品（画面からも使え
 | 画面（[08-screens](../product/08-screens.md)） | アートボード（[screens/](screens/)） | バリエーション（`data-props`） | 要件・技術 |
 | --- | --- | --- | --- |
 | ログイン・登録 | [Login](screens/Login.dc.html) | `locked`：10回失敗のロック表示 | [AUTH-1](../product/01-account-auth.md), [AUTHN-3・6](../tech/auth.md) |
-| 〃 | [SignUp](screens/SignUp.dc.html) | `mode`：新規登録／パスワード再設定 | AUTH-1・2, AUTHN-2・4 |
+| 〃 | [SignUp](screens/SignUp.dc.html) | `mode`：新規登録／パスワード再設定。実装では、新規登録のときだけ送信ボタンの下にデザインにない規約への同意文（「登録すると利用規約とプライバシーポリシーに同意したものとみなします。」と両文書へのリンク。muted・`--text-note`）を置く（[ADR 0040](../decisions/0040-terms-consent-and-mypage-links.md)。デザインは後で直す） | AUTH-1・2, AUTHN-2・4 |
 | 〃 | [Code](screens/Code.dc.html) | `mode`：新規登録／再設定／再確認、`error` | AUTHN-1・2・6 |
 | 〃 | [Password](screens/Password.dc.html) | `mode`：新規登録／再設定 | AUTHN-2・4・5 |
 | 〃 | [Recheck](screens/Recheck.dc.html) | `reason`：30日経過／はじめての端末、`error` | AUTH-1, AUTHN-3 |
@@ -168,7 +168,7 @@ DS-3 の部品を作るために足した補助の部品（画面からも使え
 | 取引一覧 | [DealList](screens/DealList.dc.html) | `tab`：購入／出品、`empty` | DEAL-1・3・4 |
 | 出品・編集 | [Sell](screens/Sell.dc.html)（高さ1040） | — | ITEM, PAY-2, [STORAGE](../tech/storage.md) |
 | 学生証登録 | [StudentCard](screens/StudentCard.dc.html) | — | [CARD](../product/02-student-card.md) |
-| マイページ | [MyPage](screens/MyPage.dc.html) | 実装では、購入した商品は取引中・完了だけを出し、出品の行はデザインにない状態（公開中・取り下げ・停止中・売却済み）も出す（[ADR 0030](../decisions/0030-mypage-history.md)）。タブの下に、デザインにない状態の絞り込み（Chip）と並べ替え（新しい順／古い順の SelectField）を置く（[ADR 0031](../decisions/0031-mypage-filter-and-sort.md)。デザインは後で直す） | AUTH-3, ITEM |
+| マイページ | [MyPage](screens/MyPage.dc.html) | 実装では、購入した商品は取引中・完了だけを出し、出品の行はデザインにない状態（公開中・取り下げ・停止中・売却済み）も出す（[ADR 0030](../decisions/0030-mypage-history.md)）。タブの下に、デザインにない状態の絞り込み（Chip）と並べ替え（新しい順／古い順の SelectField）を置く（[ADR 0031](../decisions/0031-mypage-filter-and-sort.md)。デザインは後で直す）。設定の一覧の「学生証の登録」の下に、デザインにない「利用規約」「プライバシーポリシー」の行を同じ形で足す（[ADR 0040](../decisions/0040-terms-consent-and-mypage-links.md)。デザインは後で直す） | AUTH-1・3, ITEM |
 | 売上管理 | [Sales](screens/Sales.dc.html) | 実装では、明細の行に取引成立時の料率を「¥1,550 − 手数料（5%） ¥77」の形で出し、下の注記「手数料率は仮の値（10%）で表示しています。」は出さない。明細の行は商品詳細へのリンクにする。「出金を申請する」は ConfirmDialog で確認してから申請する。出金できる売上が 0 円なら押せない（[ADR 0032](../decisions/0032-sales-screen-note-and-payout-confirm.md)。デザインは後で直す） | PAY-2, [JOBS-2](../tech/jobs-payment-mock.md) |
 | 管理：学生証審査 | [AdminCard](screens/AdminCard.dc.html)（PC 1280幅・流体） | — | CARD, [ADMIN](../product/07-admin.md) |
 | 管理：ユーザー | [AdminUsers](screens/AdminUsers.dc.html)（PC 1280幅・流体） | — | ADMIN, AUTH-3 |
