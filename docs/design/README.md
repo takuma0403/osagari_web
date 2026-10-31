@@ -148,7 +148,7 @@ DS-3 の部品を作るために足した補助の部品（画面からも使え
 | 画面（[08-screens](../product/08-screens.md)） | アートボード（[screens/](screens/)） | バリエーション（`data-props`） | 要件・技術 |
 | --- | --- | --- | --- |
 | ログイン・登録 | [Login](screens/Login.dc.html) | `locked`：10回失敗のロック表示 | [AUTH-1](../product/01-account-auth.md), [AUTHN-3・6](../tech/auth.md) |
-| 〃 | [SignUp](screens/SignUp.dc.html) | `mode`：新規登録／パスワード再設定。実装では、新規登録のときだけ送信ボタンの下にデザインにない規約への同意文（「登録すると利用規約とプライバシーポリシーに同意したものとみなします。」と両文書へのリンク。muted・`--text-note`）を置く（[ADR 0040](../decisions/0040-terms-consent-and-mypage-links.md)。デザインは後で直す） | AUTH-1・2, AUTHN-2・4 |
+| 〃 | [SignUp](screens/SignUp.dc.html) | `mode`：新規登録／パスワード再設定。実装では、新規登録のときだけ送信ボタンの上にデザインにない規約への同意（`TermsConsent`：「利用規約」「プライバシーポリシー」の文字リンクで本文を BottomSheet に開く。両方を開くまで「利用規約とプライバシーポリシーを確認し、同意します」のチェックボックスは無効で、下に「両方の文書を開くとチェックできます」を出す。チェックするまで送信ボタンは無効）を置く（[ADR 0040](../decisions/0040-terms-consent-and-mypage-links.md)。デザインは後で直す） | AUTH-1・2, AUTHN-2・4 |
 | 〃 | [Code](screens/Code.dc.html) | `mode`：新規登録／再設定／再確認、`error` | AUTHN-1・2・6 |
 | 〃 | [Password](screens/Password.dc.html) | `mode`：新規登録／再設定 | AUTHN-2・4・5 |
 | 〃 | [Recheck](screens/Recheck.dc.html) | `reason`：30日経過／はじめての端末、`error` | AUTH-1, AUTHN-3 |
