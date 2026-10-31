@@ -103,6 +103,18 @@ describe('SignUpPage', () => {
     expect(screen.getByRole('link', { name: '戻る' })).toHaveAttribute('href', '/login')
     expect(screen.getByRole('link', { name: 'ログイン' })).toHaveAttribute('href', '/login')
   })
+
+  it('送信ボタンの下に、利用規約とプライバシーポリシーへの同意文とリンクを出す', () => {
+    setup(ok)
+    expect(
+      screen.getByText(/登録すると.*に同意したものとみなします。/, { selector: 'p' }),
+    ).toBeInTheDocument()
+    expect(screen.getByRole('link', { name: '利用規約' })).toHaveAttribute('href', '/terms')
+    expect(screen.getByRole('link', { name: 'プライバシーポリシー' })).toHaveAttribute(
+      'href',
+      '/privacy',
+    )
+  })
 })
 
 describe('SignUpPage（パスワード再設定）', () => {
@@ -120,7 +132,7 @@ describe('SignUpPage（パスワード再設定）', () => {
     return { ...view, user, fetchMock }
   }
 
-  it('再設定の見出しと説明を出し、推定と「登録済みの方は」は出さない', async () => {
+  it('再設定の見出しと説明を出し、推定・同意文・「登録済みの方は」は出さない', async () => {
     const { user, fetchMock } = setupReset()
     expect(
       screen.getByRole('heading', { level: 1, name: 'パスワードの再設定' }),
@@ -128,6 +140,7 @@ describe('SignUpPage（パスワード再設定）', () => {
     expect(screen.getByText(/新しいパスワードを決めます/)).toBeInTheDocument()
     await user.type(screen.getByLabelText('大学のメールアドレス'), '26238001')
     expect(screen.queryByText(/登録済みの方は/)).not.toBeInTheDocument()
+    expect(screen.queryByText(/同意したものとみなします/)).not.toBeInTheDocument()
     expect(fetchMock).not.toHaveBeenCalled()
   })
 
