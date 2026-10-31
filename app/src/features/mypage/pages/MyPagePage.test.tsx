@@ -189,6 +189,17 @@ describe('MyPagePage', () => {
     expect(card).toHaveTextContent('審査中')
   })
 
+  it('利用規約とプライバシーポリシーを開ける', () => {
+    stubDealsFetch(handlers)
+    setup()
+    const nav = screen.getByRole('navigation', { name: '設定' })
+    expect(within(nav).getByRole('link', { name: /利用規約/ })).toHaveAttribute('href', '/terms')
+    expect(within(nav).getByRole('link', { name: /プライバシーポリシー/ })).toHaveAttribute(
+      'href',
+      '/privacy',
+    )
+  })
+
   it('一覧にある状態のチップで絞り込み、タブを替えると絞り込みを外す', async () => {
     stubDealsFetch(handlers)
     const { router } = setup()
