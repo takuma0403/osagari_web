@@ -13,6 +13,7 @@ import {
   type StudentEstimate,
 } from '../api'
 import { AuthFormLayout } from '../components/AuthFormLayout/AuthFormLayout'
+import { TermsConsent } from '../components/TermsConsent/TermsConsent'
 import type { CodeSentState } from '../navigation'
 import styles from './SignUpPage.module.css'
 
@@ -29,7 +30,7 @@ const flows = {
     lead: '大学のメールアドレスに6桁の認証コードを送ります。コードを確認したあと、パスワードを決めます。',
     send: sendSignupCode,
     next: '/signup/code',
-    /** 学部・入学年度・有効期限の推定、規約への同意文、「登録済みの方は ログイン」を出す */
+    /** 学部・入学年度・有効期限の推定、規約への同意のチェック、「登録済みの方は ログイン」を出す */
     signup: true,
   },
   passwordReset: {
@@ -47,7 +48,7 @@ type Props = {
 
 /**
  * 新規登録・パスワード再設定の1歩目：メールアドレスの入力（AUTH-1, AUTHN-2, AUTHN-4）。デザインは SignUp.dc.html。
- * 新規登録では、8桁そろったら学部・入学年度・有効期限の推定を出し、送信ボタンの下に規約への同意文を置く。コードを送ったらコード入力へ進む。
+ * 新規登録では、8桁そろったら学部・入学年度・有効期限の推定を出す。規約への同意にチェックするまでコードを送れない。コードを送ったらコード入力へ進む。
  * 登録済みかどうかにかかわらず同じ応答・同じ遷移になる（登録の有無を判別させない）。
  */
 export function SignUpPage({ flow = 'signup' }: Props) {
@@ -57,8 +58,10 @@ export function SignUpPage({ flow = 'signup' }: Props) {
   const [estimate, setEstimate] = useState<StudentEstimate | null>(null)
   const [error, setError] = useState<string>()
   const [submitting, setSubmitting] = useState(false)
+  const [agreed, setAgreed] = useState(false)
 
   const complete = studentId.length === STUDENT_ID_LENGTH
+  const canSubmit = complete && (!config.signup || agreed)
 
   useEffect(() => {
     if (!complete || !config.signup) return
@@ -78,7 +81,7 @@ export function SignUpPage({ flow = 'signup' }: Props) {
 
   const handleSubmit = async (e: FormEvent) => {
     e.preventDefault()
-    if (!complete || submitting) return
+    if (!canSubmit || submitting) return
     setSubmitting(true)
     setError(undefined)
     try {
@@ -116,16 +119,10 @@ export function SignUpPage({ flow = 'signup' }: Props) {
             </span>
           }
         />
-        <Button type="submit" fullWidth disabled={!complete || submitting}>
+        {config.signup && <TermsConsent checked={agreed} onChange={setAgreed} />}
+        <Button type="submit" fullWidth disabled={!canSubmit || submitting}>
           認証コードを送る
         </Button>
-        {config.signup && (
-          // 同意はこの文で示す。チェックボックスは置かず、記録もしない（AUTH-1）
-          <p className={styles.consent}>
-            登録すると<Link to="/terms">利用規約</Link>と
-            <Link to="/privacy">プライバシーポリシー</Link>に同意したものとみなします。
-          </p>
-        )}
       </form>
       {config.signup && (
         <p className={styles.footer}>

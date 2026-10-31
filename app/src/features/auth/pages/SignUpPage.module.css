@@ -28,10 +28,3 @@
   font-size: var(--text-label);
   text-align: center;
 }
-
-.consent {
-  color: var(--color-text-muted);
-  font-size: var(--text-note);
-  line-height: 1.6;
-  text-align: center;
-}
