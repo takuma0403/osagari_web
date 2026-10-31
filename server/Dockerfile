@@ -19,7 +19,7 @@ COPY . .
 RUN go build -trimpath -ldflags="-s -w" -o /out/api ./cmd/api \
  && go build -trimpath -ldflags="-s -w" -o /out/migrate ./cmd/migrate
 
-# ---- prod：Cloud Run 用（雛形。デプロイ手順は別途） ----
+# ---- prod：Cloud Run 用。API（/api）とマイグレーションのジョブ（/migrate up）で共用する。デプロイは infra/README.md ----
 FROM gcr.io/distroless/cc-debian13:nonroot AS prod
 COPY --from=build /out/api /api
 COPY --from=build /out/migrate /migrate

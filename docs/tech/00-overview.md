@@ -35,6 +35,7 @@ flowchart LR
 画像だけは、APIが発行した署名付きURLを使って、ブラウザから Cloud Storage に直接アップロードします（点線）。
 
 - **置き場所**：Google Cloud と Firebase は1つのプロジェクト `osagari-web-dev` にまとめます。Cloud Run と Turso は東京、Cloud Storage は常時無料枠のある米国（us-central1）に置きます（[ADR 0041](../decisions/0041-production-regions-and-domain.md)）。
+- **本番環境の作り方**：Cloud Run のサービス・マイグレーション用のジョブ・Secret Manager・Artifact Registry は `infra/` の gcloud スクリプトで作り、手順は [infra/README.md](../../infra/README.md) にまとめます（[ADR 0042](../decisions/0042-cloud-run-secret-manager-deploy.md)）。
 - **ドメイン**：独自ドメインは使わず、Firebase Hosting の標準ドメイン（`<サイト名>.web.app`）で公開します（[ADR 0041](../decisions/0041-production-regions-and-domain.md)）。
 
 > 各要素の詳細: [frontend.md](frontend.md) / [api.md](api.md) / [auth.md](auth.md) / [database.md](database.md) / [storage.md](storage.md) / [jobs-payment-mock.md](jobs-payment-mock.md)
@@ -48,9 +49,12 @@ flowchart LR
 | Firebase Hosting | Spark（無料） | 0円 |
 | Cloud Run | 無料枠内 | 0円 |
 | Cloud Scheduler | 無料枠内（ジョブ2つ） | 0円 |
+| Secret Manager | 無料枠内（有効なバージョン6個・アクセス月1万回） | 0円 |
+| Artifact Registry | 無料枠内（0.5GB） | 0円 |
 | Cloud Storage | 常時無料枠（us-central1、5GB） | 0円 |
 | Turso | Free | 0円 |
 | Gmail | 無料アカウント | 0円 |
 
+- 無料枠に収めるための設定（[ADR 0042](../decisions/0042-cloud-run-secret-manager-deploy.md)）：Cloud Run は最小0台・最大2台で、CPU はリクエストの処理中だけ割り当てます（マイグレーションのジョブも同じ無料枠に入ります）。Secret Manager はシークレットごとに有効なバージョンを1つだけにし、値は起動時に読むのでアクセスはインスタンスの起動回数分です。Artifact Registry は最新3件より古いイメージを自動で消します。
 - 課金アカウントには予算アラート（例：月1,000円）を設定し、想定外の課金にすぐ気づけるようにします。
 - 有料プランが必要になる主なきっかけは、Gmailの送信上限（1日約500通）を超えたときと、Tursoの無料枠を超えたときです。
