@@ -10,6 +10,11 @@
 ## DS-1 基本方針
 
 - **スマホ優先**：利用者向け画面は幅 390px（高さ 844px）のスマホを基準に作られている。管理画面だけはPC幅（1280px、流体レイアウト）。
+- **利用者向け画面の PC 幅**：キャンバスには PC 幅の利用者画面がないため、既存の部品を組み替えて補う（[ADR 0048](../decisions/0048-user-layout-pc-width.md)）。390px の見た目は変えない。
+  - ブレークポイントは **640px**（タブレット）と **1024px**（PC）。CSS 変数は `@media` の条件に使えないので、CSS には数値を直接書く。
+  - 列の最大幅は、商品一覧・検索結果が **1080px**、それ以外（取引一覧・マイページ・詳細・フォーム・ログイン前の画面）が **560px**。最大幅を超えたら列の左右に `--color-border` の線を引く。BottomSheet の幅も 560px の列に合わせる。
+  - 1024px 以上では、`BottomNav` を画面上部の横ナビにする（DS-3）。出す画面はスマホと同じ。商品一覧のヘッダーのロゴ行は、上部ナビと重なるので隠す。
+  - 商品一覧のグリッド（ItemCard）は 2列 → 640px 以上で 3列 → 1024px 以上で 4列。検索結果（ItemRow）は 1024px 以上で 2列。
 - **タップ領域は 44px 以上**：アイコンボタン 44×44、主要ボタンの高さ 52px、副ボタン 48px、チップ 36px（行全体で44pxを確保）。
 - **アクセシビリティ**：アイコンだけのボタンには `aria-label`、入力欄には `<label>`、エラーは `role="alert"`、トーストは `role="status"`、モーダルとボトムシートは `role="dialog"` と `aria-labelledby`。
 - **絵文字は使わず**、アイコンは線画のインラインSVG（stroke 1.8〜2.4、24×24 viewBox）。
@@ -123,7 +128,7 @@ Google Fonts から `Zen+Kaku+Gothic+New:wght@400;500;700` と `Outfit:wght@500;
 
 | 部品 | 見た目 | 出てくる画面 |
 | --- | --- | --- |
-| `BottomNav` | 下部5タブ（ホーム／検索／出品／取引／マイページ）。選択中は primary + 700 | Main, Search, DealList, MyPage |
+| `BottomNav` | 下部5タブ（ホーム／検索／出品／取引／マイページ）。選択中は primary + 700。PC 幅（1024px 以上）では上部の横ナビ（`placement="top"`。高さ56px、左にロゴ32px＋アプリ名、右に同じ5項目をアイコンとラベルの横並びで。DS-1、[ADR 0048](../decisions/0048-user-layout-pc-width.md)） | Main, Search, DealList, MyPage |
 | `AppHeader` | 戻るボタン（44px）＋タイトル＋右側の補足（バッジ等）。高さ56px | 多数 |
 | `Button` | primary（塗り）/ secondary（primary枠 1.5px）/ ghost（border枠）/ danger（danger枠 1.5px、キャンセル申請など）/ text、高さ 52・48・44。リンク版は `ButtonLink` | 全体 |
 | `TextField` | ラベル＋高さ52pxの入力枠。フォーカス中は primary 1.5px、エラーは danger 1.5px | Login, SignUp, Password, Sell |
