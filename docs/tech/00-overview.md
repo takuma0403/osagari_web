@@ -36,6 +36,7 @@ flowchart LR
 
 - **置き場所**：Google Cloud と Firebase は1つのプロジェクト `osagari-web-dev` にまとめます。Cloud Run と Turso は東京、Cloud Storage は常時無料枠のある米国（us-central1）に置きます（[ADR 0041](../decisions/0041-production-regions-and-domain.md)）。
 - **本番環境の作り方**：Cloud Run のサービス・マイグレーション用のジョブ・Secret Manager・Artifact Registry は `infra/` の gcloud スクリプトで作り、手順は [infra/README.md](../../infra/README.md) にまとめます（[ADR 0042](../decisions/0042-cloud-run-secret-manager-deploy.md)）。
+- **デプロイ**：main への push（dev → main のマージ）で、GitHub Actions が API と画面を本番に出します。dev への push では出しません。GCP へは Workload Identity 連携で入り、鍵は置きません（[ADR 0045](../decisions/0045-hosting-and-ci-deploy.md)）。
 - **ドメイン**：独自ドメインは使わず、Firebase Hosting の標準ドメイン（`<サイト名>.web.app`）で公開します（[ADR 0041](../decisions/0041-production-regions-and-domain.md)）。
 
 > 各要素の詳細: [frontend.md](frontend.md) / [api.md](api.md) / [auth.md](auth.md) / [database.md](database.md) / [storage.md](storage.md) / [jobs-payment-mock.md](jobs-payment-mock.md)
@@ -46,7 +47,7 @@ flowchart LR
 
 | サービス | 想定プラン | 月額の目安 |
 | --- | --- | --- |
-| Firebase Hosting | Spark（無料） | 0円 |
+| Firebase Hosting | Blaze（Cloud Run のために請求先アカウントに紐づけたプロジェクトなので、自動でこのプランになる。無料枠内） | 0円 |
 | Cloud Run | 無料枠内 | 0円 |
 | Cloud Scheduler | 無料枠内（ジョブ2つ） | 0円 |
 | Secret Manager | 無料枠内（有効なバージョン6個・アクセス月1万回） | 0円 |
