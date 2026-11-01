@@ -3,6 +3,7 @@ package domain_test
 import (
 	"errors"
 	"testing"
+	"time"
 
 	"github.com/takuma0403/osagari_web/server/internal/domain"
 )
@@ -50,12 +51,12 @@ func TestEstimateStudent(t *testing.T) {
 		department string // 空なら不明
 		expiresOn  string
 	}{
-		{"理工学部（4年）", "26238001", 2026, "238", "理工学部 理工学科", "2030-03-31"},
-		{"医学部医学科（6年）", "26211001", 2026, "211", "医学部 医学科", "2032-03-31"},
-		{"医学部看護学科（4年）", "25212010", 2025, "212", "医学部 看護学科", "2029-03-31"},
-		{"コスメティックサイエンス学環", "26271001", 2026, "271", "コスメティックサイエンス学環", "2030-03-31"},
-		{"大学院（表にない）は不明・4年", "24726001", 2024, "726", "", "2028-03-31"},
-		{"改組前のコード（表にない）は不明・4年", "18231001", 2018, "231", "", "2022-03-31"},
+		{"理工学部（4年×2）", "26238001", 2026, "238", "理工学部 理工学科", "2034-03-31"},
+		{"医学部医学科（6年×2）", "26211001", 2026, "211", "医学部 医学科", "2038-03-31"},
+		{"医学部看護学科（4年×2）", "25212010", 2025, "212", "医学部 看護学科", "2033-03-31"},
+		{"コスメティックサイエンス学環", "26271001", 2026, "271", "コスメティックサイエンス学環", "2034-03-31"},
+		{"大学院（表にない）は不明・8年", "24726001", 2024, "726", "", "2032-03-31"},
+		{"改組前のコード（表にない）は不明・8年", "18231001", 2018, "231", "", "2026-03-31"},
 	}
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {
@@ -75,6 +76,26 @@ func TestEstimateStudent(t *testing.T) {
 			}
 			if d := got.ExpiresOn.Format("2006-01-02"); d != tc.expiresOn {
 				t.Errorf("有効期限=%s want=%s", d, tc.expiresOn)
+			}
+		})
+	}
+}
+
+func TestStudentEstimateIsExpired(t *testing.T) {
+	// 22238001 の有効期限は2030年3月31日。日本時間の3月31日の終わりまで登録できる（AUTH-3, ADR 0047）
+	est := domain.EstimateStudent("22238001")
+	cases := []struct {
+		name string
+		now  time.Time
+		want bool
+	}{
+		{"有効期限の日の終わり（JST 23:59）", time.Date(2030, time.March, 31, 14, 59, 0, 0, time.UTC), false},
+		{"有効期限の翌日（JST 0:00）", time.Date(2030, time.March, 31, 15, 0, 0, 0, time.UTC), true},
+	}
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			if got := est.IsExpired(tc.now); got != tc.want {
+				t.Errorf("IsExpired=%v want=%v", got, tc.want)
 			}
 		})
 	}

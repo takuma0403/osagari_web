@@ -115,11 +115,69 @@ func TestEstimate(t *testing.T) {
 		t.Fatal(err)
 	}
 	if est.AdmissionYear != 2026 || est.Department == nil || est.Department.Name != "医学部 医学科" ||
-		est.ExpiresOn.Format("2006-01-02") != "2032-03-31" {
+		est.ExpiresOn.Format("2006-01-02") != "2038-03-31" {
 		t.Errorf("est=%+v", est)
 	}
 	_, err = f.svc.Estimate("teacher@edu.cc.saga-u.ac.jp")
 	wantCode(t, err, service.CodeInvalidEmail)
+	// 有効期限（2026年3月31日）を過ぎた学籍番号（AUTH-3, ADR 0047）
+	_, err = f.svc.Estimate(expiredEmail)
+	wantCode(t, err, service.CodeSignupPeriodEnded)
+}
+
+// expiredEmail は有効期限（2026年3月31日）を過ぎた学籍番号のアドレス。t0（2026年10月）では登録できない。
+const expiredEmail = "18238001@edu.cc.saga-u.ac.jp"
+
+func TestSignupPeriodEnded(t *testing.T) {
+	ctx := context.Background()
+
+	t.Run("有効期限を過ぎた学籍番号にはコードを送らない（AUTH-3, ADR 0047）", func(t *testing.T) {
+		f := newFixture(t)
+		wantCode(t, f.svc.SendCode(ctx, expiredEmail), service.CodeSignupPeriodEnded)
+		_, err := f.svc.VerifyCode(ctx, expiredEmail, "123456")
+		wantCode(t, err, service.CodeSignupPeriodEnded)
+		if n := len(f.mailer.Messages()); n != 0 {
+			t.Errorf("%d通送られた", n)
+		}
+		if n := f.count(t, "verification_codes"); n != 0 {
+			t.Errorf("コードが%d件保存された", n)
+		}
+	})
+
+	t.Run("登録済みでも未登録と同じ応答にする（AUTHN-2）", func(t *testing.T) {
+		f := newFixture(t)
+		// 有効期限の当日に登録し、翌日にもう一度コードを求める
+		f.clock.Set(time.Date(2026, time.March, 31, 14, 0, 0, 0, time.UTC)) // JST 23:00
+		f.signup(t, expiredEmail, "")
+		f.clock.Advance(2 * time.Hour)
+		wantCode(t, f.svc.SendCode(ctx, expiredEmail), service.CodeSignupPeriodEnded)
+		wantCode(t, f.svc.SendCode(ctx, "18238002@edu.cc.saga-u.ac.jp"), service.CodeSignupPeriodEnded)
+	})
+
+	t.Run("コードの確認の後に有効期限を過ぎたら作らず、トークンも消費しない", func(t *testing.T) {
+		f := newFixture(t)
+		f.clock.Set(time.Date(2026, time.March, 31, 14, 55, 0, 0, time.UTC)) // JST 23:55
+		if err := f.svc.SendCode(ctx, expiredEmail); err != nil {
+			t.Fatal(err)
+		}
+		v, err := f.svc.VerifyCode(ctx, expiredEmail, f.lastCode(t))
+		if err != nil {
+			t.Fatal(err)
+		}
+		f.clock.Advance(10 * time.Minute) // JST 4月1日 0:05
+		_, err = f.svc.Complete(ctx, v.SetupToken, password, "")
+		wantCode(t, err, service.CodeSignupPeriodEnded)
+		if n := f.count(t, "users"); n != 0 {
+			t.Errorf("ユーザーが%d件作られた", n)
+		}
+		var used int64
+		if err := f.gdb.Table("password_setup_tokens").Where("consumed_at IS NOT NULL").Count(&used).Error; err != nil {
+			t.Fatal(err)
+		}
+		if used != 0 {
+			t.Errorf("トークンが消費された")
+		}
+	})
 }
 
 func TestSendCode(t *testing.T) {
@@ -331,7 +389,7 @@ func TestComplete(t *testing.T) {
 		now := t0.Add(time.Minute)
 		if u.ID == "" || u.Email != "26211001@edu.cc.saga-u.ac.jp" || u.StudentNumber != "26211001" ||
 			u.AdmissionYear != 2026 || u.DepartmentCode != "211" || u.Department == nil || *u.Department != "211" ||
-			u.ExpiresOn.Format("2006-01-02") != "2032-03-31" || u.Status != domain.UserStatusActive ||
+			u.ExpiresOn.Format("2006-01-02") != "2038-03-31" || u.Status != domain.UserStatusActive ||
 			u.SellerStatus != domain.SellerStatusNone || !u.CodeVerifiedAt.Equal(now) {
 			t.Errorf("user=%+v", u)
 		}
@@ -358,7 +416,7 @@ func TestComplete(t *testing.T) {
 		if err != nil {
 			t.Fatal(err)
 		}
-		if out.User.Department != nil || out.User.DepartmentCode != "726" || out.User.ExpiresOn.Format("2006-01-02") != "2028-03-31" {
+		if out.User.Department != nil || out.User.DepartmentCode != "726" || out.User.ExpiresOn.Format("2006-01-02") != "2032-03-31" {
 			t.Errorf("user=%+v", out.User)
 		}
 		if f.count(t, "trusted_devices") != 0 {

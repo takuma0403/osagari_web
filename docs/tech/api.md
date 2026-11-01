@@ -52,6 +52,7 @@ APIが担当する主な処理は次のとおりです。
   | code | HTTP | 使う場面 |
   | --- | --- | --- |
   | `invalid_email` | 400 | 大学のメールアドレス（`^\d{8}@edu\.cc\.saga-u\.ac\.jp$`）の形式ではない（[AUTHN-2](auth.md)） |
+  | `signup_period_ended` | 400 | 新規登録で、学籍番号から計算した有効期限を過ぎている（[AUTH-3](../product/01-account-auth.md)、[ADR 0047](../decisions/0047-account-period-enrollment-limit.md)） |
   | `invalid_verification_code` | 400 | 認証コードが違う。メッセージに残りの回数を入れる（[AUTHN-6](auth.md)） |
   | `verification_code_expired` | 400 | 認証コードが期限切れ・使用済み・入力の上限に達した |
   | `invalid_setup_token` | 400 | パスワード設定用の一時トークンが無効・期限切れ・使用済み |

@@ -146,8 +146,8 @@ func TestLogin_失敗(t *testing.T) {
 			email, password, service.CodeAccountSuspended},
 		{"状態が失効", func(t *testing.T, f *loginFixture) { f.setStatus(t, domain.UserStatusExpired) },
 			email, password, service.CodeAccountExpired},
-		{"状態は有効だが有効期限（2030-03-31）を過ぎた", func(t *testing.T, f *loginFixture) {
-			f.clock.Set(time.Date(2030, 3, 31, 15, 0, 0, 0, time.UTC)) // 日本時間 2030-04-01 0:00
+		{"状態は有効だが有効期限（2034-03-31）を過ぎた", func(t *testing.T, f *loginFixture) {
+			f.clock.Set(time.Date(2034, 3, 31, 15, 0, 0, 0, time.UTC)) // 日本時間 2034-04-01 0:00
 		}, email, password, service.CodeAccountExpired},
 		{"停止中でもパスワードが違えば理由を出さない", func(t *testing.T, f *loginFixture) { f.setStatus(t, domain.UserStatusSuspended) },
 			email, password + "x", service.CodeInvalidCredentials},
