@@ -35,13 +35,13 @@ url="https://${SERVICE}-${project_number}.${REGION}.run.app"
 
 env_file=$(mktemp)
 trap 'rm -f "$env_file"' EXIT
-# SMTP_FROM と Gmail のアプリパスワードは #41 で設定する（それまでメール送信は失敗する）
 cat >"$env_file" <<YAML
 STORAGE_BUCKET_ITEM_IMAGES: "${BUCKET_ITEM_IMAGES}"
 STORAGE_BUCKET_STUDENT_CARDS: "${BUCKET_STUDENT_CARDS}"
 SMTP_HOST: "smtp.gmail.com"
 SMTP_PORT: "587"
-SMTP_FROM: "お下がりフリマ <noreply@invalid.example>"
+SMTP_USERNAME: "${SMTP_USERNAME}"
+SMTP_FROM: "${SMTP_FROM}"
 JOBS_OIDC_AUDIENCE: "${url}"
 JOBS_SERVICE_ACCOUNT_EMAIL: "${SCHEDULER_SA}"
 YAML
@@ -54,7 +54,7 @@ gc run deploy "$SERVICE" --region "$REGION" --image "$image" \
   --min-instances 0 --max-instances 2 \
   --cpu 1 --memory 512Mi --cpu-throttling \
   --env-vars-file "$env_file" \
-  --set-secrets "DATABASE_URL=${SECRET_DATABASE_URL}:latest,ADMIN_STUDENT_NUMBERS=${SECRET_ADMIN_STUDENT_NUMBERS}:latest"
+  --set-secrets "DATABASE_URL=${SECRET_DATABASE_URL}:latest,ADMIN_STUDENT_NUMBERS=${SECRET_ADMIN_STUDENT_NUMBERS}:latest,SMTP_PASSWORD=${SECRET_SMTP_PASSWORD}:latest"
 
 echo "==> 稼働確認"
 curl -fsS "${url}/api/health"
