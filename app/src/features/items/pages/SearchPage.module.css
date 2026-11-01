@@ -62,8 +62,8 @@
   gap: 10px;
 }
 
-/* PC 幅では行を2列に並べる（DS-1） */
-@media (min-width: 1024px) {
+/* 640px 以上では行を2列に並べる（DS-1） */
+@media (min-width: 640px) {
   .list {
     display: grid;
     grid-template-columns: repeat(2, minmax(0, 1fr));

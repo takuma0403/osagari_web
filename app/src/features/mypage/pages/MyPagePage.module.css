@@ -169,3 +169,28 @@
 .pending {
   color: var(--color-warning-text);
 }
+
+/* 640px 以上では行と設定のリンクを2列に並べる（DS-1） */
+@media (min-width: 640px) {
+  .list {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .settings {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .setting + .setting {
+    border-top: none;
+  }
+
+  .setting:nth-child(n + 3) {
+    border-top: 1px solid var(--color-border);
+  }
+
+  .setting:nth-child(even) {
+    border-left: 1px solid var(--color-border);
+  }
+}

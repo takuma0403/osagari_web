@@ -118,7 +118,9 @@ export function DealListPage() {
     <div className={styles.page}>
       <header className={styles.header}>
         <h1 className={styles.title}>取引</h1>
-        <SegmentedTabs label="取引の種類" options={tabs} value={role} onChange={changeRole} />
+        <div className={styles.tabs}>
+          <SegmentedTabs label="取引の種類" options={tabs} value={role} onChange={changeRole} />
+        </div>
       </header>
       <div id={panelId} role="tabpanel" className={styles.body}>
         {body()}
