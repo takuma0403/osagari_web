@@ -72,25 +72,19 @@ export const routes: RouteObject[] = [
         children: [
           {
             // 利用者向けの画面のうち、ナビ（BottomNav）を出すもの。デザインでナビがあるのは Main・Search・DealList・MyPage。
-            // 商品一覧・検索結果は PC 幅で列を広げてグリッドの列数を増やす（DS-1）
+            // PC 幅では列を 1080px に広げ、一覧の列数を増やす（DS-1）
             element: <UserLayout nav wide />,
             children: [
               { path: '/', element: <MainPage /> },
               { path: '/search', element: <SearchPage /> },
-            ],
-          },
-          {
-            element: <UserLayout nav />,
-            children: [
               { path: '/deals', element: <DealListPage /> },
               { path: '/mypage', element: <MyPagePage /> },
             ],
           },
           {
-            // 利用者向けの画面のうち、下部ナビを出さないもの（詳細・入力・取引の操作など）
-            element: <UserLayout />,
+            // ナビを出さない画面のうち、PC 幅で列を広げて2カラムにするもの（出品・取引の操作。DS-1）
+            element: <UserLayout wide />,
             children: [
-              { path: '/items/:shareId', element: <DetailPage /> },
               { path: '/items/:shareId/request', element: <RequestPage /> },
               { path: '/sell', element: <SellPage /> },
               { path: '/sell/:itemId', element: <SellPage /> },
@@ -98,6 +92,13 @@ export const routes: RouteObject[] = [
               { path: '/deals/:dealId', element: <DealDetailPage /> },
               { path: '/deals/:dealId/scan', element: <DealScanPage /> },
               { path: '/deals/:dealId/complete', element: <DealCompletePage /> },
+            ],
+          },
+          {
+            // ナビを出さず、PC 幅でも 560px の列のままの画面（商品詳細・学生証・売上管理）
+            element: <UserLayout />,
+            children: [
+              { path: '/items/:shareId', element: <DetailPage /> },
               { path: '/mypage/student-card', element: <StudentCardPage /> },
               { path: '/mypage/sales', element: <SalesPage /> },
             ],
