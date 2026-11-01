@@ -57,6 +57,11 @@ SMTP_FROM="佐賀大お下がりフリマ 運営 <${SMTP_USERNAME}>"
 ALERT_CHANNEL_NAME="osagari 運用通知"
 ALERT_POLICY_NAME="コードのメールの送信数が上限に近い"
 
+# 請求先アカウントの予算アラート（#40, COST, ADR 0046）。請求先アカウントの通貨が円であること
+BUDGET_NAME="osagari 月の予算"
+BUDGET_AMOUNT=500JPY
+BUDGET_THRESHOLDS=(0.5 0.9 1.0)
+
 # Turso の本番DB（グループは aws-ap-northeast-1。ADR 0041）
 TURSO_DB=osagari
 
