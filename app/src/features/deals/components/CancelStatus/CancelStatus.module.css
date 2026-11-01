@@ -1,0 +1,12 @@
+/* デザイン（DealCancel の申請中）どおり本文の大きさで読ませる */
+.box {
+  font-size: var(--text-body);
+  line-height: 1.75;
+}
+
+.action {
+  margin-top: 10px;
+  background: var(--color-surface);
+  color: var(--color-text);
+  font-size: var(--text-label);
+}

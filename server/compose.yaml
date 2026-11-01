@@ -31,6 +31,8 @@ services:
       - -filesystem-root=/storage
       - -public-host=localhost:4443
       - -external-url=http://localhost:4443
+      # 署名付きURLの署名に含まれるヘッダー。ブラウザからの PUT のプリフライトで許可する（STORAGE）
+      - -cors-headers=x-goog-content-length-range,x-goog-if-generation-match
     ports:
       - "4443:4443"
     volumes:
@@ -83,10 +85,18 @@ services:
       <<: *go-env
       PORT: "8080"
       STORAGE_EMULATOR_HOST: storage:4443
+      STORAGE_PUBLIC_HOST: localhost:4443
       STORAGE_BUCKET_ITEM_IMAGES: item-images
       STORAGE_BUCKET_STUDENT_CARDS: student-cards
       SMTP_HOST: mail
       SMTP_PORT: "1025"
+      SMTP_FROM: お下がりフリマ <noreply@osagari.local>
+      SMTP_STARTTLS: "false"
+      # 管理者の学籍番号（ADR 0015）。例：ADMIN_STUDENT_NUMBERS=26141023 docker compose up -d
+      ADMIN_STUDENT_NUMBERS: ${ADMIN_STUDENT_NUMBERS:-}
+      # 内部用エンドポイントのローカルの代替認証（JOBS-1, ADR 0027）。
+      # 例：curl -X POST -H 'Authorization: Bearer local-jobs-secret' localhost:8080/api/internal/jobs/short
+      JOBS_LOCAL_SECRET: local-jobs-secret
     volumes: *go-volumes
     depends_on:
       db:

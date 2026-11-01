@@ -197,3 +197,32 @@ func count(t *testing.T, gdb *gorm.DB, code string) int64 {
 	}
 	return n
 }
+
+// sqld（Turso）の Hrana ストリームは、使われないまま約10秒たつとサーバー側で捨てられる。
+// go-libsql は捨てられたストリームを持つ接続を壊れたと報告しないため、プールに残すと以後のクエリがすべて失敗する（#60）。
+func TestLibSQLIdleStream(t *testing.T) {
+	url := os.Getenv("TEST_DATABASE_URL")
+	if url == "" {
+		t.Skip("TEST_DATABASE_URL が未設定")
+	}
+	sqlDB, err := db.Open(url)
+	if err != nil {
+		t.Fatal(err)
+	}
+	t.Cleanup(func() { sqlDB.Close() })
+
+	query := func() error {
+		var n int
+		return sqlDB.QueryRow("SELECT 1").Scan(&n)
+	}
+	if err := query(); err != nil {
+		t.Fatal(err)
+	}
+	// ストリームの期限（約10秒）より長くあける
+	time.Sleep(15 * time.Second)
+	for i := range 3 {
+		if err := query(); err != nil {
+			t.Fatalf("あけた後の%d回目のクエリが失敗した: %v", i+1, err)
+		}
+	}
+}

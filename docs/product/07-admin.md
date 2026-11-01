@@ -1,6 +1,6 @@
 # 管理者機能（要件）
 
-> 関連: [学生証登録](02-student-card.md) / [技術：API（管理者向け）](../tech/api.md) / 画面: AdminCard（ほか3画面はデザイン未作成）（[デザイン](../design/README.md)）
+> 関連: [学生証登録](02-student-card.md) / [技術：API（管理者向け）](../tech/api.md) / 画面: AdminCard, AdminUsers, AdminDeals, AdminSettings（[デザイン](../design/README.md)）
 
 ## ADMIN 管理者機能
 
@@ -12,3 +12,5 @@
 - 手数料率の設定
 - 退学申請の受け付けと、アカウントの削除
 - 有効期限の手動変更（延長の仕組みができるまでの暫定対応）
+
+各操作の対象と後処理（停止と解除、退学による削除、出品の停止、取引のキャンセル、手数料率の変更）は [ADR 0034](../decisions/0034-admin-users-deals-settings.md) で決めています。

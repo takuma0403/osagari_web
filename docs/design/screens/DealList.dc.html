@@ -1,0 +1,127 @@
+<!doctype html>
+<html lang="ja">
+<head>
+<meta charset="utf-8">
+<title>取引一覧</title>
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link href="https://fonts.googleapis.com/css2?family=Zen+Kaku+Gothic+New:wght@400;500;700&amp;family=Outfit:wght@500;700&amp;display=swap" rel="stylesheet">
+<style>
+body{margin:0}
+a{color:#1F7A80}a:hover{color:#155C61}
+</style>
+</helmet>
+<div style="width: 390px; height: 844px; display: flex; flex-direction: column; background: #F8F5EE; color: #1B2B4B; font-family: 'Zen Kaku Gothic New', sans-serif; overflow: hidden">
+  <header style="flex-shrink: 0; background: #FFFFFF; border-bottom: 1px solid #E4DFD3; padding: 0 16px 12px; display: flex; flex-direction: column; gap: 8px">
+    <div style="height: 56px; display: flex; align-items: center">
+      <h1 style="margin: 0; font-size: 18px; font-weight: 700">取引</h1>
+    </div>
+    <div role="tablist" aria-label="取引の種類" style="display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 4px; padding: 4px; border-radius: 22px; background: #F8F5EE">
+      <button role="tab" aria-selected="{{buyOn}}" style="{{buyTab}}">購入</button>
+      <button role="tab" aria-selected="{{sellOn}}" style="{{sellTab}}">出品</button>
+    </div>
+  </header>
+  <main style="flex-grow: 1; overflow-y: auto; padding: 16px; display: flex; flex-direction: column; gap: 12px">
+    <sc-if value="{{empty}}" hint-placeholder-val="{{ false }}">
+      <div style="margin-top: 48px; display: flex; flex-direction: column; align-items: center; gap: 10px; text-align: center; color: #566178">
+        <svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 8h14l-3-3M20 16H6l3 3"></path></svg>
+        <p style="margin: 0; font-size: 14px; line-height: 1.7">{{emptyText}}</p>
+        <a href="Main.dc.html" style="font-size: 14px; font-weight: 700; padding: 10px">商品一覧を見る</a>
+      </div>
+    </sc-if>
+    <sc-if value="{{hasRows}}" hint-placeholder-val="{{ true }}">
+      <h2 style="margin: 0; font-size: 13px; font-weight: 700; color: #566178">進行中</h2>
+      <sc-for list="{{active}}" as="d" hint-placeholder-count="3">
+        <a href="DealRequests.dc.html" style="display: flex; gap: 12px; padding: 10px; background: #FFFFFF; border: 1px solid #E4DFD3; border-radius: 12px; text-decoration: none; color: #1B2B4B">
+          <div style="{{d.photo}}"><span style="font-size: 11px; color: #566178">写真</span></div>
+          <div style="flex-grow: 1; min-width: 0; display: flex; flex-direction: column; gap: 4px">
+            <div style="font-size: 14px; font-weight: 500; line-height: 1.4; overflow: hidden; white-space: nowrap; text-overflow: ellipsis">{{d.title}}</div>
+            <div style="font-family: Outfit, sans-serif; font-size: 17px; font-weight: 700">¥{{d.price}}</div>
+            <div style="display: flex; align-items: center; gap: 8px; flex-wrap: wrap">
+              <span style="{{d.badge}}">{{d.status}}</span>
+              <span style="font-size: 12px; color: #566178">{{d.note}}</span>
+            </div>
+          </div>
+        </a>
+      </sc-for>
+      <h2 style="margin: 8px 0 0; font-size: 13px; font-weight: 700; color: #566178">終了した取引</h2>
+      <sc-for list="{{done}}" as="d" hint-placeholder-count="2">
+        <a href="DealRequests.dc.html" style="display: flex; gap: 12px; padding: 10px; background: #FFFFFF; border: 1px solid #E4DFD3; border-radius: 12px; text-decoration: none; color: #1B2B4B">
+          <div style="{{d.photo}}"><span style="font-size: 11px; color: #566178">写真</span></div>
+          <div style="flex-grow: 1; min-width: 0; display: flex; flex-direction: column; gap: 4px">
+            <div style="font-size: 14px; font-weight: 500; line-height: 1.4; overflow: hidden; white-space: nowrap; text-overflow: ellipsis">{{d.title}}</div>
+            <div style="font-family: Outfit, sans-serif; font-size: 17px; font-weight: 700">¥{{d.price}}</div>
+            <div style="display: flex; align-items: center; gap: 8px; flex-wrap: wrap">
+              <span style="{{d.badge}}">{{d.status}}</span>
+              <span style="font-size: 12px; color: #566178">{{d.note}}</span>
+            </div>
+          </div>
+        </a>
+      </sc-for>
+    </sc-if>
+  </main>
+  <nav style="display: flex; justify-content: space-around; background: #FFFFFF; border-top: 1px solid #E4DFD3; padding: 6px 0 18px">
+    <a href="Main.dc.html" style="display: flex; flex-direction: column; align-items: center; gap: 2px; min-width: 56px; min-height: 44px; font-size: 11px; text-decoration: none; color: #566178"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round"><path d="M3 10l9-7 9 7v10a1 1 0 0 1-1 1h-5v-6H9v6H4a1 1 0 0 1-1-1z"></path></svg>ホーム</a>
+    <a href="Search.dc.html" style="display: flex; flex-direction: column; align-items: center; gap: 2px; min-width: 56px; min-height: 44px; font-size: 11px; text-decoration: none; color: #566178"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><circle cx="11" cy="11" r="7"></circle><path d="M20 20l-3.5-3.5"></path></svg>検索</a>
+    <a href="Sell.dc.html" style="display: flex; flex-direction: column; align-items: center; gap: 2px; min-width: 56px; min-height: 44px; font-size: 11px; text-decoration: none; color: #566178"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><rect x="3" y="3" width="18" height="18" rx="5"></rect><path d="M12 8v8M8 12h8"></path></svg>出品</a>
+    <a href="DealList.dc.html" aria-current="page" style="display: flex; flex-direction: column; align-items: center; gap: 2px; min-width: 56px; min-height: 44px; font-size: 11px; text-decoration: none; color: #1F7A80; font-weight: 700"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M4 8h14l-3-3M20 16H6l3 3"></path></svg>取引</a>
+    <a href="MyPage.dc.html" style="display: flex; flex-direction: column; align-items: center; gap: 2px; min-width: 56px; min-height: 44px; font-size: 11px; text-decoration: none; color: #566178"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><circle cx="12" cy="8" r="4"></circle><path d="M4 21c1.5-4 4.5-6 8-6s6.5 2 8 6"></path></svg>マイページ</a>
+  </nav>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"tab":{"editor":"enum","options":["購入","出品"],"default":"購入"},"empty":{"editor":"boolean","default":false},"$preview":{"width":390,"height":844}}'>
+class Component extends DCLogic {
+  renderVals() {
+    const tab = this.props.tab ?? '購入';
+    const empty = this.props.empty ?? false;
+    const buy = tab === '購入';
+    const tabOn = 'height: 36px; border: none; border-radius: 18px; font: inherit; font-size: 14px; font-weight: 700; background: #1F7A80; color: #FFFFFF';
+    const tabOff = 'height: 36px; border: none; border-radius: 18px; font: inherit; font-size: 14px; background: transparent; color: #566178';
+    const badges = {
+      warn: 'font-size: 11px; font-weight: 700; padding: 3px 8px; border-radius: 10px; background: #FBEFC4; color: #6B4E00',
+      deal: 'font-size: 11px; font-weight: 700; padding: 3px 8px; border-radius: 10px; background: #DDF0F0; color: #155C61',
+      end: 'font-size: 11px; font-weight: 700; padding: 3px 8px; border-radius: 10px; background: #F8F5EE; color: #566178; border: 1px solid #E4DFD3'
+    };
+    const tints = { '教科書': '#DDF0F0', '家電': '#DCEEF6', '家具': '#FBF0CC', 'ゲーム': '#E1EFE3' };
+    const photo = (cat) => 'flex-shrink: 0; width: 72px; height: 72px; border-radius: 8px; background: ' + tints[cat] + '; display: flex; align-items: center; justify-content: center';
+    const buyRows = {
+      active: [
+        { cat: '教科書', title: '線形代数入門', price: '1,500', status: '取引中', kind: 'deal', note: '受け渡しの日時をTeamsで相談' },
+        { cat: '教科書', title: '微分積分学 第3版（書き込み少）', price: '1,200', status: '承認待ち', kind: 'warn', note: 'あと31時間で期限切れ' }
+      ],
+      done: [
+        { cat: '家具', title: 'ローテーブル 折りたたみ', price: '800', status: '完了', kind: 'end', note: '9/28 受け渡し' },
+        { cat: '教科書', title: 'ミクロ経済学入門', price: '900', status: '期限切れ', kind: 'end', note: '枠を解放しました' }
+      ]
+    };
+    const sellRows = {
+      active: [
+        { cat: '教科書', title: '解剖学講義 改訂3版', price: '3,500', status: '購入希望 3件', kind: 'warn', note: '相手を選んでください' },
+        { cat: '家電', title: '一人暮らし用 冷蔵庫 2ドア 138L', price: '6,000', status: '取引中', kind: 'deal', note: '受け渡しでQRを表示' }
+      ],
+      done: [
+        { cat: 'ゲーム', title: '携帯ゲーム機 本体＋ソフト2本', price: '15,000', status: '完了', kind: 'end', note: '売上に計上済み' },
+        { cat: '教科書', title: '有機化学 演習', price: '700', status: 'キャンセル', kind: 'end', note: '双方の同意で取り消し' }
+      ]
+    };
+    const src = buy ? buyRows : sellRows;
+    const deco = (rows) => rows.map((d) => ({ ...d, photo: photo(d.cat), badge: badges[d.kind] }));
+    return {
+      buyOn: buy ? 'true' : 'false',
+      sellOn: buy ? 'false' : 'true',
+      buyTab: buy ? tabOn : tabOff,
+      sellTab: buy ? tabOff : tabOn,
+      empty,
+      hasRows: !empty,
+      emptyText: buy ? '購入希望を出した商品はまだありません。' : '出品した商品の取引はまだありません。',
+      active: deco(src.active),
+      done: deco(src.done)
+    };
+  }
+}
+</script>
+</body>
+</html>

@@ -1,0 +1,15 @@
+.page {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-gap);
+  padding: var(--space-page);
+}
+
+.title {
+  font-size: var(--text-header);
+  font-weight: 700;
+}
+
+.note {
+  color: var(--color-text-muted);
+}

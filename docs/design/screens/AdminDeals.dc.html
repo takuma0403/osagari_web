@@ -1,0 +1,168 @@
+<!doctype html>
+<html lang="ja">
+<head>
+<meta charset="utf-8">
+<title>管理：出品・取引</title>
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link href="https://fonts.googleapis.com/css2?family=Zen+Kaku+Gothic+New:wght@400;500;700&amp;family=Outfit:wght@500;700&amp;display=swap" rel="stylesheet">
+<style>
+body{margin:0}
+a{color:#1F7A80}a:hover{color:#155C61}
+</style>
+</helmet>
+<div style="min-height: 820px; display: flex; flex-wrap: wrap; background: #F8F5EE; color: #1B2B4B; font-family: 'Zen Kaku Gothic New', sans-serif">
+  <nav aria-label="管理メニュー" style="flex: 1 1 220px; max-width: 100%; box-sizing: border-box; padding: 20px 14px; background: #1B2B4B; color: #FFFFFF; display: flex; flex-direction: column; gap: 4px">
+    <div style="display: flex; align-items: center; gap: 10px; padding: 4px 8px 20px">
+      <div style="width: 30px; height: 30px; border-radius: 8px; overflow: hidden; flex-shrink: 0"><img src="/_blob/1acda67ee7f900cbc97927dddc1267cf" alt="" style="width: 100%; height: 100%; object-fit: cover; transform: scale(1.32)"></div>
+      <span style="font-size: 15px; font-weight: 700">管理画面</span>
+    </div>
+    <a href="AdminCard.dc.html" style="display: flex; align-items: center; justify-content: space-between; min-height: 44px; padding: 0 12px; border-radius: 8px; color: #C3CCDD; font-size: 14px; text-decoration: none">学生証審査<span style="font-family: Outfit, sans-serif; font-size: 12px; padding: 2px 8px; border-radius: 10px; background: #F2C94C; color: #1B2B4B">12</span></a>
+    <a href="AdminUsers.dc.html" style="display: flex; align-items: center; min-height: 44px; padding: 0 12px; border-radius: 8px; color: #C3CCDD; font-size: 14px; text-decoration: none">ユーザー</a>
+    <a href="AdminDeals.dc.html" aria-current="page" style="display: flex; align-items: center; min-height: 44px; padding: 0 12px; border-radius: 8px; background: #2A3D63; color: #FFFFFF; font-size: 14px; font-weight: 700; text-decoration: none">出品・取引</a>
+    <a href="AdminSettings.dc.html" style="display: flex; align-items: center; min-height: 44px; padding: 0 12px; border-radius: 8px; color: #C3CCDD; font-size: 14px; text-decoration: none">設定（手数料率）</a>
+  </nav>
+  <main style="flex: 999 1 560px; min-width: 0; box-sizing: border-box; padding: 28px 32px; display: flex; flex-direction: column; gap: 20px">
+    <div style="display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 12px">
+      <h1 style="margin: 0; font-size: 22px; font-weight: 700">出品・取引</h1>
+      <div role="tablist" aria-label="表示する一覧" style="display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 4px; padding: 4px; border-radius: 22px; background: #FFFFFF; border: 1px solid #E4DFD3; min-width: 240px">
+        <button role="tab" aria-selected="{{itemsOn}}" style="{{itemsTab}}">出品</button>
+        <button role="tab" aria-selected="{{dealsOn}}" style="{{dealsTab}}">取引</button>
+      </div>
+    </div>
+    <sc-if value="{{showItems}}" hint-placeholder-val="{{ true }}">
+      <div style="display: flex; flex-wrap: wrap; gap: 20px; align-items: flex-start">
+        <section aria-label="出品一覧" style="flex: 3 1 480px; min-width: 0; background: #FFFFFF; border: 1px solid #E4DFD3; border-radius: 12px; overflow-x: auto">
+          <table style="width: 100%; border-collapse: collapse; font-size: 13px; white-space: nowrap">
+            <thead>
+              <tr style="text-align: left; color: #566178">
+                <th style="padding: 12px 16px; font-weight: 700; border-bottom: 1px solid #E4DFD3">商品</th>
+                <th style="padding: 12px 16px; font-weight: 700; border-bottom: 1px solid #E4DFD3">出品者</th>
+                <th style="padding: 12px 16px; font-weight: 700; border-bottom: 1px solid #E4DFD3">価格</th>
+                <th style="padding: 12px 16px; font-weight: 700; border-bottom: 1px solid #E4DFD3">ステータス</th>
+                <th style="padding: 12px 16px; font-weight: 700; border-bottom: 1px solid #E4DFD3">出品日</th>
+              </tr>
+            </thead>
+            <tbody>
+              <sc-for list="{{items}}" as="it" hint-placeholder-count="6">
+                <tr style="{{it.row}}">
+                  <td style="padding: 12px 16px; font-weight: 500">{{it.title}}</td>
+                  <td style="padding: 12px 16px; font-family: Outfit, sans-serif">{{it.seller}}</td>
+                  <td style="padding: 12px 16px; font-family: Outfit, sans-serif; font-weight: 700">¥{{it.price}}</td>
+                  <td style="padding: 12px 16px"><span style="{{it.badge}}">{{it.status}}</span></td>
+                  <td style="padding: 12px 16px; color: #566178">{{it.at}}</td>
+                </tr>
+              </sc-for>
+            </tbody>
+          </table>
+        </section>
+        <section aria-label="出品の詳細" style="flex: 2 1 320px; min-width: 0; background: #FFFFFF; border: 1px solid #E4DFD3; border-radius: 12px; padding: 22px; display: flex; flex-direction: column; gap: 16px">
+          <div style="aspect-ratio: 1.6 / 1; border-radius: 10px; background: #DCEEF6; display: flex; align-items: center; justify-content: center; font-size: 13px; color: #566178">商品の写真</div>
+          <h2 style="margin: 0; font-size: 18px; font-weight: 700">一人暮らし用 冷蔵庫 2ドア 138L</h2>
+          <dl style="margin: 0; display: grid; grid-template-columns: max-content minmax(0, 1fr); column-gap: 16px; row-gap: 10px; font-size: 14px">
+            <dt style="color: #566178">出品者</dt><dd style="margin: 0; font-family: Outfit, sans-serif; font-weight: 700">25238117</dd>
+            <dt style="color: #566178">価格</dt><dd style="margin: 0; font-family: Outfit, sans-serif; font-weight: 700">¥6,000</dd>
+            <dt style="color: #566178">ステータス</dt><dd style="margin: 0">公開中</dd>
+          </dl>
+          <div style="display: flex; flex-direction: column; gap: 8px; padding-top: 16px; border-top: 1px solid #E4DFD3">
+            <button style="align-self: flex-start; height: 44px; padding: 0 22px; border-radius: 22px; border: 1.5px solid #A8322D; background: #FFFFFF; font: inherit; font-size: 14px; font-weight: 700; color: #A8322D">出品を停止</button>
+            <span style="font-size: 12px; color: #566178">停止すると一覧・検索に表示されなくなります。</span>
+          </div>
+        </section>
+      </div>
+    </sc-if>
+    <sc-if value="{{showDeals}}" hint-placeholder-val="{{ false }}">
+      <div style="display: flex; flex-wrap: wrap; gap: 20px; align-items: flex-start">
+        <section aria-label="取引一覧" style="flex: 3 1 480px; min-width: 0; background: #FFFFFF; border: 1px solid #E4DFD3; border-radius: 12px; overflow-x: auto">
+          <table style="width: 100%; border-collapse: collapse; font-size: 13px; white-space: nowrap">
+            <thead>
+              <tr style="text-align: left; color: #566178">
+                <th style="padding: 12px 16px; font-weight: 700; border-bottom: 1px solid #E4DFD3">商品</th>
+                <th style="padding: 12px 16px; font-weight: 700; border-bottom: 1px solid #E4DFD3">出品者 → 購入者</th>
+                <th style="padding: 12px 16px; font-weight: 700; border-bottom: 1px solid #E4DFD3">金額</th>
+                <th style="padding: 12px 16px; font-weight: 700; border-bottom: 1px solid #E4DFD3">ステータス</th>
+                <th style="padding: 12px 16px; font-weight: 700; border-bottom: 1px solid #E4DFD3">更新</th>
+              </tr>
+            </thead>
+            <tbody>
+              <sc-for list="{{deals}}" as="d" hint-placeholder-count="6">
+                <tr style="{{d.row}}">
+                  <td style="padding: 12px 16px; font-weight: 500">{{d.title}}</td>
+                  <td style="padding: 12px 16px; font-family: Outfit, sans-serif">{{d.parties}}</td>
+                  <td style="padding: 12px 16px; font-family: Outfit, sans-serif; font-weight: 700">¥{{d.price}}</td>
+                  <td style="padding: 12px 16px"><span style="{{d.badge}}">{{d.status}}</span></td>
+                  <td style="padding: 12px 16px; color: #566178">{{d.at}}</td>
+                </tr>
+              </sc-for>
+            </tbody>
+          </table>
+        </section>
+        <section aria-label="取引の詳細" style="flex: 2 1 320px; min-width: 0; background: #FFFFFF; border: 1px solid #E4DFD3; border-radius: 12px; padding: 22px; display: flex; flex-direction: column; gap: 16px">
+          <div style="display: flex; align-items: center; gap: 10px; flex-wrap: wrap">
+            <h2 style="margin: 0; font-size: 18px; font-weight: 700">線形代数入門</h2>
+            <span style="font-size: 11px; font-weight: 700; padding: 3px 8px; border-radius: 10px; background: #FBEFC4; color: #6B4E00">決済はモック</span>
+          </div>
+          <dl style="margin: 0; display: grid; grid-template-columns: max-content minmax(0, 1fr); column-gap: 16px; row-gap: 10px; font-size: 14px">
+            <dt style="color: #566178">出品者</dt><dd style="margin: 0; font-family: Outfit, sans-serif; font-weight: 700">25238117</dd>
+            <dt style="color: #566178">購入者</dt><dd style="margin: 0; font-family: Outfit, sans-serif; font-weight: 700">26141023</dd>
+            <dt style="color: #566178">金額</dt><dd style="margin: 0; font-family: Outfit, sans-serif; font-weight: 700">¥1,500</dd>
+            <dt style="color: #566178">手数料率</dt><dd style="margin: 0">[料率]（この取引に適用）</dd>
+            <dt style="color: #566178">ステータス</dt><dd style="margin: 0">取引中</dd>
+            <dt style="color: #566178">キャンセル申請</dt><dd style="margin: 0">購入者が申請（出品者は未同意）</dd>
+          </dl>
+          <div style="display: flex; flex-direction: column; gap: 8px; padding-top: 16px; border-top: 1px solid #E4DFD3">
+            <button style="align-self: flex-start; height: 44px; padding: 0 22px; border-radius: 22px; border: 1.5px solid #A8322D; background: #FFFFFF; font: inherit; font-size: 14px; font-weight: 700; color: #A8322D">キャンセル・返金（モック）を行う</button>
+            <span style="font-size: 12px; color: #566178">トラブル対応として管理者が取引をキャンセルし、代金を購入者に返金します。受け渡し完了後の取引にはできません。</span>
+          </div>
+        </section>
+      </div>
+    </sc-if>
+  </main>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"tab":{"editor":"enum","options":["出品","取引"],"default":"出品"},"$preview":{"width":1280,"height":820}}'>
+class Component extends DCLogic {
+  renderVals() {
+    const tab = this.props.tab ?? '出品';
+    const isItems = tab === '出品';
+    const tabOn = 'height: 36px; border: none; border-radius: 18px; font: inherit; font-size: 14px; font-weight: 700; background: #1F7A80; color: #FFFFFF';
+    const tabOff = 'height: 36px; border: none; border-radius: 18px; font: inherit; font-size: 14px; background: transparent; color: #566178';
+    const b = {
+      soft: 'font-size: 11px; font-weight: 700; padding: 3px 8px; border-radius: 10px; background: #DDF0F0; color: #155C61',
+      warn: 'font-size: 11px; font-weight: 700; padding: 3px 8px; border-radius: 10px; background: #FBEFC4; color: #6B4E00',
+      danger: 'font-size: 11px; font-weight: 700; padding: 3px 8px; border-radius: 10px; background: #FBE7E4; color: #8A2621',
+      end: 'font-size: 11px; font-weight: 700; padding: 3px 8px; border-radius: 10px; background: #F8F5EE; color: #566178; border: 1px solid #E4DFD3'
+    };
+    const row = (i) => i === 0 ? 'background: #DDF0F0; box-shadow: inset 4px 0 0 #1F7A80' : 'border-top: 1px solid #E4DFD3';
+    const items = [
+      { title: '一人暮らし用 冷蔵庫 2ドア 138L', seller: '25238117', price: '6,000', status: '公開中', k: 'soft', at: '10/7' },
+      { title: '解剖学講義 改訂3版', seller: '24212019', price: '3,500', status: '購入希望あり', k: 'warn', at: '10/6' },
+      { title: '線形代数入門', seller: '25238117', price: '1,500', status: '取引中', k: 'soft', at: '10/3' },
+      { title: '[停止した出品の例]', seller: '24101032', price: '2,000', status: '停止', k: 'danger', at: '10/2' },
+      { title: '携帯ゲーム機 本体＋ソフト2本', seller: '23141055', price: '15,000', status: '取引完了', k: 'end', at: '9/25' }
+    ].map((x, i) => ({ ...x, badge: b[x.k], row: row(i) }));
+    const deals = [
+      { title: '線形代数入門', parties: '25238117 → 26141023', price: '1,500', status: 'キャンセル申請中', k: 'warn', at: '10/8 14:02' },
+      { title: '一人暮らし用 冷蔵庫 2ドア 138L', parties: '25238117 → 26212045', price: '6,000', status: '取引中', k: 'soft', at: '10/8 09:30' },
+      { title: '解剖学講義 改訂3版', parties: '24212019 → 25141077', price: '3,500', status: '購入希望', k: 'warn', at: '10/7 21:15' },
+      { title: '携帯ゲーム機 本体＋ソフト2本', parties: '23141055 → 24238031', price: '15,000', status: '完了', k: 'end', at: '9/28 12:40' },
+      { title: '有機化学 演習', parties: '22141008 → 26271008', price: '700', status: 'キャンセル', k: 'end', at: '9/27 18:05' }
+    ].map((x, i) => ({ ...x, badge: b[x.k], row: row(i) }));
+    return {
+      showItems: isItems,
+      showDeals: !isItems,
+      itemsOn: isItems ? 'true' : 'false',
+      dealsOn: isItems ? 'false' : 'true',
+      itemsTab: isItems ? tabOn : tabOff,
+      dealsTab: isItems ? tabOff : tabOn,
+      items,
+      deals
+    };
+  }
+}
+</script>
+</body>
+</html>

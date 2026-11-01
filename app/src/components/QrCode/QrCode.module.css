@@ -1,0 +1,18 @@
+.qr {
+  display: block;
+  width: 100%;
+  height: auto;
+}
+
+.light {
+  fill: var(--color-surface);
+}
+
+/* 読み取りやすいように、本文の紺（コントラストが高い）で描く */
+.dark {
+  fill: var(--color-text);
+}
+
+.dimmed {
+  opacity: 0.15;
+}

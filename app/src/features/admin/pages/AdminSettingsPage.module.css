@@ -1,0 +1,64 @@
+.card {
+  display: flex;
+  flex-direction: column;
+  gap: 18px;
+  max-width: 640px;
+  padding: 22px;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-card);
+  background: var(--color-surface);
+}
+
+.intro {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.cardTitle {
+  font-size: var(--text-button);
+  font-weight: 700;
+}
+
+.lead {
+  color: var(--color-text-muted);
+  font-size: var(--text-label);
+  line-height: 1.7;
+}
+
+.rate {
+  font-family: var(--font-num);
+  font-weight: 700;
+}
+
+.form {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding-top: 16px;
+  border-top: 1px solid var(--color-border);
+}
+
+.row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-end;
+  gap: 10px;
+}
+
+.input {
+  width: 96px;
+  text-align: right;
+}
+
+.error {
+  color: var(--color-danger);
+  font-size: var(--text-label);
+  font-weight: 700;
+}
+
+.help {
+  color: var(--color-text-muted);
+  font-size: var(--text-note);
+  line-height: 1.7;
+}

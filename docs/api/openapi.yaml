@@ -16,6 +16,26 @@ servers:
 tags:
   - name: system
     description: 稼働確認など
+  - name: auth
+    description: 新規登録・ログイン・パスワード再設定（AUTH-1, AUTHN）
+  - name: student-cards
+    description: 学生証の登録と審査状況（CARD, STORAGE）
+  - name: items
+    description: 出品・編集・取り下げと商品写真（ITEM, STORAGE）
+  - name: transactions
+    description: 購入希望・承認・却下と取引の詳細（DEAL）
+  - name: handover
+    description: 受け渡しトークン（QR・完了リンク・完了コード）の発行と受け渡し完了（DEAL-3）
+  - name: settings
+    description: 手数料率などの設定（PAY-2）
+  - name: sales
+    description: 売上の明細・手数料と出金（PAY）。出金はフェーズ1ではモック
+  - name: admin
+    description: 管理者向け（ADMIN）。未ログイン・管理者でなければすべて 404 not_found（ADR 0015）
+  - name: webhooks
+    description: 本番の決済サービスからの通知（JOBS-2）。フェーズ1は枠だけ
+  - name: internal
+    description: 定期処理（JOBS-1）。Cloud Scheduler のサービスアカウントからだけ受け付け、それ以外はすべて 404 not_found
 paths:
   /health:
     get:
@@ -32,13 +52,1449 @@ paths:
                 $ref: '#/components/schemas/Health'
         default:
           $ref: '#/components/responses/Error'
+  /auth/signup/estimate:
+    post:
+      tags: [auth]
+      operationId: estimateStudent
+      summary: 学籍番号から学部・入学年度・有効期限を推定する
+      description: |
+        AUTH-2, AUTH-4: 新規登録画面の入力中の表示に使う。学籍番号から計算するだけで、登録済みかどうかには触れない。
+        メールアドレスを URL に載せない（リクエストログに残さない）ため、本文で受け取る。
+      security: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/EmailInput'
+      responses:
+        '200':
+          description: 推定結果
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/StudentEstimate'
+        default:
+          $ref: '#/components/responses/Error'
+  /auth/signup/codes:
+    post:
+      tags: [auth]
+      operationId: sendSignupCode
+      summary: 新規登録の認証コードを送る
+      description: |
+        AUTHN-2: 大学のメールアドレス（^\d{8}@edu\.cc\.saga-u\.ac\.jp$）に6桁のコード（10分有効）を送る。
+        登録済みのアドレスにはコードの代わりに「登録済みです」の案内を送り、応答は未登録のときと同じにする（登録の有無を判別させない）。
+        形式が違うアドレスには送らず 400 invalid_email を返す。
+        同じアドレスへのコード送信は、用途（新規登録・パスワード再設定・ログインの再確認）をまとめて1分に1回・1時間に5回までで、超えたら送らずに 429 too_many_requests（AUTHN-6）。登録の有無にかかわらず同じように数える。
+      security: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/EmailInput'
+      responses:
+        '202':
+          description: 受け付けた（登録済みかどうかにかかわらず同じ応答）
+        default:
+          $ref: '#/components/responses/Error'
+  /auth/signup/codes/verify:
+    post:
+      tags: [auth]
+      operationId: verifySignupCode
+      summary: 新規登録の認証コードを確認する
+      description: |
+        AUTHN-2, AUTHN-6: コードが一致したら、パスワード設定用の一時トークン（15分有効・一度だけ使える）と推定結果を返す。
+        不一致は 400 invalid_verification_code（メッセージに残り回数）。期限切れ・使用済み・入力ミスが5回に達したコードは 400 verification_code_expired。
+      security: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/SignupCodeVerification'
+      responses:
+        '200':
+          description: コードを確認した
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SignupCodeVerified'
+        default:
+          $ref: '#/components/responses/Error'
+  /auth/signup/complete:
+    post:
+      tags: [auth]
+      operationId: completeSignup
+      summary: パスワードを設定してアカウントを作成する
+      description: |
+        AUTHN-2, AUTH-2〜4, AUTHN-5: 一時トークンを使ってパスワード（10文字以上128文字以下）を設定し、学籍番号から入学年度・学部・有効期限を計算してアカウントを作る。
+        そのままログイン状態にし、`__session` Cookie を返す。`X-Device-Id` があれば、その端末を登録済みの端末にする（AUTHN-3）。
+        トークンが無効・期限切れ・使用済みなら 400 invalid_setup_token、パスワードの長さが範囲外なら 400 invalid_password_length。
+      security: []
+      parameters:
+        - $ref: '#/components/parameters/DeviceId'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/SignupCompletion'
+      responses:
+        '201':
+          description: アカウントを作成し、ログイン状態にした
+          headers:
+            Set-Cookie:
+              description: セッションの `__session` Cookie（HttpOnly, Secure, SameSite=Lax）
+              schema:
+                type: string
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CurrentUser'
+        default:
+          $ref: '#/components/responses/Error'
+  /auth/login:
+    post:
+      tags: [auth]
+      operationId: login
+      summary: メールアドレスとパスワードでログインする
+      description: |
+        AUTH-1, AUTHN-3, AUTHN-5: パスワードが一致し、最後のコード確認から30日未満かつ登録済みの端末（`X-Device-Id`）なら、そのままログインして `__session` Cookie を返す（200）。
+        30日以上たっているか初めての端末なら、メールに6桁のコード（10分有効）を送り、再確認用のログインチャレンジ（15分有効・一度だけ使える）を返す（202）。
+        メールアドレスの形式違い・未登録・削除済み・パスワード違いは、区別せず 401 invalid_credentials（登録の有無を判別させない）。
+        パスワードが一致しても、停止中なら 403 account_suspended、失効（有効期限切れを含む）なら 403 account_expired。
+        AUTHN-6: パスワードの入力ミスが同じアドレスで10回続いたら、15分間は照合せずに 429 too_many_requests（未登録・削除済みのアドレスも同じように数えて止める）。パスワードが一致したら回数は0に戻る。
+        202 でコードを送るときは、コード送信の回数制限（/auth/signup/codes を参照）に当たると 429 too_many_requests。
+      security: []
+      parameters:
+        - $ref: '#/components/parameters/DeviceId'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/LoginInput'
+      responses:
+        '200':
+          description: ログインした
+          headers:
+            Set-Cookie:
+              description: セッションの `__session` Cookie（HttpOnly, Secure, SameSite=Lax）
+              schema:
+                type: string
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CurrentUser'
+        '202':
+          description: 再確認が必要。メールにコードを送った
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/LoginChallenge'
+        default:
+          $ref: '#/components/responses/Error'
+  /auth/login/recheck/codes:
+    post:
+      tags: [auth]
+      operationId: resendLoginRecheckCode
+      summary: 再確認のコードを送り直す
+      description: |
+        AUTHN-3: ログインチャレンジが有効なら、新しいコード（10分有効）を送る。古いコードは使えなくなる。
+        チャレンジが無効・期限切れ・使用済みなら 400 invalid_login_challenge。
+        AUTHN-6: コード送信の回数制限（/auth/signup/codes を参照）に当たったら 429 too_many_requests。断ったときは前のコードがそのまま使える。
+      security: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/LoginChallengeInput'
+      responses:
+        '202':
+          description: コードを送った
+        default:
+          $ref: '#/components/responses/Error'
+  /auth/login/recheck/verify:
+    post:
+      tags: [auth]
+      operationId: verifyLoginRecheck
+      summary: 再確認のコードを確認してログインする
+      description: |
+        AUTHN-3, AUTHN-6: コードが一致したら最後の確認日時を更新し、ログイン時の端末を登録済みの端末にして、`__session` Cookie を返す。
+        不一致は 400 invalid_verification_code（メッセージに残り回数）。期限切れ・使用済み・入力ミスが5回に達したコードは 400 verification_code_expired。
+        チャレンジが無効・期限切れ・使用済みなら 400 invalid_login_challenge。
+      security: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/LoginRecheckVerification'
+      responses:
+        '200':
+          description: ログインした
+          headers:
+            Set-Cookie:
+              description: セッションの `__session` Cookie（HttpOnly, Secure, SameSite=Lax）
+              schema:
+                type: string
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CurrentUser'
+        default:
+          $ref: '#/components/responses/Error'
+  /auth/logout:
+    post:
+      tags: [auth]
+      operationId: logout
+      summary: ログアウトする
+      description: |
+        AUTHN-5: いまのセッションをすぐに無効にし、`__session` Cookie を消す。ログインしていなくても 204 を返す。
+      security: []
+      responses:
+        '204':
+          description: ログアウトした
+          headers:
+            Set-Cookie:
+              description: "`__session` Cookie を消す"
+              schema:
+                type: string
+        default:
+          $ref: '#/components/responses/Error'
+  /auth/password-reset/codes:
+    post:
+      tags: [auth]
+      operationId: sendPasswordResetCode
+      summary: パスワード再設定の認証コードを送る
+      description: |
+        AUTHN-4: 登録済みのアドレスに6桁のコード（10分有効）を送る。
+        未登録・削除済みのアドレスにはコードの代わりに「登録されていません」の案内を送り、応答は登録済みのときと同じにする（登録の有無を判別させない。AUTHN-2）。
+        形式が違うアドレスには送らず 400 invalid_email を返す。
+        同じアドレスへのコード送信は、用途（新規登録・パスワード再設定・ログインの再確認）をまとめて1分に1回・1時間に5回までで、超えたら送らずに 429 too_many_requests（AUTHN-6）。登録の有無にかかわらず同じように数える。
+      security: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/EmailInput'
+      responses:
+        '202':
+          description: 受け付けた（登録済みかどうかにかかわらず同じ応答）
+        default:
+          $ref: '#/components/responses/Error'
+  /auth/password-reset/codes/verify:
+    post:
+      tags: [auth]
+      operationId: verifyPasswordResetCode
+      summary: パスワード再設定の認証コードを確認する
+      description: |
+        AUTHN-4, AUTHN-6: コードが一致したら、パスワード設定用の一時トークン（15分有効・一度だけ使える）を返す。
+        不一致は 400 invalid_verification_code（メッセージに残り回数）。期限切れ・使用済み・入力ミスが5回に達したコードは 400 verification_code_expired。
+      security: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/PasswordResetCodeVerification'
+      responses:
+        '200':
+          description: コードを確認した
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PasswordResetCodeVerified'
+        default:
+          $ref: '#/components/responses/Error'
+  /auth/password-reset/complete:
+    post:
+      tags: [auth]
+      operationId: completePasswordReset
+      summary: 新しいパスワードを設定する
+      description: |
+        AUTHN-4, AUTHN-5: 一時トークンを使って新しいパスワード（10文字以上128文字以下）を設定し、その利用者の既存のセッションをすべて無効にする。
+        コードで本人確認をしたので、最後の確認日時を更新し、そのままこの端末でログイン状態にして `__session` Cookie を返す。`X-Device-Id` があれば、その端末を登録済みの端末にする（AUTHN-3）。
+        トークンが無効・期限切れ・使用済みなら 400 invalid_setup_token、パスワードの長さが範囲外なら 400 invalid_password_length。
+        停止中なら 403 account_suspended、失効なら 403 account_expired を返し、パスワードは変えない。
+        AUTHN-6: 設定したらパスワードの入力ミスの回数を0に戻す。ただしログインを止めている間（429）は期限まで止めたまま。
+      security: []
+      parameters:
+        - $ref: '#/components/parameters/DeviceId'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/PasswordResetCompletion'
+      responses:
+        '200':
+          description: パスワードを変更し、ログイン状態にした
+          headers:
+            Set-Cookie:
+              description: セッションの `__session` Cookie（HttpOnly, Secure, SameSite=Lax）
+              schema:
+                type: string
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CurrentUser'
+        default:
+          $ref: '#/components/responses/Error'
+  /me:
+    get:
+      tags: [auth]
+      operationId: getMe
+      summary: ログイン中の本人の情報を取得する
+      description: |
+        AUTH-1, AUTHN-5: `__session` のセッションが有効（期限内・未失効）で、ユーザーが有効（停止・失効・削除でない）なら本人の情報を返す。そうでなければ 401 unauthorized。
+      responses:
+        '200':
+          description: 本人の情報
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CurrentUser'
+        default:
+          $ref: '#/components/responses/Error'
+  /me/items:
+    get:
+      tags: [items]
+      operationId: listOwnItems
+      summary: 自分の出品を一覧する
+      description: |
+        AUTH-3, ITEM: マイページ（MyPage）の「出品した商品」に出す、本人のすべての出品（下書き・取り下げ・停止を含む）を、最後に更新した日時の新しい順に全件返す（ADR 0029）。
+        承認待ちの購入希望の件数を商品ごとに付ける。購入した商品は `GET /transactions?role=buyer` を使う。
+      responses:
+        '200':
+          description: 自分の出品の一覧
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/OwnItemList'
+        default:
+          $ref: '#/components/responses/Error'
+  /me/sales:
+    get:
+      tags: [sales]
+      operationId: getSales
+      summary: 売上の明細と集計を取得する
+      description: |
+        PAY, PAY-2: 売上管理（Sales）に出す、本人が出品者として成立した取引（取引中・完了）の売上の明細と集計を返す（ADR 0029）。キャンセルした取引は含めない。
+        手数料は取引ごとに成立時点で記録した料率・金額をそのまま返す（ADR 0003, ADR 0017）。並びは最後に動いた日時の新しい順で全件。
+      responses:
+        '200':
+          description: 売上
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Sales'
+        default:
+          $ref: '#/components/responses/Error'
+  /me/sales/payouts:
+    post:
+      tags: [sales]
+      operationId: requestPayout
+      summary: 出金できる売上をすべて出金する（モック）
+      description: |
+        PAY, JOBS-2: 出金できる売上（受け渡しが完了して未出金の取引）をすべて出金し、取引ごとに出金（payout）を記録する（ADR 0029）。フェーズ1はモックで、実際のお金は動かさない。
+        出金できる売上がない（同時に申請された場合を含む）なら 409 invalid_status_transition。応答は出金後の売上。
+      responses:
+        '200':
+          description: 出金後の売上
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Sales'
+        default:
+          $ref: '#/components/responses/Error'
+  /student-cards/uploads:
+    post:
+      tags: [student-cards]
+      operationId: createStudentCardUpload
+      summary: 学生証画像のアップロード用の署名付きURLを発行する
+      description: |
+        CARD, STORAGE: 非公開バケットに直接 PUT するための署名付きURL（15分有効）を発行する。ブラウザは返った `headers` を付けて `uploadUrl` に画像を PUT し、
+        そのあと `objectKey` を `submitStudentCard` に送る。オブジェクト名は `{ユーザーID}/{UUID}`。
+        すでに承認済みなら 409 invalid_status_transition。
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/StudentCardUploadInput'
+      responses:
+        '201':
+          description: 発行した署名付きURL
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/StudentCardUpload'
+        default:
+          $ref: '#/components/responses/Error'
+  /student-cards:
+    post:
+      tags: [student-cards]
+      operationId: submitStudentCard
+      summary: アップロードした学生証画像を登録して審査待ちにする
+      description: |
+        CARD, STORAGE: オブジェクトが本人のもので、アップロード済み・JPEG か WebP・5MB 以下なら学生証として登録し、出品者の承認状態を審査中（pending）にする。
+        そうでなければ 400 invalid_student_card_upload。審査中・差し戻しのときの再提出は前の学生証を置き換える（前の画像も残す。ADR 0014）。
+        すでに承認済みなら 409 invalid_status_transition。
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/StudentCardSubmission'
+      responses:
+        '201':
+          description: 登録後の審査状況
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/StudentCardState'
+        default:
+          $ref: '#/components/responses/Error'
+  /student-cards/current:
+    get:
+      tags: [student-cards]
+      operationId: getCurrentStudentCard
+      summary: 本人の学生証の審査状況を取得する
+      description: |
+        CARD: 最後に提出した学生証の審査状況を返す。未登録なら status は none。画像の閲覧URLは返さない（管理者APIだけが発行する。STORAGE）。
+      responses:
+        '200':
+          description: 審査状況
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/StudentCardState'
+        default:
+          $ref: '#/components/responses/Error'
+  /items/image-uploads:
+    post:
+      tags: [items]
+      operationId: createItemImageUpload
+      summary: 商品写真のアップロード用の署名付きURLを発行する
+      description: |
+        ITEM, STORAGE: 商品写真のバケットに直接 PUT するための署名付きURL（15分有効、5MB まで）を発行する。ブラウザは返った `headers` を付けて `uploadUrl` に画像を PUT し、
+        そのあと `objectKey` を createItem・updateItem の `imageObjectKeys` に入れる。オブジェクト名は `{ユーザーID}/{UUID}`。
+        学生証が承認されていなければ 403 seller_not_approved。
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ImageUploadInput'
+      responses:
+        '201':
+          description: 発行した署名付きURL
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ImageUpload'
+        default:
+          $ref: '#/components/responses/Error'
+  /items:
+    get:
+      tags: [items]
+      operationId: listItems
+      summary: 公開中の商品を新着順に一覧・検索する
+      description: |
+        BROWSE: 公開中・購入希望ありの商品を、最後に公開した日時の新しい順に返す（ADR 0018）。出品者のアカウントが有効（active）でない商品は含めない。
+        条件はすべて任意で、指定したものをすべて満たす商品を返す。`keyword` は空白で区切った語をすべて含む商品（タイトル・説明文・授業名・担当教員・ISBN のどれか）を探す。
+        続きは応答の `nextCursor` を `cursor` に入れて取る。条件が不正（priceMin が priceMax より大きい、壊れた cursor など）なら 400 bad_request。
+      parameters:
+        - name: keyword
+          in: query
+          required: false
+          description: キーワード（空白区切りで AND）
+          schema:
+            type: string
+            maxLength: 100
+        - name: category
+          in: query
+          required: false
+          schema:
+            $ref: '#/components/schemas/ItemCategory'
+        - name: courseName
+          in: query
+          required: false
+          description: 授業名（部分一致）
+          schema:
+            type: string
+            maxLength: 100
+        - name: priceMin
+          in: query
+          required: false
+          description: 価格の下限（円、この値を含む）
+          schema:
+            type: integer
+            format: int64
+            minimum: 0
+        - name: priceMax
+          in: query
+          required: false
+          description: 価格の上限（円、この値を含む）
+          schema:
+            type: integer
+            format: int64
+            minimum: 0
+        - name: campus
+          in: query
+          required: false
+          schema:
+            $ref: '#/components/schemas/Campus'
+        - name: condition
+          in: query
+          required: false
+          schema:
+            $ref: '#/components/schemas/ItemCondition'
+        - name: cursor
+          in: query
+          required: false
+          description: 前の応答の nextCursor。省略すると先頭から
+          schema:
+            type: string
+        - name: limit
+          in: query
+          required: false
+          description: 1回に返す件数
+          schema:
+            type: integer
+            minimum: 1
+            maximum: 50
+            default: 20
+      responses:
+        '200':
+          description: 商品の一覧
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ItemList'
+        default:
+          $ref: '#/components/responses/Error'
+    post:
+      tags: [items]
+      operationId: createItem
+      summary: 商品を出品する（下書きか公開）
+      description: |
+        ITEM: `publish` が false なら下書き（タイトルだけ必須）、true なら公開中として作る（すべての共通項目と写真1枚以上が必須）。
+        入力が不正なら 400 bad_request、写真が不正なら 400 invalid_item_image_upload、学生証が承認されていなければ 403 seller_not_approved。
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ItemCreation'
+      responses:
+        '201':
+          description: 作った商品
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/OwnItem'
+        default:
+          $ref: '#/components/responses/Error'
+  /items/{itemId}:
+    get:
+      tags: [items]
+      operationId: getOwnItem
+      summary: 自分の商品を取得する（編集用）
+      description: |
+        ITEM, STORAGE: 出品者本人の商品を、下書き・取り下げを含めて返す。写真には閲覧用の署名付きURL（15分有効）を付ける。
+        ほかの人の商品は 404 not_found（存在するかどうかを区別しない）。公開されている商品を見るときは BROWSE の API を使う。
+      parameters:
+        - $ref: '#/components/parameters/ItemId'
+      responses:
+        '200':
+          description: 商品
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/OwnItem'
+        default:
+          $ref: '#/components/responses/Error'
+    put:
+      tags: [items]
+      operationId: updateItem
+      summary: 商品を編集する
+      description: |
+        ITEM: すべての項目を置き換える。写真は `imageObjectKeys` の並びが表示順になる。編集できるのは下書き・公開中・取り下げの商品だけで（ADR 0016）、
+        それ以外は 409 invalid_status_transition。公開中の商品はすべての共通項目と写真1枚以上が必須、下書き・取り下げはタイトルだけ必須。
+        ほかの人の商品は 404 not_found、学生証が承認されていなければ 403 seller_not_approved。
+      parameters:
+        - $ref: '#/components/parameters/ItemId'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ItemInput'
+      responses:
+        '200':
+          description: 編集後の商品
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/OwnItem'
+        default:
+          $ref: '#/components/responses/Error'
+  /items/{itemId}/publish:
+    post:
+      tags: [items]
+      operationId: publishItem
+      summary: 商品を公開する（再出品を含む）
+      description: |
+        ITEM: 下書きか取り下げの商品を公開中にする。それ以外は 409 invalid_status_transition（ADR 0016）。
+        共通項目か写真が足りなければ 400 bad_request。ほかの人の商品は 404 not_found、学生証が承認されていなければ 403 seller_not_approved。
+      parameters:
+        - $ref: '#/components/parameters/ItemId'
+      responses:
+        '200':
+          description: 公開後の商品
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/OwnItem'
+        default:
+          $ref: '#/components/responses/Error'
+  /items/{itemId}/withdraw:
+    post:
+      tags: [items]
+      operationId: withdrawItem
+      summary: 商品を取り下げる
+      description: |
+        ITEM: 下書き・公開中・購入希望ありの商品を取り下げる。取引中・取引完了・停止などは 409 invalid_status_transition（ADR 0016）。
+        ほかの人の商品は 404 not_found。
+      parameters:
+        - $ref: '#/components/parameters/ItemId'
+      responses:
+        '200':
+          description: 取り下げ後の商品
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/OwnItem'
+        default:
+          $ref: '#/components/responses/Error'
+  /items/{itemId}/requests:
+    get:
+      tags: [transactions]
+      operationId: listPurchaseRequests
+      summary: 自分の商品に届いている購入希望の一覧を取得する
+      description: |
+        DEAL-1: 出品者が承認する相手を選ぶための、承認待ち（status が requested）の購入希望を希望の古い順に返す。
+        購入者の学籍番号は返さない（承認前は開示しない）。ほかの人の商品は 404 not_found。
+      parameters:
+        - $ref: '#/components/parameters/ItemId'
+      responses:
+        '200':
+          description: 購入希望の一覧
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PurchaseRequestList'
+        default:
+          $ref: '#/components/responses/Error'
+  /items/shared/{shareId}:
+    get:
+      tags: [items]
+      operationId: getPublicItem
+      summary: 共有用IDで商品の詳細を取得する
+      description: |
+        BROWSE: 商品ページ（`/items/:shareId`）に出す商品の詳細を返す。公開中・購入希望ありに加え、取引中・取引完了も「売り切れ」として status 付きで返す（ADR 0018）。
+        下書き・取り下げ・停止の商品と、出品者のアカウントが有効（active）でない商品は 404 not_found（出品者本人も同じ。本人は getOwnItem を使う）。
+        出品者の学籍番号は返さない（DEAL-1）。
+        DEAL-1: ログイン中の本人がこの商品に承認待ち（status が requested）の購入希望を出していれば、`myRequest` にその取引IDと承認期限を入れる。
+      parameters:
+        - $ref: '#/components/parameters/ShareId'
+      responses:
+        '200':
+          description: 商品
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PublicItem'
+        default:
+          $ref: '#/components/responses/Error'
+  /items/shared/{shareId}/requests:
+    post:
+      tags: [transactions]
+      operationId: createPurchaseRequest
+      summary: 購入希望を出す
+      description: |
+        DEAL-1, JOBS-2: 公開中・購入希望ありの商品に購入希望を出し、支払い方法の枠を確保する（フェーズ1はモックで記録するだけ）。
+        金額は購入希望の時点の商品価格、承認期限は購入希望から48時間（ADR 0022）。商品は購入希望ありになる。
+        商品ページで見られない商品は 404 not_found、自分の商品は 403 forbidden、
+        取引中・取引完了の商品と、同じ商品に承認待ちの購入希望をすでに出しているときは 409 invalid_status_transition。
+      parameters:
+        - $ref: '#/components/parameters/ShareId'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/PurchaseRequestInput'
+      responses:
+        '201':
+          description: 作った取引（購入希望）
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Transaction'
+        default:
+          $ref: '#/components/responses/Error'
+  /transactions:
+    get:
+      tags: [transactions]
+      operationId: listTransactions
+      summary: 自分が当事者の取引を一覧する
+      description: |
+        DEAL-1, DEAL-3, DEAL-4: 取引一覧（DealList）に出す、ログイン中の本人が購入者か出品者の取引を返す（ADR 0028）。学籍番号・手数料は含めない。
+        `role` で購入（buyer）と出品（seller）、`phase` で進行中（active）と終了（ended）を分ける。
+        - buyer / active：購入希望（requested）と取引中（in_deal）
+        - buyer / ended：却下・期限切れ・キャンセル・完了
+        - seller / active：承認待ちの購入希望を商品ごとに1行（`requestCount` 件）と、取引中
+        - seller / ended：キャンセル・完了（出品側の却下・期限切れは出さない）
+        並びは最後に動いた日時（`updatedAt`）の新しい順。active は全件を返し `nextCursor` は常に null（cursor を渡すと 400 bad_request）。
+        ended は応答の `nextCursor` を `cursor` に入れて続きを取る。壊れた cursor は 400 bad_request。
+      parameters:
+        - name: role
+          in: query
+          required: true
+          schema:
+            $ref: '#/components/schemas/TransactionRole'
+        - name: phase
+          in: query
+          required: true
+          schema:
+            $ref: '#/components/schemas/TransactionPhase'
+        - name: cursor
+          in: query
+          required: false
+          description: 前の応答の nextCursor（ended だけ）。省略すると先頭から
+          schema:
+            type: string
+        - name: limit
+          in: query
+          required: false
+          description: 1回に返す件数（ended だけ。active は全件）
+          schema:
+            type: integer
+            minimum: 1
+            maximum: 50
+            default: 20
+      responses:
+        '200':
+          description: 取引の一覧
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TransactionList'
+        default:
+          $ref: '#/components/responses/Error'
+  /transactions/{transactionId}:
+    get:
+      tags: [transactions]
+      operationId: getTransaction
+      summary: 取引の詳細を取得する
+      description: |
+        DEAL-1, DEAL-2: ログイン中の本人が購入者か出品者の取引を返す。相手の学籍番号は承認（取引成立）の後だけ入る。
+        当事者でない取引は 404 not_found（存在するかどうかを区別しない）。
+      parameters:
+        - $ref: '#/components/parameters/TransactionId'
+      responses:
+        '200':
+          description: 取引
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Transaction'
+        default:
+          $ref: '#/components/responses/Error'
+  /transactions/{transactionId}/approve:
+    post:
+      tags: [transactions]
+      operationId: approveTransaction
+      summary: 購入希望を承認する
+      description: |
+        DEAL-1, PAY-2, JOBS-2: 出品者が購入希望を1件承認して取引を成立させる。代金を預かり、その時点の手数料率・手数料・出品者の売上を記録し（ADR 0003）、
+        双方の学籍番号を開示する。同じ商品のほかの購入希望は却下して枠を解放する。商品は取引中になる。
+        承認待ちでない・承認期限を過ぎた・同じ商品の取引がすでに成立しているときは 409 invalid_status_transition。
+        出品者でなければ 404 not_found。
+      parameters:
+        - $ref: '#/components/parameters/TransactionId'
+      responses:
+        '200':
+          description: 成立した取引（購入者の学籍番号を含む）
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Transaction'
+        default:
+          $ref: '#/components/responses/Error'
+  /transactions/{transactionId}/reject:
+    post:
+      tags: [transactions]
+      operationId: rejectTransaction
+      summary: 購入希望を却下する
+      description: |
+        DEAL-1, JOBS-2: 出品者が購入希望を却下し、枠を解放する。承認待ちの購入希望がなくなったら商品を公開中に戻す（ADR 0022）。
+        承認待ちでなければ 409 invalid_status_transition。出品者でなければ 404 not_found。
+      parameters:
+        - $ref: '#/components/parameters/TransactionId'
+      responses:
+        '200':
+          description: 却下した取引
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Transaction'
+        default:
+          $ref: '#/components/responses/Error'
+  /transactions/{transactionId}/acknowledge:
+    post:
+      tags: [transactions]
+      operationId: acknowledgeTransaction
+      summary: 取引成立の確認モーダルに同意する
+      description: |
+        DEAL-2: 出品者が「確認しました」を押した日時を記録する。すでに記録済みなら最初の日時のまま 200 を返す。
+        取引中でなければ 409 invalid_status_transition。出品者でなければ 404 not_found。
+      parameters:
+        - $ref: '#/components/parameters/TransactionId'
+      responses:
+        '200':
+          description: 同意を記録した取引
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Transaction'
+        default:
+          $ref: '#/components/responses/Error'
+  /transactions/{transactionId}/cancel:
+    post:
+      tags: [transactions]
+      operationId: cancelTransaction
+      summary: 取引のキャンセルを申請する・申請に同意する
+      description: |
+        DEAL-4, JOBS-2: 当事者が取引のキャンセルを申請する、または相手の申請に同意する（どちらも自分の同意日時を記録する同じ操作）。
+        双方の同意がそろったら取引をキャンセルにし、代金を購入者に返金し（モック）、商品を公開中に戻す。片方だけでは取引中のまま。
+        自分がすでに同意済みなら、最初の日時のまま 200 を返す。相手の申請を断る操作はない（同意しなければ取引は続く）。
+        取引中でない（受け渡し完了後・キャンセル済み・承認前）なら 409 invalid_status_transition。当事者でなければ 404 not_found。
+      parameters:
+        - $ref: '#/components/parameters/TransactionId'
+      responses:
+        '200':
+          description: 同意を記録した取引（双方がそろったらキャンセル済み）
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Transaction'
+        default:
+          $ref: '#/components/responses/Error'
+  /transactions/{transactionId}/cancel/withdraw:
+    post:
+      tags: [transactions]
+      operationId: withdrawCancelRequest
+      summary: 取引のキャンセルの申請を取り下げる
+      description: |
+        DEAL-4: 自分が出したキャンセルの申請を取り下げる（自分の同意日時を消す）。
+        取引中でない（相手が同意してキャンセル済みの場合を含む）・自分が申請していないなら 409 invalid_status_transition。当事者でなければ 404 not_found。
+      parameters:
+        - $ref: '#/components/parameters/TransactionId'
+      responses:
+        '200':
+          description: 申請を取り下げた取引
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Transaction'
+        default:
+          $ref: '#/components/responses/Error'
+  /transactions/{transactionId}/handover-tokens:
+    post:
+      tags: [handover]
+      operationId: createHandoverToken
+      summary: 受け渡しトークンを発行する
+      description: |
+        DEAL-3: 出品者が受け渡しQR・完了リンク・完了コードのトークンを発行する。中身は取引IDと使い捨てのトークンだけで、個人情報・金額は含めない。
+        `qr` は QR に載せるトークンと、QR の下に表示する6桁の確認コードを返す（有効期限5分）。`link` はトークン、`code` は6桁のコードだけを返す（有効期限24時間）。
+        同じ取引・同じ種類の未使用のトークンは使えなくなる（使えるのは常に最新の1つ）。トークン・コードの値はこの応答でしか返さない。
+        取引中でなければ 409 invalid_status_transition。出品者でなければ 404 not_found。
+      parameters:
+        - $ref: '#/components/parameters/TransactionId'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/HandoverTokenInput'
+      responses:
+        '201':
+          description: 発行した受け渡しトークン
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HandoverToken'
+        default:
+          $ref: '#/components/responses/Error'
+  /transactions/{transactionId}/handover/verify:
+    post:
+      tags: [handover]
+      operationId: verifyHandover
+      summary: 受け渡しトークンを照合する（使用済みにしない）
+      description: |
+        DEAL-3: 購入者が読み取った QR・開いた完了リンク・入力したコードが使えるかを確かめる。トークンは使用済みにしない。
+        アプリはこの照合のあとに「商品を受け取りましたか？」を表示し、「受け取った」で completeTransaction を呼ぶ。
+        使えない（違う・期限切れ・使用済み）なら 400 invalid_handover_token。取引中でなければ 409 invalid_status_transition。購入者でなければ 404 not_found。
+      parameters:
+        - $ref: '#/components/parameters/TransactionId'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/HandoverCredential'
+      responses:
+        '204':
+          description: 使える
+        default:
+          $ref: '#/components/responses/Error'
+  /transactions/{transactionId}/complete:
+    post:
+      tags: [handover]
+      operationId: completeTransaction
+      summary: 受け渡しを完了する
+      description: |
+        DEAL-3, PAY-2, JOBS-2: 購入者の操作で受け渡しを完了する。トークンを使用済みにし、取引と商品を完了にして、取引成立時に記録した出品者の売上を確定する（モック）。
+        完了方法は入力の種類（qr・link・code。QR の下の確認コードを入力したときは code）で記録する。完了後はキャンセル・返金できない（DEAL-4）。
+        使えない（違う・期限切れ・使用済み）なら 400 invalid_handover_token。取引中でない（同時に完了された場合を含む）なら 409 invalid_status_transition。
+        購入者でなければ 404 not_found（出品者の操作では完了しない）。
+      parameters:
+        - $ref: '#/components/parameters/TransactionId'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/HandoverCredential'
+      responses:
+        '200':
+          description: 完了した取引
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Transaction'
+        default:
+          $ref: '#/components/responses/Error'
+  /settings/fee-rate:
+    get:
+      tags: [settings]
+      operationId: getFeeRate
+      summary: 現在の手数料率を取得する
+      description: |
+        PAY-2: 現在の手数料率（ベーシスポイント）を返す。出品画面の受け取り見込みの表示に使う。
+        手数料は 商品価格 × 料率 の1円未満を切り捨てた額（ADR 0017）。取引に適用する料率は取引が成立した時点の値（ADR 0003）。
+      responses:
+        '200':
+          description: 現在の手数料率
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/FeeRate'
+        default:
+          $ref: '#/components/responses/Error'
+  /admin/session:
+    get:
+      tags: [admin]
+      operationId: getAdminSession
+      summary: 管理者かどうかを確かめる
+      description: |
+        ADMIN, FE: 管理者なら 204。未ログイン・管理者でなければ 404 not_found（管理画面は 404 なら「ページが見つからない」を出す。ADR 0015）。
+      responses:
+        '204':
+          description: 管理者
+        default:
+          $ref: '#/components/responses/Error'
+  /admin/student-cards:
+    get:
+      tags: [admin]
+      operationId: listPendingStudentCards
+      summary: 審査待ちの学生証を一覧する
+      description: |
+        ADMIN, CARD: 審査待ち（pending）で置き換えられていない学生証を、提出の古い順に返す。画像の URL は含めない（createStudentCardView で発行する）。
+      responses:
+        '200':
+          description: 審査待ちの学生証
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/AdminStudentCard'
+        default:
+          $ref: '#/components/responses/Error'
+  /admin/student-cards/{studentCardId}/views:
+    post:
+      tags: [admin]
+      operationId: createStudentCardView
+      summary: 学生証画像の閲覧URLを発行し、閲覧を記録する
+      description: |
+        ADMIN, CARD, STORAGE: 非公開バケットの画像を GET する署名付きURL（15分有効）を発行し、閲覧した管理者と日時を記録する。
+        学生証がない・画像が削除済みなら 404 not_found。
+      parameters:
+        - $ref: '#/components/parameters/StudentCardId'
+      responses:
+        '201':
+          description: 発行した閲覧URL
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/StudentCardImage'
+        default:
+          $ref: '#/components/responses/Error'
+    get:
+      tags: [admin]
+      operationId: listStudentCardViews
+      summary: 学生証画像の閲覧記録を一覧する
+      description: |
+        ADMIN, CARD: その学生証の画像を閲覧した記録を新しい順に返す。学生証がなければ 404 not_found。
+      parameters:
+        - $ref: '#/components/parameters/StudentCardId'
+      responses:
+        '200':
+          description: 閲覧記録
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/StudentCardView'
+        default:
+          $ref: '#/components/responses/Error'
+  /admin/student-cards/{studentCardId}/approve:
+    post:
+      tags: [admin]
+      operationId: approveStudentCard
+      summary: 学生証を承認する
+      description: |
+        ADMIN, CARD: 審査待ちで置き換えられていない学生証を承認し、本人の出品者の承認状態を approved にする。
+        審査待ちでない・置き換えられた・本人が審査中でなければ 409 invalid_status_transition。学生証がなければ 404 not_found。
+      parameters:
+        - $ref: '#/components/parameters/StudentCardId'
+      responses:
+        '200':
+          description: 承認後の学生証
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AdminStudentCard'
+        default:
+          $ref: '#/components/responses/Error'
+  /admin/student-cards/{studentCardId}/reject:
+    post:
+      tags: [admin]
+      operationId: rejectStudentCard
+      summary: 学生証を差し戻す
+      description: |
+        ADMIN, CARD: 審査待ちで置き換えられていない学生証を差し戻し、本人の出品者の承認状態を rejected にする。理由は持たない（ADR 0015）。
+        審査待ちでない・置き換えられた・本人が審査中でなければ 409 invalid_status_transition。学生証がなければ 404 not_found。
+      parameters:
+        - $ref: '#/components/parameters/StudentCardId'
+      responses:
+        '200':
+          description: 差し戻し後の学生証
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AdminStudentCard'
+        default:
+          $ref: '#/components/responses/Error'
+  /admin/users:
+    get:
+      tags: [admin]
+      operationId: listAdminUsers
+      summary: ユーザーを一覧する
+      description: |
+        ADMIN, AUTH-3: ユーザーを登録の新しい順に返す（AdminUsers）。`q` は学籍番号の前方一致（数字1〜8桁）、`filter` は状態での絞り込み
+        （withdrawal_requested は退学を申請して削除されていない人。ADR 0034）。応答の `withdrawalRequestCount` は絞り込みに関係なく数える。
+        続きは応答の `nextCursor` を `cursor` に入れて取る。条件が不正（数字でない q、壊れた cursor など）なら 400 bad_request。
+      parameters:
+        - name: q
+          in: query
+          required: false
+          description: 学籍番号の前方一致
+          schema:
+            type: string
+        - name: filter
+          in: query
+          required: false
+          schema:
+            $ref: '#/components/schemas/AdminUserFilter'
+        - name: cursor
+          in: query
+          required: false
+          description: 前の応答の nextCursor。省略すると先頭から
+          schema:
+            type: string
+        - name: limit
+          in: query
+          required: false
+          schema:
+            type: integer
+            minimum: 1
+            maximum: 50
+            default: 20
+      responses:
+        '200':
+          description: ユーザーの一覧
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AdminUserList'
+        default:
+          $ref: '#/components/responses/Error'
+  /admin/users/{userId}:
+    get:
+      tags: [admin]
+      operationId: getAdminUser
+      summary: ユーザーの詳細を取る
+      description: |
+        ADMIN: ユーザー1人の情報を返す。ユーザーがいなければ 404 not_found。
+      parameters:
+        - $ref: '#/components/parameters/UserId'
+      responses:
+        '200':
+          description: ユーザー
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AdminUser'
+        default:
+          $ref: '#/components/responses/Error'
+  /admin/users/{userId}/suspend:
+    post:
+      tags: [admin]
+      operationId: suspendUser
+      summary: アカウントを停止する
+      description: |
+        ADMIN: 有効なアカウントを停止にし、セッションをすべて無効にする。商品は一覧・商品ページから除かれ、取引はそのまま残る（ADR 0034）。
+        有効でなければ 409 invalid_status_transition。ユーザーがいなければ 404 not_found。
+      parameters:
+        - $ref: '#/components/parameters/UserId'
+      responses:
+        '200':
+          description: 停止後のユーザー
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AdminUser'
+        default:
+          $ref: '#/components/responses/Error'
+  /admin/users/{userId}/unsuspend:
+    post:
+      tags: [admin]
+      operationId: unsuspendUser
+      summary: アカウントの停止を解除する
+      description: |
+        ADMIN: 停止中のアカウントを有効に戻す（ADR 0034）。停止中でなければ 409 invalid_status_transition。ユーザーがいなければ 404 not_found。
+      parameters:
+        - $ref: '#/components/parameters/UserId'
+      responses:
+        '200':
+          description: 解除後のユーザー
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AdminUser'
+        default:
+          $ref: '#/components/responses/Error'
+  /admin/users/{userId}/expires-on:
+    put:
+      tags: [admin]
+      operationId: updateUserExpiresOn
+      summary: 有効期限を変更する
+      description: |
+        ADMIN, AUTH-3: 有効・停止のアカウントの有効期限を変える（延長の仕組みができるまでの暫定。ADR 0034）。
+        今日（日本時間）より前の日付なら 400 bad_request。有効・停止でなければ 409 invalid_status_transition。ユーザーがいなければ 404 not_found。
+      parameters:
+        - $ref: '#/components/parameters/UserId'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ExpiresOnInput'
+      responses:
+        '200':
+          description: 変更後のユーザー
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AdminUser'
+        default:
+          $ref: '#/components/responses/Error'
+  /admin/users/{userId}/delete:
+    post:
+      tags: [admin]
+      operationId: deleteUser
+      summary: 退学によりアカウントを削除する
+      description: |
+        ADMIN, AUTH-3: 有効・停止のアカウントを削除にし、失効と同じ後処理（商品の取り下げ、購入希望の期限切れ、取引中の取引のキャンセルと返金、
+        学生証の削除予定日を削除日 + 3年、セッションの無効化）を行う（ADR 0033, ADR 0034）。
+        有効・停止でなければ 409 invalid_status_transition。ユーザーがいなければ 404 not_found。
+      parameters:
+        - $ref: '#/components/parameters/UserId'
+      responses:
+        '200':
+          description: 削除後のユーザー
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AdminUser'
+        default:
+          $ref: '#/components/responses/Error'
+  /admin/items:
+    get:
+      tags: [admin]
+      operationId: listAdminItems
+      summary: 出品を一覧する
+      description: |
+        ADMIN: すべての出品（下書き・取り下げ・停止を含む）を作った日時の新しい順に返す（AdminDeals の出品）。
+        続きは応答の `nextCursor` を `cursor` に入れて取る。壊れた cursor は 400 bad_request。
+      parameters:
+        - name: cursor
+          in: query
+          required: false
+          description: 前の応答の nextCursor。省略すると先頭から
+          schema:
+            type: string
+        - name: limit
+          in: query
+          required: false
+          schema:
+            type: integer
+            minimum: 1
+            maximum: 50
+            default: 20
+      responses:
+        '200':
+          description: 出品の一覧
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AdminItemList'
+        default:
+          $ref: '#/components/responses/Error'
+  /admin/items/{itemId}/suspend:
+    post:
+      tags: [admin]
+      operationId: suspendItem
+      summary: 出品を停止する
+      description: |
+        ADMIN, ITEM-1: 下書き・公開中・購入希望あり・取引中の商品を停止にする。購入希望ありなら承認待ちの購入希望をすべて却下して枠を解放する。
+        取引中なら取引は続ける（ADR 0034）。それ以外のステータスなら 409 invalid_status_transition。商品がなければ 404 not_found。
+      parameters:
+        - $ref: '#/components/parameters/ItemId'
+      responses:
+        '200':
+          description: 停止後の商品
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AdminItem'
+        default:
+          $ref: '#/components/responses/Error'
+  /admin/transactions:
+    get:
+      tags: [admin]
+      operationId: listAdminTransactions
+      summary: 取引を一覧する
+      description: |
+        ADMIN: すべての取引（購入希望を含む）を最後に動いた日時の新しい順に返す（AdminDeals の取引）。
+        続きは応答の `nextCursor` を `cursor` に入れて取る。壊れた cursor は 400 bad_request。
+      parameters:
+        - name: cursor
+          in: query
+          required: false
+          description: 前の応答の nextCursor。省略すると先頭から
+          schema:
+            type: string
+        - name: limit
+          in: query
+          required: false
+          schema:
+            type: integer
+            minimum: 1
+            maximum: 50
+            default: 20
+      responses:
+        '200':
+          description: 取引の一覧
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AdminTransactionList'
+        default:
+          $ref: '#/components/responses/Error'
+  /admin/transactions/{transactionId}/cancel:
+    post:
+      tags: [admin]
+      operationId: cancelTransactionByAdmin
+      summary: 取引をキャンセルして返金する（モック）
+      description: |
+        ADMIN, DEAL-4: トラブル対応として、取引中の取引をキャンセルし、代金を購入者に返金する（モック）。当事者の同意日時は入れず、
+        キャンセル回数に数えない。商品は取引中なら公開中に戻し、それ以外（停止など）ならそのままにする（ADR 0034）。
+        取引中でなければ（受け渡し完了後を含む）409 invalid_status_transition。取引がなければ 404 not_found。
+      parameters:
+        - $ref: '#/components/parameters/TransactionId'
+      responses:
+        '200':
+          description: キャンセル後の取引
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AdminTransaction'
+        default:
+          $ref: '#/components/responses/Error'
+  /admin/settings/fee-rate:
+    get:
+      tags: [admin]
+      operationId: getAdminFeeRate
+      summary: 手数料率と最終更新を取る
+      description: |
+        ADMIN, PAY-2: 現在の手数料率と、最後に変更した日時・管理者を返す（AdminSettings。ADR 0034）。
+      responses:
+        '200':
+          description: 現在の手数料率
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AdminFeeRate'
+        default:
+          $ref: '#/components/responses/Error'
+    put:
+      tags: [admin]
+      operationId: updateFeeRate
+      summary: 手数料率を変更する
+      description: |
+        ADMIN, PAY-2: 手数料率（0〜10000 ベーシスポイント）を変える。変更後に成立する取引から使われ、成立済みの取引の料率は変わらない（ADR 0003）。
+        範囲外なら 400 bad_request。
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/FeeRate'
+      responses:
+        '200':
+          description: 変更後の手数料率
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AdminFeeRate'
+        default:
+          $ref: '#/components/responses/Error'
+  /webhooks/payment:
+    post:
+      tags: [webhooks]
+      operationId: receivePaymentWebhook
+      summary: 決済サービスからの通知を受ける（枠だけ）
+      description: |
+        JOBS-2: 本番の決済サービス（Stripe Connect・PAY.JP など）からの通知を受ける口。フェーズ1は決済がモックなので、
+        本文を読まずに何もせず 204 を返す。本番の実装に差し替えるときに、署名の検証と本文の形をこの契約に足す（ADR 0021）。
+      security: []
+      responses:
+        '204':
+          description: 受け付けた（フェーズ1は何もしない）
+        default:
+          $ref: '#/components/responses/Error'
+  /internal/jobs/short:
+    post:
+      tags: [internal]
+      operationId: runShortJob
+      summary: 短周期ジョブを実行する（15分ごと）
+      description: |
+        JOBS-1, DEAL-1, AUTHN-6: Cloud Scheduler から15分ごとに呼ぶ。承認期限を過ぎた購入希望を期限切れにして枠を解放し（承認待ちがなくなった商品は公開中に戻す。ADR 0022）、
+        期限切れの認証コード・再確認・パスワード設定・受け渡しのトークンと、24時間更新のないパスワードの入力ミスの記録を消す。
+        自動完了（DEAL-5）は導入するか未定のため行わない。何度呼んでも結果は同じ（冪等）。
+        `Authorization: Bearer` で Cloud Scheduler の OIDC ID トークン（ローカルは代替のシークレット）を送る。確かめられなければ 404 not_found（ADR 0027）。
+      security:
+        - schedulerOidc: []
+      responses:
+        '204':
+          description: 実行した
+        default:
+          $ref: '#/components/responses/Error'
+  /internal/jobs/daily:
+    post:
+      tags: [internal]
+      operationId: runDailyJob
+      summary: 日次ジョブを実行する（毎日深夜）
+      description: |
+        JOBS-1, AUTH-3, CARD, STORAGE: Cloud Scheduler から毎日深夜に呼ぶ。有効期限を過ぎたアカウントを失効させ、本人の商品の取り下げ・購入希望の期限切れ・
+        取引中の取引のキャンセルと返金・学生証の削除予定日の記録・セッションの無効化を行う（ADR 0033）。
+        続けて、削除予定日を過ぎた学生証画像と、登録されなかった学生証のオブジェクトを消す。何度呼んでも結果は同じ（冪等）。
+        `Authorization: Bearer` で Cloud Scheduler の OIDC ID トークン（ローカルは代替のシークレット）を送る。確かめられなければ 404 not_found（ADR 0027）。
+      security:
+        - schedulerOidc: []
+      responses:
+        '204':
+          description: 実行した
+        default:
+          $ref: '#/components/responses/Error'
 components:
   securitySchemes:
     sessionCookie:
       type: apiKey
       in: cookie
       name: __session
+    schedulerOidc:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+      description: Cloud Scheduler のサービスアカウントの OIDC ID トークン（JOBS-1）。ローカルは代替のシークレット
   parameters:
+    StudentCardId:
+      name: studentCardId
+      in: path
+      required: true
+      description: 学生証のID
+      schema:
+        type: string
+    ItemId:
+      name: itemId
+      in: path
+      required: true
+      description: 商品のID
+      schema:
+        type: string
+    ShareId:
+      name: shareId
+      in: path
+      required: true
+      description: 商品の共有用ID（BROWSE）
+      schema:
+        type: string
+    TransactionId:
+      name: transactionId
+      in: path
+      required: true
+      description: 取引のID
+      schema:
+        type: string
+    UserId:
+      name: userId
+      in: path
+      required: true
+      description: ユーザーのID
+      schema:
+        type: string
     DeviceId:
       name: X-Device-Id
       in: header
@@ -54,6 +1510,1206 @@ components:
           schema:
             $ref: '#/components/schemas/Error'
   schemas:
+    EmailInput:
+      type: object
+      required: [email]
+      properties:
+        email:
+          type: string
+          description: 大学のメールアドレス（学籍番号@edu.cc.saga-u.ac.jp）。前後の空白と大文字・小文字の違いは無視する
+          example: 26238001@edu.cc.saga-u.ac.jp
+    StudentEstimate:
+      type: object
+      description: AUTH-2, AUTH-4 学籍番号から推定した情報
+      required: [studentNumber, admissionYear, departmentCode, department, departmentName, expiresOn]
+      properties:
+        studentNumber:
+          type: string
+          example: '26238001'
+        admissionYear:
+          type: integer
+          description: 入学年度（学籍番号の上2桁 + 2000）
+          example: 2026
+        departmentCode:
+          type: string
+          description: 学部・学科コード（学籍番号の3〜5桁目）
+          example: '238'
+        department:
+          type: string
+          nullable: true
+          description: AUTH-4 の表で確定した学部・学科のコード。表にないコードは null（不明）
+          example: '238'
+        departmentName:
+          type: string
+          nullable: true
+          description: 学部・学科の名前。不明なら null
+          example: 理工学部 理工学科
+        expiresOn:
+          type: string
+          format: date
+          description: 有効期限の初期値（入学年度 + 修業年限 の3月31日。不明なら4年）
+          example: '2030-03-31'
+    SignupCodeVerification:
+      type: object
+      required: [email, code]
+      properties:
+        email:
+          type: string
+          example: 26238001@edu.cc.saga-u.ac.jp
+        code:
+          type: string
+          description: メールで届いた6桁のコード
+          example: '012345'
+    SignupCodeVerified:
+      type: object
+      required: [setupToken, estimate]
+      properties:
+        setupToken:
+          type: string
+          description: パスワード設定用の一時トークン（15分有効・一度だけ使える）
+        estimate:
+          $ref: '#/components/schemas/StudentEstimate'
+    SignupCompletion:
+      type: object
+      required: [setupToken, password]
+      properties:
+        setupToken:
+          type: string
+        password:
+          type: string
+          description: 10文字以上128文字以下（AUTHN-5）
+          minLength: 10
+          maxLength: 128
+    PasswordResetCodeVerification:
+      type: object
+      required: [email, code]
+      properties:
+        email:
+          type: string
+          example: 26238001@edu.cc.saga-u.ac.jp
+        code:
+          type: string
+          description: メールで届いた6桁のコード
+          example: '012345'
+    PasswordResetCodeVerified:
+      type: object
+      required: [setupToken]
+      properties:
+        setupToken:
+          type: string
+          description: パスワード設定用の一時トークン（15分有効・一度だけ使える）
+    PasswordResetCompletion:
+      type: object
+      required: [setupToken, password]
+      properties:
+        setupToken:
+          type: string
+        password:
+          type: string
+          description: 10文字以上128文字以下（AUTHN-5）
+          minLength: 10
+          maxLength: 128
+    LoginInput:
+      type: object
+      required: [email, password]
+      properties:
+        email:
+          type: string
+          description: 大学のメールアドレス。前後の空白と大文字・小文字の違いは無視する
+          example: 26238001@edu.cc.saga-u.ac.jp
+        password:
+          type: string
+    LoginRecheckReason:
+      type: string
+      description: |
+        再確認が必要な理由（AUTHN-3）。code_expired = 最後にコードで確認してから30日以上たった、new_device = 初めて使う端末。
+        両方に当てはまるときは code_expired。
+      enum: [code_expired, new_device]
+    LoginChallenge:
+      type: object
+      description: AUTHN-3 再確認用のログインチャレンジ。パスワードが一致したことを表し、コードの確認・再送に使う
+      required: [challengeToken, reason, email]
+      properties:
+        challengeToken:
+          type: string
+          description: ログインチャレンジのトークン（15分有効・一度だけ使える）
+        reason:
+          $ref: '#/components/schemas/LoginRecheckReason'
+        email:
+          type: string
+          description: コードの送信先（ログインに使ったメールアドレス）
+          example: 26238001@edu.cc.saga-u.ac.jp
+    LoginChallengeInput:
+      type: object
+      required: [challengeToken]
+      properties:
+        challengeToken:
+          type: string
+    LoginRecheckVerification:
+      type: object
+      required: [challengeToken, code]
+      properties:
+        challengeToken:
+          type: string
+        code:
+          type: string
+          description: メールで届いた6桁のコード
+          example: '012345'
+    CurrentUser:
+      type: object
+      description: ログイン中の本人の情報。本人にだけ返す
+      required: [id, email, studentNumber, admissionYear, departmentCode, department, departmentName, expiresOn, status, sellerStatus]
+      properties:
+        id:
+          type: string
+        email:
+          type: string
+        studentNumber:
+          type: string
+        admissionYear:
+          type: integer
+        departmentCode:
+          type: string
+        department:
+          type: string
+          nullable: true
+        departmentName:
+          type: string
+          nullable: true
+        expiresOn:
+          type: string
+          format: date
+        status:
+          $ref: '#/components/schemas/UserStatus'
+        sellerStatus:
+          $ref: '#/components/schemas/SellerStatus'
+    UserStatus:
+      type: string
+      description: ユーザーの状態
+      enum: [active, suspended, expired, deleted]
+    SellerStatus:
+      type: string
+      description: 出品者の承認状態
+      enum: [none, pending, approved, rejected]
+    StudentCardUploadInput:
+      type: object
+      required: [contentType]
+      properties:
+        contentType:
+          type: string
+          description: アップロードする画像の形式（ブラウザで縮小・圧縮したもの。STORAGE）
+          enum: [image/jpeg, image/webp]
+    StudentCardUpload:
+      type: object
+      description: STORAGE 学生証画像のアップロード先
+      required: [objectKey, uploadUrl, method, headers, expiresAt]
+      properties:
+        objectKey:
+          type: string
+          description: 登録（submitStudentCard）で送るオブジェクト名
+          example: 0b6c1f7e-1d2a-4c55-9a51-2f0f6f3d9c10/7d7f5a2e-3c1b-4f0e-8a0c-6c1e9b2d4f11
+        uploadUrl:
+          type: string
+          description: 署名付きURL
+        method:
+          type: string
+          enum: [PUT]
+        headers:
+          type: object
+          description: PUT に付けるヘッダー（署名に含まれる。Content-Type など）
+          additionalProperties:
+            type: string
+        expiresAt:
+          type: string
+          format: date-time
+          description: 署名付きURLの有効期限
+    StudentCardSubmission:
+      type: object
+      required: [objectKey]
+      properties:
+        objectKey:
+          type: string
+          description: createStudentCardUpload で受け取ったオブジェクト名
+    StudentCardState:
+      type: object
+      description: CARD 本人の学生証の審査状況
+      required: [status, submittedAt, reviewedAt]
+      properties:
+        status:
+          $ref: '#/components/schemas/SellerStatus'
+        submittedAt:
+          type: string
+          format: date-time
+          nullable: true
+          description: 最後に提出した日時。未登録なら null
+        reviewedAt:
+          type: string
+          format: date-time
+          nullable: true
+          description: 審査した日時。審査前・未登録なら null
+    StudentCardStatus:
+      type: string
+      description: 学生証の審査状態
+      enum: [pending, approved, rejected]
+    AdminStudentCard:
+      type: object
+      description: ADMIN 管理者に見せる学生証と本人の情報（審査で学籍番号を照合する。CARD）
+      required: [id, status, studentNumber, departmentName, admissionYear, expiresOn, submittedAt, reviewedAt]
+      properties:
+        id:
+          type: string
+        status:
+          $ref: '#/components/schemas/StudentCardStatus'
+        studentNumber:
+          type: string
+          description: メールアドレスの学籍番号
+        departmentName:
+          type: string
+          nullable: true
+          description: 推定した学部・学科の表示名。不明なら null
+        admissionYear:
+          type: integer
+        expiresOn:
+          type: string
+          format: date
+        submittedAt:
+          type: string
+          format: date-time
+        reviewedAt:
+          type: string
+          format: date-time
+          nullable: true
+          description: 審査した日時。審査前は null
+    StudentCardImage:
+      type: object
+      description: STORAGE 学生証画像の閲覧URL（管理者だけに発行する）
+      required: [url, expiresAt, viewedAt]
+      properties:
+        url:
+          type: string
+          description: 署名付きURL（GET）
+        expiresAt:
+          type: string
+          format: date-time
+          description: 署名付きURLの有効期限
+        viewedAt:
+          type: string
+          format: date-time
+          description: 記録した閲覧の日時
+    StudentCardView:
+      type: object
+      description: ADMIN 学生証画像の閲覧記録
+      required: [viewedAt, adminStudentNumber]
+      properties:
+        viewedAt:
+          type: string
+          format: date-time
+        adminStudentNumber:
+          type: string
+          description: 閲覧した管理者の学籍番号
+    AdminUserFilter:
+      type: string
+      description: 管理画面のユーザーの絞り込み。all すべて / active 有効 / suspended 停止 / expired 失効 / withdrawal_requested 退学申請（削除されていない人）
+      enum: [all, active, suspended, expired, withdrawal_requested]
+    AdminUserList:
+      type: object
+      description: ADMIN 管理画面のユーザーの一覧
+      required: [entries, withdrawalRequestCount, nextCursor]
+      properties:
+        entries:
+          type: array
+          description: 登録の新しい順
+          items:
+            $ref: '#/components/schemas/AdminUser'
+        withdrawalRequestCount:
+          type: integer
+          description: 退学を申請して削除されていない人の数（絞り込みに関係なく数える）
+        nextCursor:
+          type: string
+          nullable: true
+          description: 続きを取るときに cursor に入れる値。続きがなければ null
+    AdminUser:
+      type: object
+      description: ADMIN 管理者に見せるユーザーの情報
+      required: [id, studentNumber, departmentName, admissionYear, expiresOn, status, sellerStatus, cancelCount, activeTransactionCount, withdrawalRequestedAt, createdAt]
+      properties:
+        id:
+          type: string
+        studentNumber:
+          type: string
+        departmentName:
+          type: string
+          nullable: true
+          description: 学部・学科の表示名。不明なら null
+        admissionYear:
+          type: integer
+        expiresOn:
+          type: string
+          format: date
+        status:
+          $ref: '#/components/schemas/UserStatus'
+        sellerStatus:
+          $ref: '#/components/schemas/SellerStatus'
+        cancelCount:
+          type: integer
+          description: キャンセル回数。双方の同意でキャンセルになった取引の数（DEAL-4, ADR 0034）
+        activeTransactionCount:
+          type: integer
+          description: 当事者になっている取引中の取引の数
+        withdrawalRequestedAt:
+          type: string
+          format: date-time
+          nullable: true
+          description: 退学を申請した日時。申請していなければ null
+        createdAt:
+          type: string
+          format: date-time
+    ExpiresOnInput:
+      type: object
+      required: [expiresOn]
+      properties:
+        expiresOn:
+          type: string
+          format: date
+          description: 新しい有効期限（その日の終わりまで使える）
+    AdminItemList:
+      type: object
+      description: ADMIN 管理画面の出品の一覧
+      required: [entries, nextCursor]
+      properties:
+        entries:
+          type: array
+          description: 作った日時の新しい順
+          items:
+            $ref: '#/components/schemas/AdminItem'
+        nextCursor:
+          type: string
+          nullable: true
+          description: 続きを取るときに cursor に入れる値。続きがなければ null
+    AdminItem:
+      type: object
+      description: ADMIN 管理者に見せる出品
+      required: [id, shareId, title, price, status, sellerStudentNumber, thumbnail, createdAt]
+      properties:
+        id:
+          type: string
+        shareId:
+          type: string
+        title:
+          type: string
+        price:
+          type: integer
+          format: int64
+          nullable: true
+          description: 価格（円）。下書きで未入力なら null
+        status:
+          $ref: '#/components/schemas/ItemStatus'
+        sellerStudentNumber:
+          type: string
+        thumbnail:
+          description: 1枚目の写真
+          allOf:
+            - $ref: '#/components/schemas/ItemImage'
+          nullable: true
+        createdAt:
+          type: string
+          format: date-time
+    AdminTransactionList:
+      type: object
+      description: ADMIN 管理画面の取引の一覧
+      required: [entries, nextCursor]
+      properties:
+        entries:
+          type: array
+          description: 最後に動いた日時の新しい順
+          items:
+            $ref: '#/components/schemas/AdminTransaction'
+        nextCursor:
+          type: string
+          nullable: true
+          description: 続きを取るときに cursor に入れる値。続きがなければ null
+    AdminTransaction:
+      type: object
+      description: ADMIN 管理者に見せる取引。管理者には承認前でも当事者の学籍番号を見せる
+      required: [id, status, item, sellerStudentNumber, buyerStudentNumber, price, paymentMethod, feeRateBasisPoints, buyerCancelAgreedAt, sellerCancelAgreedAt, completedAt, createdAt, updatedAt]
+      properties:
+        id:
+          type: string
+        status:
+          $ref: '#/components/schemas/TransactionStatus'
+        item:
+          $ref: '#/components/schemas/TransactionItem'
+        sellerStudentNumber:
+          type: string
+        buyerStudentNumber:
+          type: string
+        price:
+          type: integer
+          format: int64
+          description: 取引の金額（円）
+        paymentMethod:
+          $ref: '#/components/schemas/PaymentMethod'
+        feeRateBasisPoints:
+          type: integer
+          nullable: true
+          description: この取引に適用した手数料率（ベーシスポイント）。成立前は null
+        buyerCancelAgreedAt:
+          type: string
+          format: date-time
+          nullable: true
+        sellerCancelAgreedAt:
+          type: string
+          format: date-time
+          nullable: true
+        completedAt:
+          type: string
+          format: date-time
+          nullable: true
+        createdAt:
+          type: string
+          format: date-time
+        updatedAt:
+          type: string
+          format: date-time
+    AdminFeeRate:
+      type: object
+      description: ADMIN, PAY-2 管理画面の手数料率
+      required: [feeRateBasisPoints, updatedAt, updatedByStudentNumber]
+      properties:
+        feeRateBasisPoints:
+          type: integer
+          minimum: 0
+          maximum: 10000
+          description: 手数料率（ベーシスポイント。500 = 5%）
+        updatedAt:
+          type: string
+          format: date-time
+          description: 最後に変更した日時
+        updatedByStudentNumber:
+          type: string
+          nullable: true
+          description: 最後に変更した管理者の学籍番号。初期値のままなら null
+    ImageContentType:
+      type: string
+      description: アップロードする画像の形式（ブラウザで縮小・圧縮したもの。STORAGE）
+      enum: [image/jpeg, image/webp]
+    ImageUploadInput:
+      type: object
+      required: [contentType]
+      properties:
+        contentType:
+          $ref: '#/components/schemas/ImageContentType'
+    ImageUpload:
+      type: object
+      description: STORAGE 画像のアップロード先
+      required: [objectKey, uploadUrl, method, headers, expiresAt]
+      properties:
+        objectKey:
+          type: string
+          description: 登録で送るオブジェクト名（`{ユーザーID}/{UUID}`）
+        uploadUrl:
+          type: string
+          description: 署名付きURL
+        method:
+          type: string
+          enum: [PUT]
+        headers:
+          type: object
+          description: PUT に付けるヘッダー（署名に含まれる。Content-Type など）
+          additionalProperties:
+            type: string
+        expiresAt:
+          type: string
+          format: date-time
+          description: 署名付きURLの有効期限
+    FeeRate:
+      type: object
+      description: PAY-2 手数料率
+      required: [feeRateBasisPoints]
+      properties:
+        feeRateBasisPoints:
+          type: integer
+          minimum: 0
+          maximum: 10000
+          description: 手数料率（ベーシスポイント。500 = 5%）
+    ItemStatus:
+      type: string
+      description: 商品のステータス
+      enum: [draft, published, requested, in_deal, completed, withdrawn, suspended]
+    ItemCategory:
+      type: string
+      description: カテゴリ
+      enum: [textbook, furniture_appliance, game_other]
+    ItemCondition:
+      type: string
+      description: 商品の状態（new_like 新品同様 / good 目立った傷なし / fair やや傷あり）
+      enum: [new_like, good, fair]
+    Campus:
+      type: string
+      description: 受け渡し希望キャンパス
+      enum: [honjo, nabeshima]
+    TextbookDetails:
+      type: object
+      description: ITEM 教科書・参考書の追加項目（どれも任意）
+      properties:
+        courseName:
+          type: string
+          maxLength: 100
+          description: 授業名
+        instructor:
+          type: string
+          maxLength: 100
+          description: 担当教員
+        isbn:
+          type: string
+          description: ISBN（10桁か13桁。ハイフンは除いて保存する）
+          example: '9784000000000'
+        hasWriting:
+          type: boolean
+          description: 書き込みの有無
+    FurnitureApplianceDetails:
+      type: object
+      description: ITEM 家具・家電の追加項目（どれも任意）
+      properties:
+        size:
+          type: string
+          maxLength: 100
+          description: サイズ
+        operationChecked:
+          type: boolean
+          description: 動作確認の有無
+    ItemInput:
+      type: object
+      description: |
+        ITEM 出品・編集の入力。下書きはタイトルだけ必須で、公開するときはすべての共通項目と写真1枚以上が必須。
+        `textbook` は category が textbook のときだけ、`furnitureAppliance` は furniture_appliance のときだけ送れる。
+      required: [title, imageObjectKeys]
+      properties:
+        title:
+          type: string
+          minLength: 1
+          maxLength: 100
+        category:
+          $ref: '#/components/schemas/ItemCategory'
+        condition:
+          $ref: '#/components/schemas/ItemCondition'
+        price:
+          type: integer
+          format: int64
+          minimum: 100
+          maximum: 100000
+          description: 価格（円）
+        description:
+          type: string
+          maxLength: 2000
+          description: 説明文
+        campus:
+          $ref: '#/components/schemas/Campus'
+        imageObjectKeys:
+          type: array
+          maxItems: 10
+          description: createItemImageUpload で受け取ったオブジェクト名。並びが表示順
+          items:
+            type: string
+        textbook:
+          $ref: '#/components/schemas/TextbookDetails'
+        furnitureAppliance:
+          $ref: '#/components/schemas/FurnitureApplianceDetails'
+    ItemCreation:
+      description: ITEM 出品の入力
+      allOf:
+        - $ref: '#/components/schemas/ItemInput'
+        - type: object
+          required: [publish]
+          properties:
+            publish:
+              type: boolean
+              description: true なら公開中、false なら下書きとして作る
+    ItemImage:
+      type: object
+      description: STORAGE 商品写真と閲覧用の署名付きURL
+      required: [objectKey, url, expiresAt]
+      properties:
+        objectKey:
+          type: string
+          description: 編集のときに imageObjectKeys に入れる
+        url:
+          type: string
+          description: 署名付きURL（GET）
+        expiresAt:
+          type: string
+          format: date-time
+          description: 署名付きURLの有効期限
+    OwnItem:
+      type: object
+      description: ITEM 出品者本人に見せる商品
+      required: [id, shareId, status, title, category, condition, price, description, campus, images, textbook, furnitureAppliance, publishedAt, createdAt, updatedAt]
+      properties:
+        id:
+          type: string
+        shareId:
+          type: string
+          description: 商品ページの固定URL `/items/:shareId` に使う
+        status:
+          $ref: '#/components/schemas/ItemStatus'
+        title:
+          type: string
+        category:
+          allOf:
+            - $ref: '#/components/schemas/ItemCategory'
+          nullable: true
+        condition:
+          allOf:
+            - $ref: '#/components/schemas/ItemCondition'
+          nullable: true
+        price:
+          type: integer
+          format: int64
+          nullable: true
+        description:
+          type: string
+          nullable: true
+        campus:
+          allOf:
+            - $ref: '#/components/schemas/Campus'
+          nullable: true
+        images:
+          type: array
+          description: 表示順
+          items:
+            $ref: '#/components/schemas/ItemImage'
+        textbook:
+          allOf:
+            - $ref: '#/components/schemas/TextbookDetails'
+          nullable: true
+        furnitureAppliance:
+          allOf:
+            - $ref: '#/components/schemas/FurnitureApplianceDetails'
+          nullable: true
+        publishedAt:
+          type: string
+          format: date-time
+          nullable: true
+          description: 最後に公開した日時。一度も公開していなければ null
+        createdAt:
+          type: string
+          format: date-time
+        updatedAt:
+          type: string
+          format: date-time
+    OwnItemList:
+      type: object
+      description: AUTH-3 マイページの自分の出品の一覧
+      required: [items]
+      properties:
+        items:
+          type: array
+          description: 最後に更新した日時の新しい順
+          items:
+            $ref: '#/components/schemas/OwnItemSummary'
+    OwnItemSummary:
+      type: object
+      description: AUTH-3 マイページの出品の1行
+      required: [id, shareId, status, title, price, thumbnail, requestCount, updatedAt]
+      properties:
+        id:
+          type: string
+          description: 商品のID（出品の編集 `/sell/:itemId` に使う）
+        shareId:
+          type: string
+          description: 商品ページの固定URL `/items/:shareId` に使う
+        status:
+          $ref: '#/components/schemas/ItemStatus'
+        title:
+          type: string
+        price:
+          type: integer
+          format: int64
+          nullable: true
+          description: 価格（円）。下書きで未入力なら null
+        thumbnail:
+          description: 1枚目の写真
+          allOf:
+            - $ref: '#/components/schemas/ItemImage'
+          nullable: true
+        requestCount:
+          type: integer
+          description: 承認待ちの購入希望の件数
+        updatedAt:
+          type: string
+          format: date-time
+    ItemList:
+      type: object
+      description: BROWSE 商品の一覧・検索の結果
+      required: [items, total, nextCursor]
+      properties:
+        items:
+          type: array
+          description: 新着順
+          items:
+            $ref: '#/components/schemas/ItemSummary'
+        total:
+          type: integer
+          description: 条件に合う商品の総数（cursor に関係なく数える）
+        nextCursor:
+          type: string
+          nullable: true
+          description: 続きを取るときに cursor に入れる値。続きがなければ null
+    ItemSummary:
+      type: object
+      description: BROWSE 一覧・検索結果のカードに出す商品
+      required: [shareId, status, title, category, condition, price, campus, thumbnail, courseName, hasWriting, publishedAt]
+      properties:
+        shareId:
+          type: string
+          description: 商品ページの固定URL `/items/:shareId` に使う
+        status:
+          $ref: '#/components/schemas/ItemStatus'
+        title:
+          type: string
+        category:
+          $ref: '#/components/schemas/ItemCategory'
+        condition:
+          $ref: '#/components/schemas/ItemCondition'
+        price:
+          type: integer
+          format: int64
+        campus:
+          $ref: '#/components/schemas/Campus'
+        thumbnail:
+          description: 1枚目の写真
+          allOf:
+            - $ref: '#/components/schemas/ItemImage'
+          nullable: true
+        courseName:
+          type: string
+          nullable: true
+          description: 授業名（教科書・参考書のみ）
+        hasWriting:
+          type: boolean
+          nullable: true
+          description: 書き込みの有無（教科書・参考書のみ）
+        publishedAt:
+          type: string
+          format: date-time
+          description: 最後に公開した日時
+    PublicItem:
+      type: object
+      description: |
+        BROWSE 商品ページに出す商品。status が in_deal・completed なら売り切れ（購入希望は出せない）。
+        `isOwn` はログイン中の本人が出品者かどうか。`itemId` は本人の出品のときだけ入る（出品の編集に使う）。
+        `myRequest` は本人が出している承認待ちの購入希望（DEAL-1）。
+      required: [shareId, itemId, status, title, category, condition, price, description, campus, images, textbook, furnitureAppliance, publishedAt, seller, isOwn, myRequest]
+      properties:
+        shareId:
+          type: string
+        itemId:
+          type: string
+          nullable: true
+          description: 商品のID。isOwn が true のときだけ入り、ほかの人には null
+        status:
+          $ref: '#/components/schemas/ItemStatus'
+        title:
+          type: string
+        category:
+          $ref: '#/components/schemas/ItemCategory'
+        condition:
+          $ref: '#/components/schemas/ItemCondition'
+        price:
+          type: integer
+          format: int64
+        description:
+          type: string
+        campus:
+          $ref: '#/components/schemas/Campus'
+        images:
+          type: array
+          description: 表示順
+          items:
+            $ref: '#/components/schemas/ItemImage'
+        textbook:
+          allOf:
+            - $ref: '#/components/schemas/TextbookDetails'
+          nullable: true
+        furnitureAppliance:
+          allOf:
+            - $ref: '#/components/schemas/FurnitureApplianceDetails'
+          nullable: true
+        publishedAt:
+          type: string
+          format: date-time
+          description: 最後に公開した日時
+        seller:
+          $ref: '#/components/schemas/ItemSeller'
+        isOwn:
+          type: boolean
+          description: ログイン中の本人が出品者なら true
+        myRequest:
+          allOf:
+            - $ref: '#/components/schemas/MyPurchaseRequest'
+          nullable: true
+          description: ログイン中の本人がこの商品に出している承認待ちの購入希望。なければ null（出品者本人も null）
+    MyPurchaseRequest:
+      type: object
+      description: |
+        DEAL-1 購入者本人に見せる、自分が出している承認待ちの購入希望。
+        承認期限を過ぎても、定期処理で期限切れになるまでは承認待ちのまま返す（その間は出し直しもできない）。
+      required: [transactionId, approvalDeadline]
+      properties:
+        transactionId:
+          type: string
+        approvalDeadline:
+          type: string
+          format: date-time
+          description: 承認期限（購入希望から48時間）
+    ItemSeller:
+      type: object
+      description: BROWSE 商品ページに出す出品者の情報。学籍番号は含めない（DEAL-1）
+      required: [departmentName, admissionYear]
+      properties:
+        departmentName:
+          type: string
+          nullable: true
+          description: 学部・学科の名前。不明なら null
+        admissionYear:
+          type: integer
+          description: 入学年度
+    PaymentMethod:
+      type: string
+      description: 支払い方法（ADR 0021）
+      enum: [card, paypay]
+    TransactionStatus:
+      type: string
+      description: 取引のステータス。requested は購入希望（承認待ち）
+      enum: [requested, rejected, expired, in_deal, cancelled, completed]
+    TransactionRole:
+      type: string
+      description: ログイン中の本人がその取引の購入者か出品者か
+      enum: [buyer, seller]
+    PurchaseRequestInput:
+      type: object
+      description: DEAL-1 購入希望の入力
+      required: [paymentMethod]
+      properties:
+        paymentMethod:
+          $ref: '#/components/schemas/PaymentMethod'
+    HandoverTokenKind:
+      type: string
+      description: 受け渡しトークンの種類（入力の種類にも使う）。qr は受け渡しQR、link は完了リンク、code は6桁のコード
+      enum: [qr, link, code]
+    HandoverMethod:
+      type: string
+      description: 受け渡しの完了方法。auto は自動完了（DEAL-5、暫定）
+      enum: [qr, link, code, auto]
+    HandoverTokenInput:
+      type: object
+      description: DEAL-3 発行する受け渡しトークンの種類
+      required: [kind]
+      properties:
+        kind:
+          $ref: '#/components/schemas/HandoverTokenKind'
+    HandoverToken:
+      type: object
+      description: |
+        DEAL-3 発行した受け渡しトークン。qr は token と code、link は token、code は code だけが入る。
+        完了リンクの中身は `/deals/{transactionId}/complete#t=<token>`、QR の中身は `/deals/{transactionId}/complete#q=<token>`（ADR 0024, ADR 0025）。
+      required: [kind, token, code, expiresAt]
+      properties:
+        kind:
+          $ref: '#/components/schemas/HandoverTokenKind'
+        token:
+          type: string
+          nullable: true
+          description: QR・完了リンクに載せる使い捨てのトークン
+        code:
+          type: string
+          nullable: true
+          description: 6桁の確認コード・完了コード
+          example: '582017'
+        expiresAt:
+          type: string
+          format: date-time
+          description: 有効期限（qr は5分後、link・code は24時間後）
+    HandoverCredential:
+      type: object
+      description: DEAL-3 購入者が読み取った・開いた・入力したトークン
+      required: [kind, secret]
+      properties:
+        kind:
+          $ref: '#/components/schemas/HandoverTokenKind'
+        secret:
+          type: string
+          description: qr・link はトークン、code は6桁のコード
+    Transaction:
+      type: object
+      description: |
+        DEAL 取引（購入希望の段階を含む）。`counterpartStudentNumber` は承認（取引成立）の後だけ入り、それより前は null（DEAL-1）。
+        手数料の3項目は出品者にだけ、取引成立の後に入る（PAY-2, ADR 0003）。
+      required: [id, role, status, item, price, paymentMethod, approvalDeadline, feeRateBasisPoints, fee, sellerProceeds, identityDisclosedAt, sellerAcknowledgedAt, buyerCancelAgreedAt, sellerCancelAgreedAt, completedAt, handoverMethod, counterpartStudentNumber, createdAt]
+      properties:
+        id:
+          type: string
+        role:
+          $ref: '#/components/schemas/TransactionRole'
+        status:
+          $ref: '#/components/schemas/TransactionStatus'
+        item:
+          $ref: '#/components/schemas/TransactionItem'
+        price:
+          type: integer
+          format: int64
+          description: 金額（購入希望の時点の商品価格。円）
+        paymentMethod:
+          $ref: '#/components/schemas/PaymentMethod'
+        approvalDeadline:
+          type: string
+          format: date-time
+          description: 承認期限（購入希望から48時間）
+        feeRateBasisPoints:
+          type: integer
+          nullable: true
+          description: 適用した手数料率（ベーシスポイント）。出品者で取引成立後だけ入る
+        fee:
+          type: integer
+          format: int64
+          nullable: true
+          description: 手数料（円）。出品者で取引成立後だけ入る
+        sellerProceeds:
+          type: integer
+          format: int64
+          nullable: true
+          description: 出品者の売上（円）。出品者で取引成立後だけ入る
+        identityDisclosedAt:
+          type: string
+          format: date-time
+          nullable: true
+          description: 学籍番号を開示した日時（承認時）
+        sellerAcknowledgedAt:
+          type: string
+          format: date-time
+          nullable: true
+          description: 出品者が確認モーダルに同意した日時（DEAL-2）
+        buyerCancelAgreedAt:
+          type: string
+          format: date-time
+          nullable: true
+          description: 購入者がキャンセルに同意（申請）した日時（DEAL-4）。取り下げたら null
+        sellerCancelAgreedAt:
+          type: string
+          format: date-time
+          nullable: true
+          description: 出品者がキャンセルに同意（申請）した日時（DEAL-4）。取り下げたら null
+        completedAt:
+          type: string
+          format: date-time
+          nullable: true
+          description: 受け渡しが完了した日時（DEAL-3）
+        handoverMethod:
+          allOf:
+            - $ref: '#/components/schemas/HandoverMethod'
+          nullable: true
+          description: 受け渡しの完了方法。完了前は null
+        counterpartStudentNumber:
+          type: string
+          nullable: true
+          description: 相手の学籍番号。承認の後だけ入る（DEAL-1）
+        createdAt:
+          type: string
+          format: date-time
+          description: 購入希望を出した日時
+    TransactionItem:
+      type: object
+      description: 取引に出す商品の情報
+      required: [shareId, title, status]
+      properties:
+        shareId:
+          type: string
+        title:
+          type: string
+        status:
+          $ref: '#/components/schemas/ItemStatus'
+    TransactionPhase:
+      type: string
+      description: 取引一覧の区分。active は進行中、ended は終了した取引
+      enum: [active, ended]
+    TransactionList:
+      type: object
+      description: DEAL 取引一覧（DealList）の1区分
+      required: [entries, nextCursor]
+      properties:
+        entries:
+          type: array
+          description: 最後に動いた日時の新しい順
+          items:
+            $ref: '#/components/schemas/TransactionListEntry'
+        nextCursor:
+          type: string
+          nullable: true
+          description: 続きを取るときに cursor に入れる値。続きがなければ null（active は常に null）
+    TransactionListEntry:
+      type: object
+      description: |
+        DEAL 取引一覧の1行。ふつうは取引1件だが、出品側の承認待ちの購入希望は商品ごとに1行にまとめる（status が requested、transactionId が null、requestCount が件数）。
+        学籍番号・手数料は含めない（DEAL-1）。
+      required: [transactionId, itemId, status, item, price, requestCount, approvalDeadline, completedAt, updatedAt]
+      properties:
+        transactionId:
+          type: string
+          nullable: true
+          description: 取引のID（`/deals/:dealId`）。出品側の商品ごとの承認待ちの行は null
+        itemId:
+          type: string
+          nullable: true
+          description: 商品のID。出品側だけ入る（購入希望の一覧 `/sell/:itemId/requests` に使う）。購入側は null
+        status:
+          $ref: '#/components/schemas/TransactionStatus'
+        item:
+          $ref: '#/components/schemas/TransactionListItem'
+        price:
+          type: integer
+          format: int64
+          description: 取引の金額（円）。出品側の商品ごとの承認待ちの行は今の商品価格
+        requestCount:
+          type: integer
+          nullable: true
+          description: 承認待ちの購入希望の件数。出品側の商品ごとの行だけ入る
+        approvalDeadline:
+          type: string
+          format: date-time
+          nullable: true
+          description: 承認期限。購入側の購入希望（requested）だけ入る
+        completedAt:
+          type: string
+          format: date-time
+          nullable: true
+          description: 受け渡しが完了した日時。完了前は null
+        updatedAt:
+          type: string
+          format: date-time
+          description: 最後に動いた日時。出品側の商品ごとの行は最新の購入希望を出した日時
+    TransactionListItem:
+      type: object
+      description: 取引一覧に出す商品の情報
+      required: [shareId, title, category, thumbnail]
+      properties:
+        shareId:
+          type: string
+        title:
+          type: string
+        category:
+          $ref: '#/components/schemas/ItemCategory'
+        thumbnail:
+          description: 1枚目の写真
+          allOf:
+            - $ref: '#/components/schemas/ItemImage'
+          nullable: true
+    SalesEntryState:
+      type: string
+      description: 売上の状態。awaiting_handover 受け渡し待ち / settled 確定（出金できる）/ paid_out 出金済み
+      enum: [awaiting_handover, settled, paid_out]
+    Sales:
+      type: object
+      description: PAY 売上管理（Sales）の集計と明細。金額はすべて円
+      required: [availableAmount, awaitingHandoverAmount, paidOutAmount, entries]
+      properties:
+        availableAmount:
+          type: integer
+          format: int64
+          description: 出金できる売上（settled の売上の合計）
+        awaitingHandoverAmount:
+          type: integer
+          format: int64
+          description: 受け渡し待ちの売上（awaiting_handover の売上の合計）
+        paidOutAmount:
+          type: integer
+          format: int64
+          description: 出金済みの売上（paid_out の売上の合計）
+        entries:
+          type: array
+          description: 最後に動いた日時の新しい順
+          items:
+            $ref: '#/components/schemas/SalesEntry'
+    SalesEntry:
+      type: object
+      description: PAY-2 売上の明細の1行（取引1件）。売上 = 金額 − 手数料
+      required: [transactionId, item, state, price, feeRateBasisPoints, fee, sellerProceeds, approvedAt, completedAt, paidOutAt]
+      properties:
+        transactionId:
+          type: string
+        item:
+          $ref: '#/components/schemas/TransactionListItem'
+        state:
+          $ref: '#/components/schemas/SalesEntryState'
+        price:
+          type: integer
+          format: int64
+          description: 取引の金額（円）
+        feeRateBasisPoints:
+          type: integer
+          description: 取引に適用した手数料率（ベーシスポイント。取引成立時点の値）
+        fee:
+          type: integer
+          format: int64
+          description: 手数料（円）
+        sellerProceeds:
+          type: integer
+          format: int64
+          description: 出品者の売上（円）
+        approvedAt:
+          type: string
+          format: date-time
+          description: 取引が成立（出品者が承認）した日時
+        completedAt:
+          type: string
+          format: date-time
+          nullable: true
+          description: 受け渡しが完了した日時。受け渡し待ちなら null
+        paidOutAt:
+          type: string
+          format: date-time
+          nullable: true
+          description: 出金した日時。出金前は null
+    PurchaseRequestList:
+      type: object
+      required: [requests]
+      properties:
+        requests:
+          type: array
+          description: 希望の古い順
+          items:
+            $ref: '#/components/schemas/PurchaseRequest'
+    PurchaseRequest:
+      type: object
+      description: DEAL-1 出品者に見せる承認待ちの購入希望。購入者の学籍番号は含めない
+      required: [transactionId, requestedAt, approvalDeadline, buyer]
+      properties:
+        transactionId:
+          type: string
+        requestedAt:
+          type: string
+          format: date-time
+          description: 購入希望を出した日時
+        approvalDeadline:
+          type: string
+          format: date-time
+          description: 承認期限
+        buyer:
+          $ref: '#/components/schemas/RequestBuyer'
+    RequestBuyer:
+      type: object
+      description: 購入希望の一覧に出す購入者の情報。学籍番号は含めない（DEAL-1）
+      required: [departmentName, admissionYear, completedDealCount]
+      properties:
+        departmentName:
+          type: string
+          nullable: true
+          description: 学部・学科の名前。不明なら null
+        admissionYear:
+          type: integer
+          description: 入学年度
+        completedDealCount:
+          type: integer
+          description: 購入者・出品者として取引を完了した回数
     Health:
       type: object
       required: [status]
@@ -68,7 +2724,7 @@ components:
       properties:
         code:
           type: string
-          description: 機械で判定するためのエラーコード（snake_case。例 invalid_status_transition）
+          description: 機械で判定するためのエラーコード（snake_case。例 invalid_status_transition）。共通コードの一覧は docs/tech/api.md の API-1
           example: invalid_status_transition
         message:
           type: string

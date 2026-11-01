@@ -1,0 +1,25 @@
+/* 管理画面の各画面（AdminUsers・AdminDeals・AdminSettings）で共通の見出しと段組み */
+.heading {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.title {
+  font-size: var(--text-code);
+  font-weight: 700;
+}
+
+.summary {
+  color: var(--color-text-muted);
+  font-size: var(--text-label);
+}
+
+.columns {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-start;
+  gap: 20px;
+}

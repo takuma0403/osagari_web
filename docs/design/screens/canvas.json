@@ -2,41 +2,279 @@
   "v": 3,
   "attachments": {},
   "boards": {
-    "Login.dc.html": {"h": 844, "title": "ログイン", "w": 390, "x": 0, "y": -1500},
-    "SignUp.dc.html": {"h": 844, "title": "新規登録・パスワード再設定：メール入力", "w": 390, "x": 470, "y": -1500},
-    "Code.dc.html": {"h": 844, "title": "認証コード入力（新規登録・再設定・再確認）", "w": 390, "x": 940, "y": -1500},
-    "Password.dc.html": {"h": 844, "title": "パスワード設定（新規登録・再設定）", "w": 390, "x": 1410, "y": -1500},
-    "Recheck.dc.html": {"h": 844, "title": "ログイン時の本人確認（30日経過・新しい端末）", "w": 390, "x": 1880, "y": -1500},
-    "Main.dc.html": {"h": 844, "title": "商品一覧", "w": 390, "x": 0, "y": 0},
-    "Search.dc.html": {"h": 844, "title": "検索結果", "w": 390, "x": 470, "y": 0},
-    "Detail.dc.html": {"h": 980, "title": "商品詳細", "w": 390, "x": 940, "y": 0},
-    "DetailShare.dc.html": {"h": 844, "title": "商品の共有：紹介文のコピー", "w": 390, "x": 1410, "y": 0},
-    "Request.dc.html": {"h": 844, "title": "購入希望・決済（モック）", "w": 390, "x": 1880, "y": 0},
-    "DealRequests.dc.html": {"h": 844, "title": "取引詳細：購入希望の承認（出品者）", "w": 390, "x": 0, "y": 1380},
-    "DealConfirm.dc.html": {"h": 844, "title": "取引成立：確認モーダル（出品者）", "w": 390, "x": 470, "y": 1380},
-    "DealQR.dc.html": {"h": 844, "title": "受け渡しQRの表示（出品者）", "w": 390, "x": 940, "y": 1380},
-    "DealScan.dc.html": {"h": 844, "title": "QR読み取り・受け取り確認（購入者）", "w": 390, "x": 1410, "y": 1380},
-    "Sell.dc.html": {"h": 1040, "title": "出品・編集", "w": 390, "x": 0, "y": 2650},
-    "StudentCard.dc.html": {"h": 844, "title": "学生証登録", "w": 390, "x": 470, "y": 2650},
-    "MyPage.dc.html": {"h": 844, "title": "マイページ", "w": 390, "x": 940, "y": 2650},
-    "Sales.dc.html": {"h": 844, "title": "売上管理", "w": 390, "x": 1410, "y": 2650},
-    "AdminCard.dc.html": {"expand": "fill", "h": 820, "title": "管理：学生証審査", "w": 1280, "x": 0, "y": 4110}
+    "Login.dc.html": {
+      "h": 844,
+      "title": "ログイン",
+      "w": 390,
+      "x": 0,
+      "y": -1500
+    },
+    "SignUp.dc.html": {
+      "h": 844,
+      "title": "新規登録・パスワード再設定：メール入力",
+      "w": 390,
+      "x": 470,
+      "y": -1500
+    },
+    "Code.dc.html": {
+      "h": 844,
+      "title": "認証コード入力（新規登録・再設定・再確認）",
+      "w": 390,
+      "x": 940,
+      "y": -1500
+    },
+    "Password.dc.html": {
+      "h": 844,
+      "title": "パスワード設定（新規登録・再設定）",
+      "w": 390,
+      "x": 1410,
+      "y": -1500
+    },
+    "Recheck.dc.html": {
+      "h": 844,
+      "title": "ログイン時の本人確認（30日経過・新しい端末）",
+      "w": 390,
+      "x": 1880,
+      "y": -1500
+    },
+    "Main.dc.html": {
+      "h": 844,
+      "title": "商品一覧",
+      "w": 390,
+      "x": 0,
+      "y": 0
+    },
+    "Search.dc.html": {
+      "h": 844,
+      "title": "検索結果",
+      "w": 390,
+      "x": 470,
+      "y": 0
+    },
+    "Detail.dc.html": {
+      "h": 980,
+      "title": "商品詳細",
+      "w": 390,
+      "x": 940,
+      "y": 0
+    },
+    "DetailShare.dc.html": {
+      "h": 844,
+      "title": "商品の共有：紹介文のコピー",
+      "w": 390,
+      "x": 1410,
+      "y": 0
+    },
+    "Request.dc.html": {
+      "h": 844,
+      "title": "購入希望・決済（モック）",
+      "w": 390,
+      "x": 1880,
+      "y": 0
+    },
+    "DealRequests.dc.html": {
+      "h": 844,
+      "title": "取引詳細：購入希望の承認（出品者）",
+      "w": 390,
+      "x": 0,
+      "y": 1380
+    },
+    "DealConfirm.dc.html": {
+      "h": 844,
+      "title": "取引成立：確認モーダル（出品者）",
+      "w": 390,
+      "x": 470,
+      "y": 1380
+    },
+    "DealQR.dc.html": {
+      "h": 844,
+      "title": "受け渡しQRの表示（出品者）",
+      "w": 390,
+      "x": 940,
+      "y": 1380
+    },
+    "DealScan.dc.html": {
+      "h": 844,
+      "title": "QR読み取り・受け取り確認（購入者）",
+      "w": 390,
+      "x": 1410,
+      "y": 1380
+    },
+    "Sell.dc.html": {
+      "h": 1040,
+      "title": "出品・編集",
+      "w": 390,
+      "x": 0,
+      "y": 2650
+    },
+    "StudentCard.dc.html": {
+      "h": 844,
+      "title": "学生証登録",
+      "w": 390,
+      "x": 470,
+      "y": 2650
+    },
+    "MyPage.dc.html": {
+      "h": 844,
+      "title": "マイページ",
+      "w": 390,
+      "x": 940,
+      "y": 2650
+    },
+    "Sales.dc.html": {
+      "h": 844,
+      "title": "売上管理",
+      "w": 390,
+      "x": 1410,
+      "y": 2650
+    },
+    "AdminCard.dc.html": {
+      "expand": "fill",
+      "h": 820,
+      "title": "管理：学生証審査",
+      "w": 1280,
+      "x": 0,
+      "y": 4110
+    },
+    "DealList.dc.html": {
+      "h": 844,
+      "title": "取引一覧（購入・出品）",
+      "w": 390,
+      "x": 1880,
+      "y": 1380
+    },
+    "DealCancel.dc.html": {
+      "h": 844,
+      "title": "キャンセルの申請と同意",
+      "w": 390,
+      "x": 2350,
+      "y": 1380
+    },
+    "DealCompleteIssue.dc.html": {
+      "h": 844,
+      "title": "完了リンク・コードの発行（出品者）",
+      "w": 390,
+      "x": 2820,
+      "y": 1380
+    },
+    "DealCompleteEnter.dc.html": {
+      "h": 844,
+      "title": "完了コード入力・完了リンク（購入者）",
+      "w": 390,
+      "x": 3290,
+      "y": 1380
+    },
+    "AdminUsers.dc.html": {
+      "expand": "fill",
+      "h": 820,
+      "title": "管理：ユーザー",
+      "w": 1280,
+      "x": 1360,
+      "y": 4110
+    },
+    "AdminDeals.dc.html": {
+      "expand": "fill",
+      "h": 820,
+      "title": "管理：出品・取引",
+      "w": 1280,
+      "x": 2720,
+      "y": 4110
+    },
+    "AdminSettings.dc.html": {
+      "expand": "fill",
+      "h": 820,
+      "title": "管理：設定（手数料率）",
+      "w": 1280,
+      "x": 4080,
+      "y": 4110
+    },
+    "SearchFilter.dc.html": {
+      "h": 844,
+      "title": "検索の絞り込み",
+      "w": 390,
+      "x": 2350,
+      "y": 0,
+      "is_interactive": true
+    }
   },
-  "createdOnFiles": {"at": "2026-10-08T06:20:00Z", "v": 1},
+  "createdOnFiles": {
+    "at": "2026-10-08T06:20:00Z",
+    "v": 1
+  },
   "designSystems": [],
-  "launch": {"view": "canvas"},
+  "launch": {
+    "view": "canvas"
+  },
   "notes": {
-    "t0": {"kind": "title1", "maxW": 2270, "text": "ログイン・登録", "w": 240, "x": 0, "y": -1800},
-    "t1": {"kind": "title1", "maxW": 2270, "text": "探す・買う", "w": 240, "x": 0, "y": -300},
-    "t2": {"kind": "title1", "maxW": 1800, "text": "取引と受け渡し", "w": 240, "x": 0, "y": 1080},
-    "t3": {"kind": "title1", "maxW": 1800, "text": "出品・アカウント", "w": 240, "x": 0, "y": 2350},
-    "t4": {"kind": "title1", "maxW": 1280, "text": "管理者", "w": 240, "x": 0, "y": 3810}
+    "t0": {
+      "kind": "title1",
+      "maxW": 2270,
+      "text": "ログイン・登録",
+      "w": 240,
+      "x": 0,
+      "y": -1800
+    },
+    "t1": {
+      "kind": "title1",
+      "maxW": 2740,
+      "text": "探す・買う",
+      "w": 240,
+      "x": 0,
+      "y": -300
+    },
+    "t2": {
+      "kind": "title1",
+      "maxW": 3680,
+      "text": "取引と受け渡し",
+      "w": 240,
+      "x": 0,
+      "y": 1080
+    },
+    "t3": {
+      "kind": "title1",
+      "maxW": 1800,
+      "text": "出品・アカウント",
+      "w": 240,
+      "x": 0,
+      "y": 2350
+    },
+    "t4": {
+      "kind": "title1",
+      "maxW": 5360,
+      "text": "管理者",
+      "w": 240,
+      "x": 0,
+      "y": 3810
+    }
   },
   "order": [
-    "Login.dc.html", "SignUp.dc.html", "Code.dc.html", "Password.dc.html", "Recheck.dc.html",
-    "Main.dc.html", "Search.dc.html", "Detail.dc.html", "DetailShare.dc.html", "Request.dc.html",
-    "DealRequests.dc.html", "DealConfirm.dc.html", "DealQR.dc.html", "DealScan.dc.html",
-    "Sell.dc.html", "StudentCard.dc.html", "MyPage.dc.html", "Sales.dc.html", "AdminCard.dc.html"
+    "Login.dc.html",
+    "SignUp.dc.html",
+    "Code.dc.html",
+    "Password.dc.html",
+    "Recheck.dc.html",
+    "Main.dc.html",
+    "Search.dc.html",
+    "SearchFilter.dc.html",
+    "Detail.dc.html",
+    "DetailShare.dc.html",
+    "Request.dc.html",
+    "DealRequests.dc.html",
+    "DealConfirm.dc.html",
+    "DealQR.dc.html",
+    "DealScan.dc.html",
+    "DealList.dc.html",
+    "DealCancel.dc.html",
+    "DealCompleteIssue.dc.html",
+    "DealCompleteEnter.dc.html",
+    "Sell.dc.html",
+    "StudentCard.dc.html",
+    "MyPage.dc.html",
+    "Sales.dc.html",
+    "AdminCard.dc.html",
+    "AdminUsers.dc.html",
+    "AdminDeals.dc.html",
+    "AdminSettings.dc.html"
   ],
   "pages": [],
   "title": "佐賀大お下がりフリマ デザイン"

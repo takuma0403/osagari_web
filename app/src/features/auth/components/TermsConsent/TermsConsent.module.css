@@ -1,0 +1,48 @@
+.consent {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.lead {
+  color: var(--color-text-muted);
+  font-size: var(--text-label);
+  line-height: 1.6;
+}
+
+.docLink {
+  padding: 0;
+  border: 0;
+  background: none;
+  color: var(--color-primary);
+  font: inherit;
+  text-decoration: underline;
+  cursor: pointer;
+}
+
+.check {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  min-height: var(--tap-min);
+  font-size: var(--text-body);
+  cursor: pointer;
+}
+
+.check input {
+  flex-shrink: 0;
+  width: 22px;
+  height: 22px;
+  margin: 0;
+  accent-color: var(--color-primary);
+}
+
+.disabled {
+  color: var(--color-text-muted);
+  cursor: not-allowed;
+}
+
+.hint {
+  color: var(--color-text-muted);
+  font-size: var(--text-note);
+}

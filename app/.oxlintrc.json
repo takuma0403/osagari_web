@@ -10,5 +10,5 @@
       }
     ]
   },
-  "ignorePatterns": ["src/api/schema.gen.ts", "dist"]
+  "ignorePatterns": ["src/api/schema.gen.ts", "dist", "storybook-static"]
 }

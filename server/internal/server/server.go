@@ -1,0 +1,52 @@
+// Package server は Echo の組み立て（ミドルウェア・エラー応答・ルート登録）をまとめる。
+// 依存の生成は cmd/api/main.go が行い、ここには出来上がったものを渡す。
+package server
+
+import (
+	"log/slog"
+
+	"github.com/labstack/echo/v5"
+	"github.com/labstack/echo/v5/middleware"
+
+	"github.com/takuma0403/osagari_web/server/internal/api"
+	"github.com/takuma0403/osagari_web/server/internal/clock"
+	"github.com/takuma0403/osagari_web/server/internal/domain"
+)
+
+// BasePath は API のパス接頭辞。Firebase Hosting の rewrites で /api/** を転送する（API）。
+const BasePath = "/api"
+
+// Deps は HTTP サーバーが使う依存。
+type Deps struct {
+	Logger  *slog.Logger
+	Clock   clock.Clock
+	Handler api.StrictServerInterface
+	// Sessions は `__session` の検証に使う（AUTHN-5）
+	Sessions Authenticator
+	// Admins は管理者の学籍番号の許可リスト（ADMIN, ADR 0015）
+	Admins domain.AdminList
+	// Jobs は内部用エンドポイント（`/api/internal/**`）の呼び出し元を確かめる（JOBS-1, ADR 0027）
+	Jobs JobAuthenticator
+}
+
+// New はミドルウェアとエラーハンドラーを設定し、生成したルートを登録した Echo を返す。
+// 埋め込んだ OpenAPI が読めないとき（生成物の不整合）は panic する。
+func New(d Deps) *echo.Echo {
+	public, err := publicOperations()
+	if err != nil {
+		panic(err)
+	}
+
+	e := echo.New()
+	e.Logger = d.Logger
+	e.HTTPErrorHandler = errorHandler(d.Logger)
+
+	// 外側から順に：リクエストID → アクセスログ → panic 回復（panic も 500 としてログに残す）
+	e.Use(middleware.RequestID())
+	e.Use(accessLog(d.Logger, d.Clock))
+	e.Use(middleware.Recover())
+
+	strict := api.NewStrictHandler(d.Handler, []api.StrictMiddlewareFunc{sessionMiddleware(d.Sessions, d.Admins, d.Jobs, public)})
+	api.RegisterHandlersWithBaseURL(e, strict, BasePath)
+	return e
+}

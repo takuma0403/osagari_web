@@ -1,6 +1,7 @@
 # 依存・ビルド成果物
 node_modules/
 dist/
+storybook-static/
 coverage/
 server/bin/
 server/tmp/

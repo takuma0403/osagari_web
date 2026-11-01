@@ -1,0 +1,50 @@
+.page {
+  display: flex;
+  flex-direction: column;
+  flex-grow: 1;
+}
+
+.body {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  padding: var(--space-page);
+}
+
+.sectionTitle {
+  margin: 4px 0 0;
+  font-size: var(--text-button-md);
+  font-weight: 700;
+}
+
+/* 明細は1枚の枠の中に区切り線で並べる */
+.entries {
+  margin: 0;
+  padding: 0;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-card);
+  background: var(--color-surface);
+  list-style: none;
+}
+
+.entries li + li {
+  border-top: 1px solid var(--color-border);
+}
+
+.message {
+  margin: 0;
+  padding: 24px 0;
+  color: var(--color-text-muted);
+  font-size: var(--text-body);
+  text-align: center;
+}
+
+.price {
+  font-family: var(--font-num);
+}
+
+.mockNote {
+  margin-top: 8px;
+  color: var(--color-text-muted);
+  font-size: var(--text-label);
+}

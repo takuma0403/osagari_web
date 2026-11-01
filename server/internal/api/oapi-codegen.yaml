@@ -5,4 +5,4 @@ generate:
   echo5-server: true
   strict-server: true
   models: true
-  embedded-spec: false
+  embedded-spec: true

@@ -1,0 +1,134 @@
+.field {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.label {
+  font-size: var(--text-label);
+  font-weight: 700;
+}
+
+.box {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  padding: 0 14px;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-input);
+  background: var(--color-surface);
+}
+
+.lg {
+  height: var(--btn-h);
+  font-size: var(--text-subheading);
+}
+
+.md {
+  height: 48px;
+  padding: 0 12px;
+  font-size: var(--text-button-md);
+}
+
+.sm {
+  height: var(--tap-min);
+  padding: 0 12px;
+  font-size: var(--text-body);
+}
+
+/* 淡色の地（--color-primary-soft）の上に置く入力欄。出品のカテゴリ別の追加項目 */
+.tonePrimary {
+  border-color: var(--color-primary-border);
+}
+
+/* 複数行の入力（TextAreaField）。高さは行数で決める */
+.multiline {
+  align-items: stretch;
+  padding: 10px 12px;
+  font-size: var(--text-body);
+}
+
+.textarea {
+  line-height: 1.6;
+  resize: none;
+}
+
+/* 選択（SelectField）。文字色を本文に揃え、選択肢の矢印はブラウザの標準を使う */
+.select {
+  margin: 0 -2px;
+  font-family: inherit;
+  cursor: pointer;
+}
+
+/* フォーカス中・エラーは 1.5px の枠（DS-3）。幅を変えずに太く見せるため、外側に 0.5px の影を足す */
+.box:focus-within {
+  border-color: var(--color-primary);
+  box-shadow: 0 0 0 0.5px var(--color-primary);
+}
+
+.invalid,
+.invalid:focus-within {
+  border-color: var(--color-danger);
+  box-shadow: 0 0 0 0.5px var(--color-danger);
+}
+
+/* 右端にボタン（パスワードの表示切替）があるときは、ボタンの 44px で右の余白を取る */
+.withAction {
+  padding-right: 4px;
+}
+
+.input {
+  flex-grow: 1;
+  min-width: 0;
+  height: 100%;
+  padding: 0;
+  border: none;
+  outline: none;
+  background: transparent;
+  color: var(--color-text);
+  font-size: inherit;
+}
+
+.input::placeholder {
+  color: var(--color-text-disabled);
+}
+
+.numeric {
+  font-family: var(--font-num);
+}
+
+.affix {
+  flex-shrink: 0;
+  color: var(--color-text-muted);
+  font-family: var(--font-num);
+  font-size: var(--text-button-md);
+}
+
+.prefix {
+  color: var(--color-text);
+  font-size: inherit;
+}
+
+.toggle {
+  display: flex;
+  flex-shrink: 0;
+  align-items: center;
+  justify-content: center;
+  width: var(--tap-min);
+  height: var(--tap-min);
+  padding: 0;
+  border: none;
+  background: transparent;
+  color: var(--color-text-muted);
+}
+
+.hint {
+  color: var(--color-text-muted);
+  font-size: var(--text-note);
+}
+
+.error {
+  color: var(--color-danger);
+  font-size: var(--text-label);
+  font-weight: 700;
+}

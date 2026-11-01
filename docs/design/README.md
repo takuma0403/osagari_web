@@ -1,8 +1,8 @@
 # デザイン（UIの正本）
 
 - **キャンバス（正本）**: https://claude.ai/artifact/QdafhFt85mz3WvYPPtDGEH （Claude Design「佐賀大お下がりフリマ デザイン」）
-- **リポジトリ内の写し**: [screens/](screens/) … キャンバスの各アートボードの `.dc.html` ソースと [canvas.json](screens/canvas.json)（2026-10-14 取得、version `1791906581-d01d`）
-- **ロゴ**: [assets/logo.png](assets/logo.png)（1254×1254。画面ではアイコン枠に `object-fit: cover; transform: scale(1.32)` で表示している）
+- **リポジトリ内の写し**: [screens/](screens/) … キャンバスの各アートボードの `.dc.html` ソースと [canvas.json](screens/canvas.json)（2026-10-22 取得、version `1792595429-a00f`）
+- **ロゴ**: [assets/logo.png](assets/logo.png)（1254×1254。画面ではアイコン枠に `object-fit: cover; transform: scale(1.32)` で表示している。アプリでは 128×128 に縮小した `app/src/assets/logo.png` を `AppLogo` 部品で使う）
 - 更新手順は [design-sync スキル](../../.claude/skills/design-sync/SKILL.md)、実装への移し方は [design-to-code スキル](../../.claude/skills/design-to-code/SKILL.md) を参照。
 
 > `.dc.html` は Claude Design 独自のコンポーネント形式です（`<x-dc>` 内がマークアップ、`{{…}}` は末尾の `<script type="text/x-dc">` の `renderVals()` の値、`<sc-for>` は繰り返し、`<sc-if>` は条件表示、`data-props` は表示を切り替えるパラメータ）。**見た目と文言の参照元**として読み、コードとしてはそのまま流用しないこと。
@@ -54,7 +54,7 @@
 | `--color-overlay` | `rgba(27, 43, 75, 0.55)` | ボトムシート背面の幕 |
 | `--color-overlay-dark` | `rgba(0, 0, 0, 0.5)` | カメラ画面上のモーダル背面の幕 |
 
-**カテゴリの写真プレースホルダ色**（画像がないときの地）：教科書 `#DDF0F0`／家電 `#DCEEF6`／家具 `#FBF0CC`／ゲーム `#E1EFE3`。`--color-cat-textbook` `--color-cat-appliance` `--color-cat-furniture` `--color-cat-game` として定義する。
+**カテゴリの写真プレースホルダ色**（画像がないときの地）：教科書 `#DDF0F0`／家電 `#DCEEF6`／家具 `#FBF0CC`／ゲーム `#E1EFE3`。`--color-cat-textbook` `--color-cat-appliance` `--color-cat-furniture` `--color-cat-game` として定義する。商品のカテゴリ（`ItemCategory`）との対応は 教科書・参考書→教科書、家具・家電→家具、ゲーム・その他→ゲーム（家電の色は商品の写真には使わない。[ADR 0019](../decisions/0019-browse-category-chips-and-filter.md)）。
 
 使われている箇所が1つだけの色（`#EFEBE2` `#1F3550` `#2F6FA3` など）は、実装時に [screens/](screens/) の該当箇所を見て上表のどれかに寄せるか、必要なら追加する。
 
@@ -66,6 +66,26 @@
 | `--font-num` | `Outfit, sans-serif`（500/700） | 価格、学籍番号、メールアドレス、コード、カウントダウン、STEP表記、ISBN |
 
 Google Fonts から `Zen+Kaku+Gothic+New:wght@400;500;700` と `Outfit:wght@500;700` を読み込む。
+
+文字サイズは次の CSS 変数を使う（役割ごとの名前。同じ役割なら画面が違っても同じ変数を使う）。
+
+| CSS変数 | 値 | 用途 |
+| --- | --- | --- |
+| `--text-badge` | `11px` | バッジ・ナビ・カードの補足 |
+| `--text-note` | `12px` | 小さい注記・入力欄の補足 |
+| `--text-label` | `13px` | 補足・ラベル・エラー文・チップ |
+| `--text-body` | `14px` | 本文・テキストボタン・小さいボタン |
+| `--text-button-md` | `15px` | 副ボタン（48px）・固定表示のドメイン |
+| `--text-button` | `16px` | 主要ボタン（52px）・セクション見出し |
+| `--text-subheading` | `17px` | ヘッダーのタイトル・入力欄の文字・一覧の価格 |
+| `--text-header` | `18px` | 一覧系画面のヘッダー・シートの見出し |
+| `--text-heading` | `20px` | 商品詳細のタイトル・ダイアログの見出し（DealScan の 19px もこれに寄せる） |
+| `--text-code` | `22px` | コード入力の1桁・学籍番号の大きい表示・管理画面の見出し |
+| `--text-title` | `24px` | フォーム系の画面タイトル |
+| `--text-catch` | `26px` | ログインのキャッチ |
+| `--text-price-lg` | `28px` | 商品詳細の価格 |
+| `--text-display` | `30px` | 受け渡しコード（DealQR） |
+| `--text-display-lg` | `34px` | 完了コード・売上の合計 |
 
 | 用途 | サイズ / 太さ |
 | --- | --- |
@@ -99,53 +119,61 @@ Google Fonts から `Zen+Kaku+Gothic+New:wght@400;500;700` と `Outfit:wght@500;
 
 ## DS-3 共通部品
 
-デザインで繰り返し出てくる部品。実装時は `app/src/components/` に1つずつ作り、画面ごとに作り直さない。
+デザインで繰り返し出てくる部品。実装時は `app/src/components/` に1つずつ作り、画面ごとに作り直さない。実装済みの部品と状態ごとの見た目は Storybook（`cd app && npm run storybook`）で確認できる（[ADR 0004](../decisions/0004-storybook-and-bottom-nav.md)）。全 story の描画と DS-1 のアクセシビリティは PR の CI で検査する（[ADR 0005](../decisions/0005-storybook-tests-in-ci.md)）。
 
 | 部品 | 見た目 | 出てくる画面 |
 | --- | --- | --- |
-| `BottomNav` | 下部5タブ（ホーム／検索／出品／取引／マイページ）。選択中は primary + 700 | Main, Search ほか |
+| `BottomNav` | 下部5タブ（ホーム／検索／出品／取引／マイページ）。選択中は primary + 700 | Main, Search, DealList, MyPage |
 | `AppHeader` | 戻るボタン（44px）＋タイトル＋右側の補足（バッジ等）。高さ56px | 多数 |
-| `Button` | primary（塗り）/ secondary（primary枠 1.5px）/ ghost（border枠）/ text、高さ 52・48・44 | 全体 |
+| `Button` | primary（塗り）/ secondary（primary枠 1.5px）/ ghost（border枠）/ danger（danger枠 1.5px、キャンセル申請など）/ text、高さ 52・48・44。リンク版は `ButtonLink` | 全体 |
 | `TextField` | ラベル＋高さ52pxの入力枠。フォーカス中は primary 1.5px、エラーは danger 1.5px | Login, SignUp, Password, Sell |
 | `EmailField` | 学籍番号8桁の入力＋固定の `@edu.cc.saga-u.ac.jp` 表示 | Login, SignUp |
 | `CodeInput` | 6桁×1マス（grid 6列、高さ52px、Outfit 22px）＋有効期限・再送 | Code, Recheck |
-| `Chip` | 高さ36px。選択中 primary 塗り／絞り込み条件は primary-soft＋×アイコン | Main, Search |
-| `Badge` | 11〜12px / 700 / pill。primary-soft・warning の2系統 | Detail, Request ほか |
+| `Chip` | 高さ36px。選択中 primary 塗り／絞り込み条件は primary-soft＋×アイコン | Main, Search, SearchFilter |
+| `Badge` | 11〜12px / 700 / pill。primary-soft・warning を基本に、danger（停止など）・neutral（終了）・surface（写真の上のカテゴリ） | Detail, Request ほか |
 | `ItemCard` | 正方形写真＋カテゴリバッジ＋タイトル2行＋価格＋キャンパス・状態（2列グリッド） | Main, MyPage |
 | `ItemRow` | 84pxサムネイル＋タイトル＋授業名＋価格＋状態バッジ（横長） | Search |
 | `InfoBox` | 角丸12px、アイコン＋文。info / warning / danger / neutral(bg) | Code, Recheck, Login, Password |
 | `DefinitionList` | 2列グリッドの `<dl>`（項目名は muted） | Detail, Password |
-| `BottomSheet` | 上端角丸20px＋つまみ＋背面の幕 | DetailShare |
-| `ConfirmDialog` | 中央モーダル、角丸18px、主要ボタン＋テキストボタン | DealScan, DealConfirm |
+| `BottomSheet` | 上端角丸20px＋つまみ＋背面の幕。見出しの右に操作（絞り込みの「クリア」）を置ける | DetailShare, DealCancel, SearchFilter, DealConfirm（つまみなし） |
+| `ConfirmDialog` | 中央モーダル、角丸18px、主要ボタン＋テキストボタン。テキストボタンを省いた確定ボタンだけの形は Esc・背面の幕で閉じない（試験運用の初回ダイアログ。デザインは後で足す。[ADR 0039](../decisions/0039-trial-notice-dialog.md)） | DealScan, DealCompleteEnter |
+| `SegmentedTabs` | 2択の切り替え（pill の枠内に高さ36pxのタブ2つ。選択中は primary 塗り）、`role="tablist"`。下線版（`variant="underline"`）は高さ44px・選択中に primary の下線3px＋700（[ADR 0030](../decisions/0030-mypage-history.md)） | DealList, AdminDeals, MyPage（下線版） |
 | `Toast` | 紺地・白文字・pill、`role="status"` | DetailShare |
 | `StepIndicator` | `STEP n / 3`（Outfit 13px / primary） | SignUp, Code, Password |
+
+DS-3 の部品を作るために足した補助の部品（画面からも使える）：`Icon`（デザインの線画アイコンを名前で呼ぶ）、`ItemPhoto`（ItemCard・ItemRow の写真枠。写真がないときは `--color-cat-*` の地）、`Modal`（BottomSheet・ConfirmDialog の土台。幕・Esc・フォーカスの閉じ込めと復帰）、`SelectField`・`TextAreaField`（Sell のカテゴリ・状態の選択と説明。TextField と同じ枠・ラベル・エラーの形）、`Avatar`（学部の頭文字の丸いアイコン。Detail の出品者、DealRequests の購入者は 40px、MyPage の本人は 48px の白地（`size="lg"`・`inverse`））。
 
 ## DS-4 画面 ↔ アートボード ↔ 要件 の対応
 
 | 画面（[08-screens](../product/08-screens.md)） | アートボード（[screens/](screens/)） | バリエーション（`data-props`） | 要件・技術 |
 | --- | --- | --- | --- |
 | ログイン・登録 | [Login](screens/Login.dc.html) | `locked`：10回失敗のロック表示 | [AUTH-1](../product/01-account-auth.md), [AUTHN-3・6](../tech/auth.md) |
-| 〃 | [SignUp](screens/SignUp.dc.html) | `mode`：新規登録／パスワード再設定 | AUTH-1・2, AUTHN-2・4 |
+| 〃 | [SignUp](screens/SignUp.dc.html) | `mode`：新規登録／パスワード再設定。実装では、新規登録のときだけ送信ボタンの上にデザインにない規約への同意（`TermsConsent`：「利用規約」「プライバシーポリシー」の文字リンクで本文を BottomSheet に開く。両方を開くまで「利用規約とプライバシーポリシーを確認し、同意します」のチェックボックスは無効で、下に「両方の文書を開くとチェックできます」を出す。チェックするまで送信ボタンは無効）を置く（[ADR 0040](../decisions/0040-terms-consent-and-mypage-links.md)。デザインは後で直す） | AUTH-1・2, AUTHN-2・4 |
 | 〃 | [Code](screens/Code.dc.html) | `mode`：新規登録／再設定／再確認、`error` | AUTHN-1・2・6 |
 | 〃 | [Password](screens/Password.dc.html) | `mode`：新規登録／再設定 | AUTHN-2・4・5 |
 | 〃 | [Recheck](screens/Recheck.dc.html) | `reason`：30日経過／はじめての端末、`error` | AUTH-1, AUTHN-3 |
-| 商品一覧 | [Main](screens/Main.dc.html) | `accent`（色の検討用。実装は primary 固定） | [BROWSE](../product/04-browse-search-share.md) |
+| 商品一覧 | [Main](screens/Main.dc.html) | `accent`（色の検討用。実装は primary 固定）。カテゴリチップは「すべて」＋要件の3区分、右上のお知らせ（ベル）は置かない（[ADR 0019](../decisions/0019-browse-category-chips-and-filter.md)） | [BROWSE](../product/04-browse-search-share.md) |
 | 検索結果 | [Search](screens/Search.dc.html) | — | BROWSE |
-| 商品詳細 | [Detail](screens/Detail.dc.html) | — | BROWSE, [ITEM](../product/03-listing.md), [DEAL-1](../product/05-deal-flow.md) |
-| 商品詳細（共有） | [DetailShare](screens/DetailShare.dc.html) | `copied`：コピー完了トースト | BROWSE, [FE](../tech/frontend.md) |
+| 〃（絞り込み） | [SearchFilter](screens/SearchFilter.dc.html) | `error`：価格の下限が上限より大きい | BROWSE |
+| 商品詳細 | [Detail](screens/Detail.dc.html) | `shareApp`：右上の共有アイコン（既定オフ。実装しない。[ADR 0020](../decisions/0020-share-link-login-and-copy-only.md)）。実装では、売り切れ（取引中・取引完了）のとき「購入希望 n件」の位置に neutral の「売り切れ」バッジを出し、主ボタンを無効にする（[ADR 0018](../decisions/0018-browse-visible-items.md)） | BROWSE, [ITEM](../product/03-listing.md), [DEAL-1](../product/05-deal-flow.md) |
+| 商品詳細（共有） | [DetailShare](screens/DetailShare.dc.html) | `copied`：コピー完了トースト、`shareApp`：「ほかのアプリで共有」ボタン（既定オフ。実装しない。ADR 0020） | BROWSE, [FE](../tech/frontend.md) |
 | 購入希望・決済（モック） | [Request](screens/Request.dc.html) | — | DEAL-1, [PAY](../product/06-payment.md) |
 | 取引詳細 | [DealRequests](screens/DealRequests.dc.html) | — | DEAL-1 |
 | 〃 | [DealConfirm](screens/DealConfirm.dc.html) | — | DEAL-1・2 |
 | 〃 | [DealQR](screens/DealQR.dc.html) | — | DEAL-3・4 |
 | 〃 | [DealScan](screens/DealScan.dc.html) | — | DEAL-3 |
+| 〃 | [DealCancel](screens/DealCancel.dc.html) | `side`：申請する／同意を求められた／申請中。実装では、相手の申請が届いていたらシートを一度だけ自動で開き、閉じた後は上部の warning の案内（「相手からキャンセルの申請が届いています。同意しなければ取引は続きます。」＋「内容を確認する」）から開き直せるようにする。キャンセル済みの取引詳細は「この取引はキャンセルされました。代金は購入者に返金されました。」 | DEAL-4, [ADR 0026](../decisions/0026-cancel-request-api.md) |
+| 〃 | [DealCompleteIssue](screens/DealCompleteIssue.dc.html) | `kind`：完了リンク／完了コード（出品者） | DEAL-3 |
+| 〃 | [DealCompleteEnter](screens/DealCompleteEnter.dc.html) | `via`：コード入力／完了リンク、`state`：入力／受け取り確認／エラー（購入者） | DEAL-3 |
+| 取引一覧 | [DealList](screens/DealList.dc.html) | `tab`：購入／出品、`empty` | DEAL-1・3・4 |
 | 出品・編集 | [Sell](screens/Sell.dc.html)（高さ1040） | — | ITEM, PAY-2, [STORAGE](../tech/storage.md) |
 | 学生証登録 | [StudentCard](screens/StudentCard.dc.html) | — | [CARD](../product/02-student-card.md) |
-| マイページ | [MyPage](screens/MyPage.dc.html) | — | AUTH-3, ITEM |
-| 売上管理 | [Sales](screens/Sales.dc.html) | — | PAY-2, [JOBS-2](../tech/jobs-payment-mock.md) |
+| マイページ | [MyPage](screens/MyPage.dc.html) | 実装では、購入した商品は取引中・完了だけを出し、出品の行はデザインにない状態（公開中・取り下げ・停止中・売却済み）も出す（[ADR 0030](../decisions/0030-mypage-history.md)）。タブの下に、デザインにない状態の絞り込み（Chip）と並べ替え（新しい順／古い順の SelectField）を置く（[ADR 0031](../decisions/0031-mypage-filter-and-sort.md)。デザインは後で直す）。設定の一覧の「学生証の登録」の下に、デザインにない「利用規約」「プライバシーポリシー」の行を同じ形で足す（[ADR 0040](../decisions/0040-terms-consent-and-mypage-links.md)。デザインは後で直す） | AUTH-1・3, ITEM |
+| 売上管理 | [Sales](screens/Sales.dc.html) | 実装では、明細の行に取引成立時の料率を「¥1,550 − 手数料（5%） ¥77」の形で出し、下の注記「手数料率は仮の値（10%）で表示しています。」は出さない。明細の行は商品詳細へのリンクにする。「出金を申請する」は ConfirmDialog で確認してから申請する。出金できる売上が 0 円なら押せない（[ADR 0032](../decisions/0032-sales-screen-note-and-payout-confirm.md)。デザインは後で直す） | PAY-2, [JOBS-2](../tech/jobs-payment-mock.md) |
 | 管理：学生証審査 | [AdminCard](screens/AdminCard.dc.html)（PC 1280幅・流体） | — | CARD, [ADMIN](../product/07-admin.md) |
-| 管理：ユーザー | **未作成** | — | ADMIN |
-| 管理：出品・取引 | **未作成** | — | ADMIN |
-| 管理：設定 | **未作成** | — | ADMIN, PAY-2 |
+| 管理：ユーザー | [AdminUsers](screens/AdminUsers.dc.html)（PC 1280幅・流体） | — | ADMIN, AUTH-3 |
+| 管理：出品・取引 | [AdminDeals](screens/AdminDeals.dc.html)（PC 1280幅・流体） | `tab`：出品／取引 | ADMIN, DEAL-4 |
+| 管理：設定 | [AdminSettings](screens/AdminSettings.dc.html)（PC 1280幅・流体） | `error` | ADMIN, PAY-2 |
 
-- デザインがない画面（管理の3画面、取引詳細の「キャンセルの申請と同意」「完了リンク・コードの入力（購入者側）」など）は、既存画面の部品とトークンを組み合わせて作る。大きな画面を新しく起こすときは、先にユーザーへ確認する。
+- デザインがない画面・状態は、既存画面の部品とトークンを組み合わせて作る。大きな画面を新しく起こすときは、先にユーザーへ確認する。
 - 画面遷移（`href="X.dc.html"`）はデザイン上の仮のつながり。実際のルーティングは [tech/frontend.md](../tech/frontend.md) と `app/` の実装を正とする。

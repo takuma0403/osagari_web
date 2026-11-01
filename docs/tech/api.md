@@ -8,9 +8,9 @@ APIは Cloud Run で動かし、Firebase Hosting の rewrites で `/api/**` を�
 
 - **言語**：Go を使い、Webフレームワークは Echo にします。
 - **リージョン**：東京（asia-northeast1）にします。
-- **最小インスタンス数**：0にします。待機中の費用はかかりませんが、しばらくアクセスがないと初回の応答が遅れます。Go は単一のバイナリで起動が速いため、この遅れは小さく抑えられます。
+- **最小インスタンス数**：0にします。待機中の費用はかかりませんが、しばらくアクセスがないと初回の応答が遅れます。Go は単一のバイナリで起動が速いため、この遅れは小さく抑えられます。最大は2台、1台あたり 1 vCPU・512MiB で、CPU はリクエストの処理中だけ割り当てます（[ADR 0042](../decisions/0042-cloud-run-secret-manager-deploy.md)）。
 - **無料枠**：Cloud Run には毎月、200万リクエストと18万vCPU秒の無料枠があります（[Cloud Run pricing](https://cloud.google.com/run/pricing)、us-central1基準）。学内アプリの規模なら収まる見込みです。
-- **秘密情報**：Gmailのアプリパスワード、Tursoの接続トークン、セッション署名鍵は Secret Manager に保存します。
+- **秘密情報**：Turso の接続URL（トークン入り）、Gmail のアプリパスワード、管理者の学籍番号は Secret Manager に保存し、Cloud Run の「シークレットを環境変数として参照する」設定で渡します。アプリは環境変数を読むだけで、Secret Manager の API は呼びません。セッションは DB で管理するため署名鍵はありません（[ADR 0042](../decisions/0042-cloud-run-secret-manager-deploy.md)）。
 
 **Cookieの注意点**：Firebase Hosting から Cloud Run に転送するとき、Cookieは `__session` という名前のもの以外すべて削除されます（[Firebase: Manage cache behavior](https://firebase.google.com/docs/hosting/manage-cache)）。そのため、ログインセッションのCookie名は `__session` にします。
 
@@ -19,7 +19,7 @@ APIが担当する主な処理は次のとおりです。
 - 新規登録、パスワードによるログイン、認証コードの発行と照合、パスワードの再設定、セッション管理
 - 商品の登録、一覧、検索
 - 購入希望、承認、キャンセルなどの取引の状態遷移
-- 受け渡しトークン（QR・リンク・コード）の発行と照合
+- 受け渡しトークン（QR・リンク・コード）の発行と照合。照合（使用済みにしない）と受け渡し完了（使用済みにして完了）は別の API に分ける（[ADR 0024](../decisions/0024-handover-token-flow.md)）
 - 画像アップロード用の署名付きURLの発行
 - 決済処理（当面はモック）
 - 管理者向けの処理（学生証の審査、ユーザーの停止、手数料率の設定など）
@@ -33,4 +33,40 @@ APIが担当する主な処理は次のとおりです。
 元文書に追加した決定事項です（[ADR 0001](../decisions/0001-docs-structure.md)）。
 
 - **API契約の正本は [docs/api/openapi.yaml](../api/openapi.yaml)**。エンドポイントを追加・変更するときは、先に OpenAPI を更新し、Go 側は oapi-codegen（Echo / strict server）、フロント側は openapi-typescript で型を生成する。
-- エラー応答は OpenAPI の `Error` スキーマ（`code` と `message`）に統一する。
+- エラー応答は OpenAPI の `Error` スキーマ（`code` と `message`）に統一する。未実装のパスやルーティングのエラーも同じ形式で返す。`message` は利用者に表示できる日本語だけにし、内部の原因（SQL のエラーなど）は応答に出さずログにだけ残す。
+- 共通のエラーコードは次のとおり。機能固有のコードは、その機能を実装するときにこの表へ追加する。
+
+  | code | HTTP | 使う場面 |
+  | --- | --- | --- |
+  | `bad_request` | 400 | 入力が不正 |
+  | `unauthorized` | 401 | ログインしていない |
+  | `forbidden` | 403 | 権限がない（取引の当事者でない など） |
+  | `not_found` | 404 | 対象がない、未実装のパス |
+  | `method_not_allowed` | 405 | パスはあるがメソッドが違う |
+  | `invalid_status_transition` | 409 | 条件付きUPDATE の更新件数が0（[DB](database.md)） |
+  | `too_many_requests` | 429 | レート制限（[AUTHN](auth.md)） |
+  | `internal_error` | 500 | 想定外のエラー |
+
+  機能固有のコード：
+
+  | code | HTTP | 使う場面 |
+  | --- | --- | --- |
+  | `invalid_email` | 400 | 大学のメールアドレス（`^\d{8}@edu\.cc\.saga-u\.ac\.jp$`）の形式ではない（[AUTHN-2](auth.md)） |
+  | `invalid_verification_code` | 400 | 認証コードが違う。メッセージに残りの回数を入れる（[AUTHN-6](auth.md)） |
+  | `verification_code_expired` | 400 | 認証コードが期限切れ・使用済み・入力の上限に達した |
+  | `invalid_setup_token` | 400 | パスワード設定用の一時トークンが無効・期限切れ・使用済み |
+  | `invalid_password_length` | 400 | パスワードが10文字未満または128文字超（[AUTHN-5](auth.md)） |
+  | `invalid_credentials` | 401 | ログインのメールアドレスかパスワードが違う。未登録・削除済みも区別しない（[AUTHN-3](auth.md)、[ADR 0009](../decisions/0009-login-recheck-challenge.md)） |
+  | `account_suspended` | 403 | パスワードは一致したが（またはパスワード再設定のコードを確認したが）、アカウントが停止中（[ADR 0009](../decisions/0009-login-recheck-challenge.md)、[ADR 0010](../decisions/0010-password-reset.md)） |
+  | `account_expired` | 403 | パスワードは一致したが（またはパスワード再設定のコードを確認したが）、アカウントが失効している（有効期限切れを含む。[AUTH-3](../product/01-account-auth.md)） |
+  | `invalid_login_challenge` | 400 | ログインの再確認のチャレンジが無効・期限切れ・使用済み（[AUTHN-3](auth.md)） |
+  | `invalid_student_card_upload` | 400 | 学生証の登録で、オブジェクトが本人のものでない・アップロードされていない・JPEG/WebP でない・5MB を超える・登録済み（[STORAGE](storage.md)） |
+  | `seller_not_approved` | 403 | 学生証が承認されていない利用者が出品・編集しようとした（[ITEM](../product/03-listing.md)） |
+  | `invalid_item_image_upload` | 400 | 商品写真の登録で、オブジェクトが本人のものでない・アップロードされていない・JPEG/WebP でない・5MB を超える・ほかの商品で使われている（[STORAGE](storage.md)） |
+  | `invalid_handover_token` | 400 | 受け渡しの QR・完了リンク・完了コードが違う・期限切れ・使用済み（[DEAL-3](../product/05-deal-flow.md)、[ADR 0024](../decisions/0024-handover-token-flow.md)） |
+
+  管理API（`/api/admin/**`）は、未ログインでも管理者でなくても 404 `not_found` を返し、存在しないパスと区別できないようにする。管理者は環境変数 `ADMIN_STUDENT_NUMBERS`（学籍番号の許可リスト）で決める（[ADR 0015](../decisions/0015-admin-authorization.md)）。
+
+  表にない 4xx（413・415 など）は HTTP ステータスをそのまま使い、`code` は `bad_request` にする。5xx はすべて 500 `internal_error` にする。
+
+- ログは JSON で標準出力に出す（Cloud Logging が `severity` を読む）。学籍番号・メールアドレス・トークン・パスワード・コードは伏せ字にし、アクセスログには実際の URI ではなくルートのパターン（例 `/api/items/:id`）を記録する。各リクエストに `X-Request-Id` を付け、ログに `request_id` として残す。

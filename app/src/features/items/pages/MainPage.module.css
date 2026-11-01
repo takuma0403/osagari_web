@@ -1,0 +1,65 @@
+.page {
+  display: flex;
+  flex-direction: column;
+  flex-grow: 1;
+}
+
+.header {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-gap);
+  padding: 16px var(--space-page) 12px;
+  border-bottom: 1px solid var(--color-border);
+  background: var(--color-surface);
+}
+
+.brand {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-height: var(--tap-min);
+}
+
+.appName {
+  font-size: var(--text-header);
+  font-weight: 700;
+}
+
+/* 横にスクロールするカテゴリ。チップの押せる範囲（上下 4px のはみ出し）が切れないよう上下に余白を取る */
+.categories {
+  display: flex;
+  gap: 8px;
+  margin: -4px calc(var(--space-page) * -1);
+  padding: 4px var(--space-page);
+  overflow-x: auto;
+  scrollbar-width: none;
+}
+
+.body {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-gap);
+  padding: var(--space-page);
+}
+
+.titleRow {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+}
+
+.title {
+  font-size: var(--text-button);
+  font-weight: 700;
+}
+
+.order {
+  color: var(--color-text-muted);
+  font-size: var(--text-label);
+}
+
+.grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: var(--space-gap);
+}

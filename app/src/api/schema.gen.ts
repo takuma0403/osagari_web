@@ -21,10 +21,2103 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/auth/signup/estimate": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * 学籍番号から学部・入学年度・有効期限を推定する
+         * @description AUTH-2, AUTH-4: 新規登録画面の入力中の表示に使う。学籍番号から計算するだけで、登録済みかどうかには触れない。
+         *     メールアドレスを URL に載せない（リクエストログに残さない）ため、本文で受け取る。
+         */
+        post: operations["estimateStudent"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/auth/signup/codes": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * 新規登録の認証コードを送る
+         * @description AUTHN-2: 大学のメールアドレス（^\d{8}@edu\.cc\.saga-u\.ac\.jp$）に6桁のコード（10分有効）を送る。
+         *     登録済みのアドレスにはコードの代わりに「登録済みです」の案内を送り、応答は未登録のときと同じにする（登録の有無を判別させない）。
+         *     形式が違うアドレスには送らず 400 invalid_email を返す。
+         *     同じアドレスへのコード送信は、用途（新規登録・パスワード再設定・ログインの再確認）をまとめて1分に1回・1時間に5回までで、超えたら送らずに 429 too_many_requests（AUTHN-6）。登録の有無にかかわらず同じように数える。
+         */
+        post: operations["sendSignupCode"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/auth/signup/codes/verify": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * 新規登録の認証コードを確認する
+         * @description AUTHN-2, AUTHN-6: コードが一致したら、パスワード設定用の一時トークン（15分有効・一度だけ使える）と推定結果を返す。
+         *     不一致は 400 invalid_verification_code（メッセージに残り回数）。期限切れ・使用済み・入力ミスが5回に達したコードは 400 verification_code_expired。
+         */
+        post: operations["verifySignupCode"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/auth/signup/complete": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * パスワードを設定してアカウントを作成する
+         * @description AUTHN-2, AUTH-2〜4, AUTHN-5: 一時トークンを使ってパスワード（10文字以上128文字以下）を設定し、学籍番号から入学年度・学部・有効期限を計算してアカウントを作る。
+         *     そのままログイン状態にし、`__session` Cookie を返す。`X-Device-Id` があれば、その端末を登録済みの端末にする（AUTHN-3）。
+         *     トークンが無効・期限切れ・使用済みなら 400 invalid_setup_token、パスワードの長さが範囲外なら 400 invalid_password_length。
+         */
+        post: operations["completeSignup"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/auth/login": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * メールアドレスとパスワードでログインする
+         * @description AUTH-1, AUTHN-3, AUTHN-5: パスワードが一致し、最後のコード確認から30日未満かつ登録済みの端末（`X-Device-Id`）なら、そのままログインして `__session` Cookie を返す（200）。
+         *     30日以上たっているか初めての端末なら、メールに6桁のコード（10分有効）を送り、再確認用のログインチャレンジ（15分有効・一度だけ使える）を返す（202）。
+         *     メールアドレスの形式違い・未登録・削除済み・パスワード違いは、区別せず 401 invalid_credentials（登録の有無を判別させない）。
+         *     パスワードが一致しても、停止中なら 403 account_suspended、失効（有効期限切れを含む）なら 403 account_expired。
+         *     AUTHN-6: パスワードの入力ミスが同じアドレスで10回続いたら、15分間は照合せずに 429 too_many_requests（未登録・削除済みのアドレスも同じように数えて止める）。パスワードが一致したら回数は0に戻る。
+         *     202 でコードを送るときは、コード送信の回数制限（/auth/signup/codes を参照）に当たると 429 too_many_requests。
+         */
+        post: operations["login"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/auth/login/recheck/codes": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * 再確認のコードを送り直す
+         * @description AUTHN-3: ログインチャレンジが有効なら、新しいコード（10分有効）を送る。古いコードは使えなくなる。
+         *     チャレンジが無効・期限切れ・使用済みなら 400 invalid_login_challenge。
+         *     AUTHN-6: コード送信の回数制限（/auth/signup/codes を参照）に当たったら 429 too_many_requests。断ったときは前のコードがそのまま使える。
+         */
+        post: operations["resendLoginRecheckCode"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/auth/login/recheck/verify": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * 再確認のコードを確認してログインする
+         * @description AUTHN-3, AUTHN-6: コードが一致したら最後の確認日時を更新し、ログイン時の端末を登録済みの端末にして、`__session` Cookie を返す。
+         *     不一致は 400 invalid_verification_code（メッセージに残り回数）。期限切れ・使用済み・入力ミスが5回に達したコードは 400 verification_code_expired。
+         *     チャレンジが無効・期限切れ・使用済みなら 400 invalid_login_challenge。
+         */
+        post: operations["verifyLoginRecheck"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/auth/logout": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * ログアウトする
+         * @description AUTHN-5: いまのセッションをすぐに無効にし、`__session` Cookie を消す。ログインしていなくても 204 を返す。
+         */
+        post: operations["logout"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/auth/password-reset/codes": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * パスワード再設定の認証コードを送る
+         * @description AUTHN-4: 登録済みのアドレスに6桁のコード（10分有効）を送る。
+         *     未登録・削除済みのアドレスにはコードの代わりに「登録されていません」の案内を送り、応答は登録済みのときと同じにする（登録の有無を判別させない。AUTHN-2）。
+         *     形式が違うアドレスには送らず 400 invalid_email を返す。
+         *     同じアドレスへのコード送信は、用途（新規登録・パスワード再設定・ログインの再確認）をまとめて1分に1回・1時間に5回までで、超えたら送らずに 429 too_many_requests（AUTHN-6）。登録の有無にかかわらず同じように数える。
+         */
+        post: operations["sendPasswordResetCode"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/auth/password-reset/codes/verify": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * パスワード再設定の認証コードを確認する
+         * @description AUTHN-4, AUTHN-6: コードが一致したら、パスワード設定用の一時トークン（15分有効・一度だけ使える）を返す。
+         *     不一致は 400 invalid_verification_code（メッセージに残り回数）。期限切れ・使用済み・入力ミスが5回に達したコードは 400 verification_code_expired。
+         */
+        post: operations["verifyPasswordResetCode"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/auth/password-reset/complete": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * 新しいパスワードを設定する
+         * @description AUTHN-4, AUTHN-5: 一時トークンを使って新しいパスワード（10文字以上128文字以下）を設定し、その利用者の既存のセッションをすべて無効にする。
+         *     コードで本人確認をしたので、最後の確認日時を更新し、そのままこの端末でログイン状態にして `__session` Cookie を返す。`X-Device-Id` があれば、その端末を登録済みの端末にする（AUTHN-3）。
+         *     トークンが無効・期限切れ・使用済みなら 400 invalid_setup_token、パスワードの長さが範囲外なら 400 invalid_password_length。
+         *     停止中なら 403 account_suspended、失効なら 403 account_expired を返し、パスワードは変えない。
+         *     AUTHN-6: 設定したらパスワードの入力ミスの回数を0に戻す。ただしログインを止めている間（429）は期限まで止めたまま。
+         */
+        post: operations["completePasswordReset"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/me": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * ログイン中の本人の情報を取得する
+         * @description AUTH-1, AUTHN-5: `__session` のセッションが有効（期限内・未失効）で、ユーザーが有効（停止・失効・削除でない）なら本人の情報を返す。そうでなければ 401 unauthorized。
+         */
+        get: operations["getMe"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/me/items": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * 自分の出品を一覧する
+         * @description AUTH-3, ITEM: マイページ（MyPage）の「出品した商品」に出す、本人のすべての出品（下書き・取り下げ・停止を含む）を、最後に更新した日時の新しい順に全件返す（ADR 0029）。
+         *     承認待ちの購入希望の件数を商品ごとに付ける。購入した商品は `GET /transactions?role=buyer` を使う。
+         */
+        get: operations["listOwnItems"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/me/sales": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * 売上の明細と集計を取得する
+         * @description PAY, PAY-2: 売上管理（Sales）に出す、本人が出品者として成立した取引（取引中・完了）の売上の明細と集計を返す（ADR 0029）。キャンセルした取引は含めない。
+         *     手数料は取引ごとに成立時点で記録した料率・金額をそのまま返す（ADR 0003, ADR 0017）。並びは最後に動いた日時の新しい順で全件。
+         */
+        get: operations["getSales"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/me/sales/payouts": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * 出金できる売上をすべて出金する（モック）
+         * @description PAY, JOBS-2: 出金できる売上（受け渡しが完了して未出金の取引）をすべて出金し、取引ごとに出金（payout）を記録する（ADR 0029）。フェーズ1はモックで、実際のお金は動かさない。
+         *     出金できる売上がない（同時に申請された場合を含む）なら 409 invalid_status_transition。応答は出金後の売上。
+         */
+        post: operations["requestPayout"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/student-cards/uploads": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * 学生証画像のアップロード用の署名付きURLを発行する
+         * @description CARD, STORAGE: 非公開バケットに直接 PUT するための署名付きURL（15分有効）を発行する。ブラウザは返った `headers` を付けて `uploadUrl` に画像を PUT し、
+         *     そのあと `objectKey` を `submitStudentCard` に送る。オブジェクト名は `{ユーザーID}/{UUID}`。
+         *     すでに承認済みなら 409 invalid_status_transition。
+         */
+        post: operations["createStudentCardUpload"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/student-cards": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * アップロードした学生証画像を登録して審査待ちにする
+         * @description CARD, STORAGE: オブジェクトが本人のもので、アップロード済み・JPEG か WebP・5MB 以下なら学生証として登録し、出品者の承認状態を審査中（pending）にする。
+         *     そうでなければ 400 invalid_student_card_upload。審査中・差し戻しのときの再提出は前の学生証を置き換える（前の画像も残す。ADR 0014）。
+         *     すでに承認済みなら 409 invalid_status_transition。
+         */
+        post: operations["submitStudentCard"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/student-cards/current": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * 本人の学生証の審査状況を取得する
+         * @description CARD: 最後に提出した学生証の審査状況を返す。未登録なら status は none。画像の閲覧URLは返さない（管理者APIだけが発行する。STORAGE）。
+         */
+        get: operations["getCurrentStudentCard"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/items/image-uploads": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * 商品写真のアップロード用の署名付きURLを発行する
+         * @description ITEM, STORAGE: 商品写真のバケットに直接 PUT するための署名付きURL（15分有効、5MB まで）を発行する。ブラウザは返った `headers` を付けて `uploadUrl` に画像を PUT し、
+         *     そのあと `objectKey` を createItem・updateItem の `imageObjectKeys` に入れる。オブジェクト名は `{ユーザーID}/{UUID}`。
+         *     学生証が承認されていなければ 403 seller_not_approved。
+         */
+        post: operations["createItemImageUpload"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/items": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * 公開中の商品を新着順に一覧・検索する
+         * @description BROWSE: 公開中・購入希望ありの商品を、最後に公開した日時の新しい順に返す（ADR 0018）。出品者のアカウントが有効（active）でない商品は含めない。
+         *     条件はすべて任意で、指定したものをすべて満たす商品を返す。`keyword` は空白で区切った語をすべて含む商品（タイトル・説明文・授業名・担当教員・ISBN のどれか）を探す。
+         *     続きは応答の `nextCursor` を `cursor` に入れて取る。条件が不正（priceMin が priceMax より大きい、壊れた cursor など）なら 400 bad_request。
+         */
+        get: operations["listItems"];
+        put?: never;
+        /**
+         * 商品を出品する（下書きか公開）
+         * @description ITEM: `publish` が false なら下書き（タイトルだけ必須）、true なら公開中として作る（すべての共通項目と写真1枚以上が必須）。
+         *     入力が不正なら 400 bad_request、写真が不正なら 400 invalid_item_image_upload、学生証が承認されていなければ 403 seller_not_approved。
+         */
+        post: operations["createItem"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/items/{itemId}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * 自分の商品を取得する（編集用）
+         * @description ITEM, STORAGE: 出品者本人の商品を、下書き・取り下げを含めて返す。写真には閲覧用の署名付きURL（15分有効）を付ける。
+         *     ほかの人の商品は 404 not_found（存在するかどうかを区別しない）。公開されている商品を見るときは BROWSE の API を使う。
+         */
+        get: operations["getOwnItem"];
+        /**
+         * 商品を編集する
+         * @description ITEM: すべての項目を置き換える。写真は `imageObjectKeys` の並びが表示順になる。編集できるのは下書き・公開中・取り下げの商品だけで（ADR 0016）、
+         *     それ以外は 409 invalid_status_transition。公開中の商品はすべての共通項目と写真1枚以上が必須、下書き・取り下げはタイトルだけ必須。
+         *     ほかの人の商品は 404 not_found、学生証が承認されていなければ 403 seller_not_approved。
+         */
+        put: operations["updateItem"];
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/items/{itemId}/publish": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * 商品を公開する（再出品を含む）
+         * @description ITEM: 下書きか取り下げの商品を公開中にする。それ以外は 409 invalid_status_transition（ADR 0016）。
+         *     共通項目か写真が足りなければ 400 bad_request。ほかの人の商品は 404 not_found、学生証が承認されていなければ 403 seller_not_approved。
+         */
+        post: operations["publishItem"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/items/{itemId}/withdraw": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * 商品を取り下げる
+         * @description ITEM: 下書き・公開中・購入希望ありの商品を取り下げる。取引中・取引完了・停止などは 409 invalid_status_transition（ADR 0016）。
+         *     ほかの人の商品は 404 not_found。
+         */
+        post: operations["withdrawItem"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/items/{itemId}/requests": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * 自分の商品に届いている購入希望の一覧を取得する
+         * @description DEAL-1: 出品者が承認する相手を選ぶための、承認待ち（status が requested）の購入希望を希望の古い順に返す。
+         *     購入者の学籍番号は返さない（承認前は開示しない）。ほかの人の商品は 404 not_found。
+         */
+        get: operations["listPurchaseRequests"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/items/shared/{shareId}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * 共有用IDで商品の詳細を取得する
+         * @description BROWSE: 商品ページ（`/items/:shareId`）に出す商品の詳細を返す。公開中・購入希望ありに加え、取引中・取引完了も「売り切れ」として status 付きで返す（ADR 0018）。
+         *     下書き・取り下げ・停止の商品と、出品者のアカウントが有効（active）でない商品は 404 not_found（出品者本人も同じ。本人は getOwnItem を使う）。
+         *     出品者の学籍番号は返さない（DEAL-1）。
+         *     DEAL-1: ログイン中の本人がこの商品に承認待ち（status が requested）の購入希望を出していれば、`myRequest` にその取引IDと承認期限を入れる。
+         */
+        get: operations["getPublicItem"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/items/shared/{shareId}/requests": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * 購入希望を出す
+         * @description DEAL-1, JOBS-2: 公開中・購入希望ありの商品に購入希望を出し、支払い方法の枠を確保する（フェーズ1はモックで記録するだけ）。
+         *     金額は購入希望の時点の商品価格、承認期限は購入希望から48時間（ADR 0022）。商品は購入希望ありになる。
+         *     商品ページで見られない商品は 404 not_found、自分の商品は 403 forbidden、
+         *     取引中・取引完了の商品と、同じ商品に承認待ちの購入希望をすでに出しているときは 409 invalid_status_transition。
+         */
+        post: operations["createPurchaseRequest"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/transactions": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * 自分が当事者の取引を一覧する
+         * @description DEAL-1, DEAL-3, DEAL-4: 取引一覧（DealList）に出す、ログイン中の本人が購入者か出品者の取引を返す（ADR 0028）。学籍番号・手数料は含めない。
+         *     `role` で購入（buyer）と出品（seller）、`phase` で進行中（active）と終了（ended）を分ける。
+         *     - buyer / active：購入希望（requested）と取引中（in_deal）
+         *     - buyer / ended：却下・期限切れ・キャンセル・完了
+         *     - seller / active：承認待ちの購入希望を商品ごとに1行（`requestCount` 件）と、取引中
+         *     - seller / ended：キャンセル・完了（出品側の却下・期限切れは出さない）
+         *     並びは最後に動いた日時（`updatedAt`）の新しい順。active は全件を返し `nextCursor` は常に null（cursor を渡すと 400 bad_request）。
+         *     ended は応答の `nextCursor` を `cursor` に入れて続きを取る。壊れた cursor は 400 bad_request。
+         */
+        get: operations["listTransactions"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/transactions/{transactionId}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * 取引の詳細を取得する
+         * @description DEAL-1, DEAL-2: ログイン中の本人が購入者か出品者の取引を返す。相手の学籍番号は承認（取引成立）の後だけ入る。
+         *     当事者でない取引は 404 not_found（存在するかどうかを区別しない）。
+         */
+        get: operations["getTransaction"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/transactions/{transactionId}/approve": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * 購入希望を承認する
+         * @description DEAL-1, PAY-2, JOBS-2: 出品者が購入希望を1件承認して取引を成立させる。代金を預かり、その時点の手数料率・手数料・出品者の売上を記録し（ADR 0003）、
+         *     双方の学籍番号を開示する。同じ商品のほかの購入希望は却下して枠を解放する。商品は取引中になる。
+         *     承認待ちでない・承認期限を過ぎた・同じ商品の取引がすでに成立しているときは 409 invalid_status_transition。
+         *     出品者でなければ 404 not_found。
+         */
+        post: operations["approveTransaction"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/transactions/{transactionId}/reject": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * 購入希望を却下する
+         * @description DEAL-1, JOBS-2: 出品者が購入希望を却下し、枠を解放する。承認待ちの購入希望がなくなったら商品を公開中に戻す（ADR 0022）。
+         *     承認待ちでなければ 409 invalid_status_transition。出品者でなければ 404 not_found。
+         */
+        post: operations["rejectTransaction"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/transactions/{transactionId}/acknowledge": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * 取引成立の確認モーダルに同意する
+         * @description DEAL-2: 出品者が「確認しました」を押した日時を記録する。すでに記録済みなら最初の日時のまま 200 を返す。
+         *     取引中でなければ 409 invalid_status_transition。出品者でなければ 404 not_found。
+         */
+        post: operations["acknowledgeTransaction"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/transactions/{transactionId}/cancel": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * 取引のキャンセルを申請する・申請に同意する
+         * @description DEAL-4, JOBS-2: 当事者が取引のキャンセルを申請する、または相手の申請に同意する（どちらも自分の同意日時を記録する同じ操作）。
+         *     双方の同意がそろったら取引をキャンセルにし、代金を購入者に返金し（モック）、商品を公開中に戻す。片方だけでは取引中のまま。
+         *     自分がすでに同意済みなら、最初の日時のまま 200 を返す。相手の申請を断る操作はない（同意しなければ取引は続く）。
+         *     取引中でない（受け渡し完了後・キャンセル済み・承認前）なら 409 invalid_status_transition。当事者でなければ 404 not_found。
+         */
+        post: operations["cancelTransaction"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/transactions/{transactionId}/cancel/withdraw": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * 取引のキャンセルの申請を取り下げる
+         * @description DEAL-4: 自分が出したキャンセルの申請を取り下げる（自分の同意日時を消す）。
+         *     取引中でない（相手が同意してキャンセル済みの場合を含む）・自分が申請していないなら 409 invalid_status_transition。当事者でなければ 404 not_found。
+         */
+        post: operations["withdrawCancelRequest"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/transactions/{transactionId}/handover-tokens": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * 受け渡しトークンを発行する
+         * @description DEAL-3: 出品者が受け渡しQR・完了リンク・完了コードのトークンを発行する。中身は取引IDと使い捨てのトークンだけで、個人情報・金額は含めない。
+         *     `qr` は QR に載せるトークンと、QR の下に表示する6桁の確認コードを返す（有効期限5分）。`link` はトークン、`code` は6桁のコードだけを返す（有効期限24時間）。
+         *     同じ取引・同じ種類の未使用のトークンは使えなくなる（使えるのは常に最新の1つ）。トークン・コードの値はこの応答でしか返さない。
+         *     取引中でなければ 409 invalid_status_transition。出品者でなければ 404 not_found。
+         */
+        post: operations["createHandoverToken"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/transactions/{transactionId}/handover/verify": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * 受け渡しトークンを照合する（使用済みにしない）
+         * @description DEAL-3: 購入者が読み取った QR・開いた完了リンク・入力したコードが使えるかを確かめる。トークンは使用済みにしない。
+         *     アプリはこの照合のあとに「商品を受け取りましたか？」を表示し、「受け取った」で completeTransaction を呼ぶ。
+         *     使えない（違う・期限切れ・使用済み）なら 400 invalid_handover_token。取引中でなければ 409 invalid_status_transition。購入者でなければ 404 not_found。
+         */
+        post: operations["verifyHandover"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/transactions/{transactionId}/complete": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * 受け渡しを完了する
+         * @description DEAL-3, PAY-2, JOBS-2: 購入者の操作で受け渡しを完了する。トークンを使用済みにし、取引と商品を完了にして、取引成立時に記録した出品者の売上を確定する（モック）。
+         *     完了方法は入力の種類（qr・link・code。QR の下の確認コードを入力したときは code）で記録する。完了後はキャンセル・返金できない（DEAL-4）。
+         *     使えない（違う・期限切れ・使用済み）なら 400 invalid_handover_token。取引中でない（同時に完了された場合を含む）なら 409 invalid_status_transition。
+         *     購入者でなければ 404 not_found（出品者の操作では完了しない）。
+         */
+        post: operations["completeTransaction"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/settings/fee-rate": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * 現在の手数料率を取得する
+         * @description PAY-2: 現在の手数料率（ベーシスポイント）を返す。出品画面の受け取り見込みの表示に使う。
+         *     手数料は 商品価格 × 料率 の1円未満を切り捨てた額（ADR 0017）。取引に適用する料率は取引が成立した時点の値（ADR 0003）。
+         */
+        get: operations["getFeeRate"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/admin/session": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * 管理者かどうかを確かめる
+         * @description ADMIN, FE: 管理者なら 204。未ログイン・管理者でなければ 404 not_found（管理画面は 404 なら「ページが見つからない」を出す。ADR 0015）。
+         */
+        get: operations["getAdminSession"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/admin/student-cards": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * 審査待ちの学生証を一覧する
+         * @description ADMIN, CARD: 審査待ち（pending）で置き換えられていない学生証を、提出の古い順に返す。画像の URL は含めない（createStudentCardView で発行する）。
+         */
+        get: operations["listPendingStudentCards"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/admin/student-cards/{studentCardId}/views": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * 学生証画像の閲覧記録を一覧する
+         * @description ADMIN, CARD: その学生証の画像を閲覧した記録を新しい順に返す。学生証がなければ 404 not_found。
+         */
+        get: operations["listStudentCardViews"];
+        put?: never;
+        /**
+         * 学生証画像の閲覧URLを発行し、閲覧を記録する
+         * @description ADMIN, CARD, STORAGE: 非公開バケットの画像を GET する署名付きURL（15分有効）を発行し、閲覧した管理者と日時を記録する。
+         *     学生証がない・画像が削除済みなら 404 not_found。
+         */
+        post: operations["createStudentCardView"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/admin/student-cards/{studentCardId}/approve": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * 学生証を承認する
+         * @description ADMIN, CARD: 審査待ちで置き換えられていない学生証を承認し、本人の出品者の承認状態を approved にする。
+         *     審査待ちでない・置き換えられた・本人が審査中でなければ 409 invalid_status_transition。学生証がなければ 404 not_found。
+         */
+        post: operations["approveStudentCard"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/admin/student-cards/{studentCardId}/reject": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * 学生証を差し戻す
+         * @description ADMIN, CARD: 審査待ちで置き換えられていない学生証を差し戻し、本人の出品者の承認状態を rejected にする。理由は持たない（ADR 0015）。
+         *     審査待ちでない・置き換えられた・本人が審査中でなければ 409 invalid_status_transition。学生証がなければ 404 not_found。
+         */
+        post: operations["rejectStudentCard"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/admin/users": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * ユーザーを一覧する
+         * @description ADMIN, AUTH-3: ユーザーを登録の新しい順に返す（AdminUsers）。`q` は学籍番号の前方一致（数字1〜8桁）、`filter` は状態での絞り込み
+         *     （withdrawal_requested は退学を申請して削除されていない人。ADR 0034）。応答の `withdrawalRequestCount` は絞り込みに関係なく数える。
+         *     続きは応答の `nextCursor` を `cursor` に入れて取る。条件が不正（数字でない q、壊れた cursor など）なら 400 bad_request。
+         */
+        get: operations["listAdminUsers"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/admin/users/{userId}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * ユーザーの詳細を取る
+         * @description ADMIN: ユーザー1人の情報を返す。ユーザーがいなければ 404 not_found。
+         */
+        get: operations["getAdminUser"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/admin/users/{userId}/suspend": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * アカウントを停止する
+         * @description ADMIN: 有効なアカウントを停止にし、セッションをすべて無効にする。商品は一覧・商品ページから除かれ、取引はそのまま残る（ADR 0034）。
+         *     有効でなければ 409 invalid_status_transition。ユーザーがいなければ 404 not_found。
+         */
+        post: operations["suspendUser"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/admin/users/{userId}/unsuspend": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * アカウントの停止を解除する
+         * @description ADMIN: 停止中のアカウントを有効に戻す（ADR 0034）。停止中でなければ 409 invalid_status_transition。ユーザーがいなければ 404 not_found。
+         */
+        post: operations["unsuspendUser"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/admin/users/{userId}/expires-on": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        /**
+         * 有効期限を変更する
+         * @description ADMIN, AUTH-3: 有効・停止のアカウントの有効期限を変える（延長の仕組みができるまでの暫定。ADR 0034）。
+         *     今日（日本時間）より前の日付なら 400 bad_request。有効・停止でなければ 409 invalid_status_transition。ユーザーがいなければ 404 not_found。
+         */
+        put: operations["updateUserExpiresOn"];
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/admin/users/{userId}/delete": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * 退学によりアカウントを削除する
+         * @description ADMIN, AUTH-3: 有効・停止のアカウントを削除にし、失効と同じ後処理（商品の取り下げ、購入希望の期限切れ、取引中の取引のキャンセルと返金、
+         *     学生証の削除予定日を削除日 + 3年、セッションの無効化）を行う（ADR 0033, ADR 0034）。
+         *     有効・停止でなければ 409 invalid_status_transition。ユーザーがいなければ 404 not_found。
+         */
+        post: operations["deleteUser"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/admin/items": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * 出品を一覧する
+         * @description ADMIN: すべての出品（下書き・取り下げ・停止を含む）を作った日時の新しい順に返す（AdminDeals の出品）。
+         *     続きは応答の `nextCursor` を `cursor` に入れて取る。壊れた cursor は 400 bad_request。
+         */
+        get: operations["listAdminItems"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/admin/items/{itemId}/suspend": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * 出品を停止する
+         * @description ADMIN, ITEM-1: 下書き・公開中・購入希望あり・取引中の商品を停止にする。購入希望ありなら承認待ちの購入希望をすべて却下して枠を解放する。
+         *     取引中なら取引は続ける（ADR 0034）。それ以外のステータスなら 409 invalid_status_transition。商品がなければ 404 not_found。
+         */
+        post: operations["suspendItem"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/admin/transactions": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * 取引を一覧する
+         * @description ADMIN: すべての取引（購入希望を含む）を最後に動いた日時の新しい順に返す（AdminDeals の取引）。
+         *     続きは応答の `nextCursor` を `cursor` に入れて取る。壊れた cursor は 400 bad_request。
+         */
+        get: operations["listAdminTransactions"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/admin/transactions/{transactionId}/cancel": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * 取引をキャンセルして返金する（モック）
+         * @description ADMIN, DEAL-4: トラブル対応として、取引中の取引をキャンセルし、代金を購入者に返金する（モック）。当事者の同意日時は入れず、
+         *     キャンセル回数に数えない。商品は取引中なら公開中に戻し、それ以外（停止など）ならそのままにする（ADR 0034）。
+         *     取引中でなければ（受け渡し完了後を含む）409 invalid_status_transition。取引がなければ 404 not_found。
+         */
+        post: operations["cancelTransactionByAdmin"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/admin/settings/fee-rate": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * 手数料率と最終更新を取る
+         * @description ADMIN, PAY-2: 現在の手数料率と、最後に変更した日時・管理者を返す（AdminSettings。ADR 0034）。
+         */
+        get: operations["getAdminFeeRate"];
+        /**
+         * 手数料率を変更する
+         * @description ADMIN, PAY-2: 手数料率（0〜10000 ベーシスポイント）を変える。変更後に成立する取引から使われ、成立済みの取引の料率は変わらない（ADR 0003）。
+         *     範囲外なら 400 bad_request。
+         */
+        put: operations["updateFeeRate"];
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/webhooks/payment": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * 決済サービスからの通知を受ける（枠だけ）
+         * @description JOBS-2: 本番の決済サービス（Stripe Connect・PAY.JP など）からの通知を受ける口。フェーズ1は決済がモックなので、
+         *     本文を読まずに何もせず 204 を返す。本番の実装に差し替えるときに、署名の検証と本文の形をこの契約に足す（ADR 0021）。
+         */
+        post: operations["receivePaymentWebhook"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/internal/jobs/short": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * 短周期ジョブを実行する（15分ごと）
+         * @description JOBS-1, DEAL-1, AUTHN-6: Cloud Scheduler から15分ごとに呼ぶ。承認期限を過ぎた購入希望を期限切れにして枠を解放し（承認待ちがなくなった商品は公開中に戻す。ADR 0022）、
+         *     期限切れの認証コード・再確認・パスワード設定・受け渡しのトークンと、24時間更新のないパスワードの入力ミスの記録を消す。
+         *     自動完了（DEAL-5）は導入するか未定のため行わない。何度呼んでも結果は同じ（冪等）。
+         *     `Authorization: Bearer` で Cloud Scheduler の OIDC ID トークン（ローカルは代替のシークレット）を送る。確かめられなければ 404 not_found（ADR 0027）。
+         */
+        post: operations["runShortJob"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/internal/jobs/daily": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * 日次ジョブを実行する（毎日深夜）
+         * @description JOBS-1, AUTH-3, CARD, STORAGE: Cloud Scheduler から毎日深夜に呼ぶ。有効期限を過ぎたアカウントを失効させ、本人の商品の取り下げ・購入希望の期限切れ・
+         *     取引中の取引のキャンセルと返金・学生証の削除予定日の記録・セッションの無効化を行う（ADR 0033）。
+         *     続けて、削除予定日を過ぎた学生証画像と、登録されなかった学生証のオブジェクトを消す。何度呼んでも結果は同じ（冪等）。
+         *     `Authorization: Bearer` で Cloud Scheduler の OIDC ID トークン（ローカルは代替のシークレット）を送る。確かめられなければ 404 not_found（ADR 0027）。
+         */
+        post: operations["runDailyJob"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
 }
 export type webhooks = Record<string, never>;
 export interface components {
     schemas: {
+        EmailInput: {
+            /**
+             * @description 大学のメールアドレス（学籍番号@edu.cc.saga-u.ac.jp）。前後の空白と大文字・小文字の違いは無視する
+             * @example 26238001@edu.cc.saga-u.ac.jp
+             */
+            email: string;
+        };
+        /** @description AUTH-2, AUTH-4 学籍番号から推定した情報 */
+        StudentEstimate: {
+            /** @example 26238001 */
+            studentNumber: string;
+            /**
+             * @description 入学年度（学籍番号の上2桁 + 2000）
+             * @example 2026
+             */
+            admissionYear: number;
+            /**
+             * @description 学部・学科コード（学籍番号の3〜5桁目）
+             * @example 238
+             */
+            departmentCode: string;
+            /**
+             * @description AUTH-4 の表で確定した学部・学科のコード。表にないコードは null（不明）
+             * @example 238
+             */
+            department: string | null;
+            /**
+             * @description 学部・学科の名前。不明なら null
+             * @example 理工学部 理工学科
+             */
+            departmentName: string | null;
+            /**
+             * Format: date
+             * @description 有効期限の初期値（入学年度 + 修業年限 の3月31日。不明なら4年）
+             * @example 2030-03-31
+             */
+            expiresOn: string;
+        };
+        SignupCodeVerification: {
+            /** @example 26238001@edu.cc.saga-u.ac.jp */
+            email: string;
+            /**
+             * @description メールで届いた6桁のコード
+             * @example 012345
+             */
+            code: string;
+        };
+        SignupCodeVerified: {
+            /** @description パスワード設定用の一時トークン（15分有効・一度だけ使える） */
+            setupToken: string;
+            estimate: components["schemas"]["StudentEstimate"];
+        };
+        SignupCompletion: {
+            setupToken: string;
+            /** @description 10文字以上128文字以下（AUTHN-5） */
+            password: string;
+        };
+        PasswordResetCodeVerification: {
+            /** @example 26238001@edu.cc.saga-u.ac.jp */
+            email: string;
+            /**
+             * @description メールで届いた6桁のコード
+             * @example 012345
+             */
+            code: string;
+        };
+        PasswordResetCodeVerified: {
+            /** @description パスワード設定用の一時トークン（15分有効・一度だけ使える） */
+            setupToken: string;
+        };
+        PasswordResetCompletion: {
+            setupToken: string;
+            /** @description 10文字以上128文字以下（AUTHN-5） */
+            password: string;
+        };
+        LoginInput: {
+            /**
+             * @description 大学のメールアドレス。前後の空白と大文字・小文字の違いは無視する
+             * @example 26238001@edu.cc.saga-u.ac.jp
+             */
+            email: string;
+            password: string;
+        };
+        /**
+         * @description 再確認が必要な理由（AUTHN-3）。code_expired = 最後にコードで確認してから30日以上たった、new_device = 初めて使う端末。
+         *     両方に当てはまるときは code_expired。
+         * @enum {string}
+         */
+        LoginRecheckReason: "code_expired" | "new_device";
+        /** @description AUTHN-3 再確認用のログインチャレンジ。パスワードが一致したことを表し、コードの確認・再送に使う */
+        LoginChallenge: {
+            /** @description ログインチャレンジのトークン（15分有効・一度だけ使える） */
+            challengeToken: string;
+            reason: components["schemas"]["LoginRecheckReason"];
+            /**
+             * @description コードの送信先（ログインに使ったメールアドレス）
+             * @example 26238001@edu.cc.saga-u.ac.jp
+             */
+            email: string;
+        };
+        LoginChallengeInput: {
+            challengeToken: string;
+        };
+        LoginRecheckVerification: {
+            challengeToken: string;
+            /**
+             * @description メールで届いた6桁のコード
+             * @example 012345
+             */
+            code: string;
+        };
+        /** @description ログイン中の本人の情報。本人にだけ返す */
+        CurrentUser: {
+            id: string;
+            email: string;
+            studentNumber: string;
+            admissionYear: number;
+            departmentCode: string;
+            department: string | null;
+            departmentName: string | null;
+            /** Format: date */
+            expiresOn: string;
+            status: components["schemas"]["UserStatus"];
+            sellerStatus: components["schemas"]["SellerStatus"];
+        };
+        /**
+         * @description ユーザーの状態
+         * @enum {string}
+         */
+        UserStatus: "active" | "suspended" | "expired" | "deleted";
+        /**
+         * @description 出品者の承認状態
+         * @enum {string}
+         */
+        SellerStatus: "none" | "pending" | "approved" | "rejected";
+        StudentCardUploadInput: {
+            /**
+             * @description アップロードする画像の形式（ブラウザで縮小・圧縮したもの。STORAGE）
+             * @enum {string}
+             */
+            contentType: "image/jpeg" | "image/webp";
+        };
+        /** @description STORAGE 学生証画像のアップロード先 */
+        StudentCardUpload: {
+            /**
+             * @description 登録（submitStudentCard）で送るオブジェクト名
+             * @example 0b6c1f7e-1d2a-4c55-9a51-2f0f6f3d9c10/7d7f5a2e-3c1b-4f0e-8a0c-6c1e9b2d4f11
+             */
+            objectKey: string;
+            /** @description 署名付きURL */
+            uploadUrl: string;
+            /** @enum {string} */
+            method: "PUT";
+            /** @description PUT に付けるヘッダー（署名に含まれる。Content-Type など） */
+            headers: {
+                [key: string]: string;
+            };
+            /**
+             * Format: date-time
+             * @description 署名付きURLの有効期限
+             */
+            expiresAt: string;
+        };
+        StudentCardSubmission: {
+            /** @description createStudentCardUpload で受け取ったオブジェクト名 */
+            objectKey: string;
+        };
+        /** @description CARD 本人の学生証の審査状況 */
+        StudentCardState: {
+            status: components["schemas"]["SellerStatus"];
+            /**
+             * Format: date-time
+             * @description 最後に提出した日時。未登録なら null
+             */
+            submittedAt: string | null;
+            /**
+             * Format: date-time
+             * @description 審査した日時。審査前・未登録なら null
+             */
+            reviewedAt: string | null;
+        };
+        /**
+         * @description 学生証の審査状態
+         * @enum {string}
+         */
+        StudentCardStatus: "pending" | "approved" | "rejected";
+        /** @description ADMIN 管理者に見せる学生証と本人の情報（審査で学籍番号を照合する。CARD） */
+        AdminStudentCard: {
+            id: string;
+            status: components["schemas"]["StudentCardStatus"];
+            /** @description メールアドレスの学籍番号 */
+            studentNumber: string;
+            /** @description 推定した学部・学科の表示名。不明なら null */
+            departmentName: string | null;
+            admissionYear: number;
+            /** Format: date */
+            expiresOn: string;
+            /** Format: date-time */
+            submittedAt: string;
+            /**
+             * Format: date-time
+             * @description 審査した日時。審査前は null
+             */
+            reviewedAt: string | null;
+        };
+        /** @description STORAGE 学生証画像の閲覧URL（管理者だけに発行する） */
+        StudentCardImage: {
+            /** @description 署名付きURL（GET） */
+            url: string;
+            /**
+             * Format: date-time
+             * @description 署名付きURLの有効期限
+             */
+            expiresAt: string;
+            /**
+             * Format: date-time
+             * @description 記録した閲覧の日時
+             */
+            viewedAt: string;
+        };
+        /** @description ADMIN 学生証画像の閲覧記録 */
+        StudentCardView: {
+            /** Format: date-time */
+            viewedAt: string;
+            /** @description 閲覧した管理者の学籍番号 */
+            adminStudentNumber: string;
+        };
+        /**
+         * @description 管理画面のユーザーの絞り込み。all すべて / active 有効 / suspended 停止 / expired 失効 / withdrawal_requested 退学申請（削除されていない人）
+         * @enum {string}
+         */
+        AdminUserFilter: "all" | "active" | "suspended" | "expired" | "withdrawal_requested";
+        /** @description ADMIN 管理画面のユーザーの一覧 */
+        AdminUserList: {
+            /** @description 登録の新しい順 */
+            entries: components["schemas"]["AdminUser"][];
+            /** @description 退学を申請して削除されていない人の数（絞り込みに関係なく数える） */
+            withdrawalRequestCount: number;
+            /** @description 続きを取るときに cursor に入れる値。続きがなければ null */
+            nextCursor: string | null;
+        };
+        /** @description ADMIN 管理者に見せるユーザーの情報 */
+        AdminUser: {
+            id: string;
+            studentNumber: string;
+            /** @description 学部・学科の表示名。不明なら null */
+            departmentName: string | null;
+            admissionYear: number;
+            /** Format: date */
+            expiresOn: string;
+            status: components["schemas"]["UserStatus"];
+            sellerStatus: components["schemas"]["SellerStatus"];
+            /** @description キャンセル回数。双方の同意でキャンセルになった取引の数（DEAL-4, ADR 0034） */
+            cancelCount: number;
+            /** @description 当事者になっている取引中の取引の数 */
+            activeTransactionCount: number;
+            /**
+             * Format: date-time
+             * @description 退学を申請した日時。申請していなければ null
+             */
+            withdrawalRequestedAt: string | null;
+            /** Format: date-time */
+            createdAt: string;
+        };
+        ExpiresOnInput: {
+            /**
+             * Format: date
+             * @description 新しい有効期限（その日の終わりまで使える）
+             */
+            expiresOn: string;
+        };
+        /** @description ADMIN 管理画面の出品の一覧 */
+        AdminItemList: {
+            /** @description 作った日時の新しい順 */
+            entries: components["schemas"]["AdminItem"][];
+            /** @description 続きを取るときに cursor に入れる値。続きがなければ null */
+            nextCursor: string | null;
+        };
+        /** @description ADMIN 管理者に見せる出品 */
+        AdminItem: {
+            id: string;
+            shareId: string;
+            title: string;
+            /**
+             * Format: int64
+             * @description 価格（円）。下書きで未入力なら null
+             */
+            price: number | null;
+            status: components["schemas"]["ItemStatus"];
+            sellerStudentNumber: string;
+            /** @description 1枚目の写真 */
+            thumbnail: components["schemas"]["ItemImage"] | null;
+            /** Format: date-time */
+            createdAt: string;
+        };
+        /** @description ADMIN 管理画面の取引の一覧 */
+        AdminTransactionList: {
+            /** @description 最後に動いた日時の新しい順 */
+            entries: components["schemas"]["AdminTransaction"][];
+            /** @description 続きを取るときに cursor に入れる値。続きがなければ null */
+            nextCursor: string | null;
+        };
+        /** @description ADMIN 管理者に見せる取引。管理者には承認前でも当事者の学籍番号を見せる */
+        AdminTransaction: {
+            id: string;
+            status: components["schemas"]["TransactionStatus"];
+            item: components["schemas"]["TransactionItem"];
+            sellerStudentNumber: string;
+            buyerStudentNumber: string;
+            /**
+             * Format: int64
+             * @description 取引の金額（円）
+             */
+            price: number;
+            paymentMethod: components["schemas"]["PaymentMethod"];
+            /** @description この取引に適用した手数料率（ベーシスポイント）。成立前は null */
+            feeRateBasisPoints: number | null;
+            /** Format: date-time */
+            buyerCancelAgreedAt: string | null;
+            /** Format: date-time */
+            sellerCancelAgreedAt: string | null;
+            /** Format: date-time */
+            completedAt: string | null;
+            /** Format: date-time */
+            createdAt: string;
+            /** Format: date-time */
+            updatedAt: string;
+        };
+        /** @description ADMIN, PAY-2 管理画面の手数料率 */
+        AdminFeeRate: {
+            /** @description 手数料率（ベーシスポイント。500 = 5%） */
+            feeRateBasisPoints: number;
+            /**
+             * Format: date-time
+             * @description 最後に変更した日時
+             */
+            updatedAt: string;
+            /** @description 最後に変更した管理者の学籍番号。初期値のままなら null */
+            updatedByStudentNumber: string | null;
+        };
+        /**
+         * @description アップロードする画像の形式（ブラウザで縮小・圧縮したもの。STORAGE）
+         * @enum {string}
+         */
+        ImageContentType: "image/jpeg" | "image/webp";
+        ImageUploadInput: {
+            contentType: components["schemas"]["ImageContentType"];
+        };
+        /** @description STORAGE 画像のアップロード先 */
+        ImageUpload: {
+            /** @description 登録で送るオブジェクト名（`{ユーザーID}/{UUID}`） */
+            objectKey: string;
+            /** @description 署名付きURL */
+            uploadUrl: string;
+            /** @enum {string} */
+            method: "PUT";
+            /** @description PUT に付けるヘッダー（署名に含まれる。Content-Type など） */
+            headers: {
+                [key: string]: string;
+            };
+            /**
+             * Format: date-time
+             * @description 署名付きURLの有効期限
+             */
+            expiresAt: string;
+        };
+        /** @description PAY-2 手数料率 */
+        FeeRate: {
+            /** @description 手数料率（ベーシスポイント。500 = 5%） */
+            feeRateBasisPoints: number;
+        };
+        /**
+         * @description 商品のステータス
+         * @enum {string}
+         */
+        ItemStatus: "draft" | "published" | "requested" | "in_deal" | "completed" | "withdrawn" | "suspended";
+        /**
+         * @description カテゴリ
+         * @enum {string}
+         */
+        ItemCategory: "textbook" | "furniture_appliance" | "game_other";
+        /**
+         * @description 商品の状態（new_like 新品同様 / good 目立った傷なし / fair やや傷あり）
+         * @enum {string}
+         */
+        ItemCondition: "new_like" | "good" | "fair";
+        /**
+         * @description 受け渡し希望キャンパス
+         * @enum {string}
+         */
+        Campus: "honjo" | "nabeshima";
+        /** @description ITEM 教科書・参考書の追加項目（どれも任意） */
+        TextbookDetails: {
+            /** @description 授業名 */
+            courseName?: string;
+            /** @description 担当教員 */
+            instructor?: string;
+            /**
+             * @description ISBN（10桁か13桁。ハイフンは除いて保存する）
+             * @example 9784000000000
+             */
+            isbn?: string;
+            /** @description 書き込みの有無 */
+            hasWriting?: boolean;
+        };
+        /** @description ITEM 家具・家電の追加項目（どれも任意） */
+        FurnitureApplianceDetails: {
+            /** @description サイズ */
+            size?: string;
+            /** @description 動作確認の有無 */
+            operationChecked?: boolean;
+        };
+        /**
+         * @description ITEM 出品・編集の入力。下書きはタイトルだけ必須で、公開するときはすべての共通項目と写真1枚以上が必須。
+         *     `textbook` は category が textbook のときだけ、`furnitureAppliance` は furniture_appliance のときだけ送れる。
+         */
+        ItemInput: {
+            title: string;
+            category?: components["schemas"]["ItemCategory"];
+            condition?: components["schemas"]["ItemCondition"];
+            /**
+             * Format: int64
+             * @description 価格（円）
+             */
+            price?: number;
+            /** @description 説明文 */
+            description?: string;
+            campus?: components["schemas"]["Campus"];
+            /** @description createItemImageUpload で受け取ったオブジェクト名。並びが表示順 */
+            imageObjectKeys: string[];
+            textbook?: components["schemas"]["TextbookDetails"];
+            furnitureAppliance?: components["schemas"]["FurnitureApplianceDetails"];
+        };
+        /** @description ITEM 出品の入力 */
+        ItemCreation: components["schemas"]["ItemInput"] & {
+            /** @description true なら公開中、false なら下書きとして作る */
+            publish: boolean;
+        };
+        /** @description STORAGE 商品写真と閲覧用の署名付きURL */
+        ItemImage: {
+            /** @description 編集のときに imageObjectKeys に入れる */
+            objectKey: string;
+            /** @description 署名付きURL（GET） */
+            url: string;
+            /**
+             * Format: date-time
+             * @description 署名付きURLの有効期限
+             */
+            expiresAt: string;
+        };
+        /** @description ITEM 出品者本人に見せる商品 */
+        OwnItem: {
+            id: string;
+            /** @description 商品ページの固定URL `/items/:shareId` に使う */
+            shareId: string;
+            status: components["schemas"]["ItemStatus"];
+            title: string;
+            category: components["schemas"]["ItemCategory"] | null;
+            condition: components["schemas"]["ItemCondition"] | null;
+            /** Format: int64 */
+            price: number | null;
+            description: string | null;
+            campus: components["schemas"]["Campus"] | null;
+            /** @description 表示順 */
+            images: components["schemas"]["ItemImage"][];
+            textbook: components["schemas"]["TextbookDetails"] | null;
+            furnitureAppliance: components["schemas"]["FurnitureApplianceDetails"] | null;
+            /**
+             * Format: date-time
+             * @description 最後に公開した日時。一度も公開していなければ null
+             */
+            publishedAt: string | null;
+            /** Format: date-time */
+            createdAt: string;
+            /** Format: date-time */
+            updatedAt: string;
+        };
+        /** @description AUTH-3 マイページの自分の出品の一覧 */
+        OwnItemList: {
+            /** @description 最後に更新した日時の新しい順 */
+            items: components["schemas"]["OwnItemSummary"][];
+        };
+        /** @description AUTH-3 マイページの出品の1行 */
+        OwnItemSummary: {
+            /** @description 商品のID（出品の編集 `/sell/:itemId` に使う） */
+            id: string;
+            /** @description 商品ページの固定URL `/items/:shareId` に使う */
+            shareId: string;
+            status: components["schemas"]["ItemStatus"];
+            title: string;
+            /**
+             * Format: int64
+             * @description 価格（円）。下書きで未入力なら null
+             */
+            price: number | null;
+            /** @description 1枚目の写真 */
+            thumbnail: components["schemas"]["ItemImage"] | null;
+            /** @description 承認待ちの購入希望の件数 */
+            requestCount: number;
+            /** Format: date-time */
+            updatedAt: string;
+        };
+        /** @description BROWSE 商品の一覧・検索の結果 */
+        ItemList: {
+            /** @description 新着順 */
+            items: components["schemas"]["ItemSummary"][];
+            /** @description 条件に合う商品の総数（cursor に関係なく数える） */
+            total: number;
+            /** @description 続きを取るときに cursor に入れる値。続きがなければ null */
+            nextCursor: string | null;
+        };
+        /** @description BROWSE 一覧・検索結果のカードに出す商品 */
+        ItemSummary: {
+            /** @description 商品ページの固定URL `/items/:shareId` に使う */
+            shareId: string;
+            status: components["schemas"]["ItemStatus"];
+            title: string;
+            category: components["schemas"]["ItemCategory"];
+            condition: components["schemas"]["ItemCondition"];
+            /** Format: int64 */
+            price: number;
+            campus: components["schemas"]["Campus"];
+            /** @description 1枚目の写真 */
+            thumbnail: components["schemas"]["ItemImage"] | null;
+            /** @description 授業名（教科書・参考書のみ） */
+            courseName: string | null;
+            /** @description 書き込みの有無（教科書・参考書のみ） */
+            hasWriting: boolean | null;
+            /**
+             * Format: date-time
+             * @description 最後に公開した日時
+             */
+            publishedAt: string;
+        };
+        /**
+         * @description BROWSE 商品ページに出す商品。status が in_deal・completed なら売り切れ（購入希望は出せない）。
+         *     `isOwn` はログイン中の本人が出品者かどうか。`itemId` は本人の出品のときだけ入る（出品の編集に使う）。
+         *     `myRequest` は本人が出している承認待ちの購入希望（DEAL-1）。
+         */
+        PublicItem: {
+            shareId: string;
+            /** @description 商品のID。isOwn が true のときだけ入り、ほかの人には null */
+            itemId: string | null;
+            status: components["schemas"]["ItemStatus"];
+            title: string;
+            category: components["schemas"]["ItemCategory"];
+            condition: components["schemas"]["ItemCondition"];
+            /** Format: int64 */
+            price: number;
+            description: string;
+            campus: components["schemas"]["Campus"];
+            /** @description 表示順 */
+            images: components["schemas"]["ItemImage"][];
+            textbook: components["schemas"]["TextbookDetails"] | null;
+            furnitureAppliance: components["schemas"]["FurnitureApplianceDetails"] | null;
+            /**
+             * Format: date-time
+             * @description 最後に公開した日時
+             */
+            publishedAt: string;
+            seller: components["schemas"]["ItemSeller"];
+            /** @description ログイン中の本人が出品者なら true */
+            isOwn: boolean;
+            /** @description ログイン中の本人がこの商品に出している承認待ちの購入希望。なければ null（出品者本人も null） */
+            myRequest: components["schemas"]["MyPurchaseRequest"] | null;
+        };
+        /**
+         * @description DEAL-1 購入者本人に見せる、自分が出している承認待ちの購入希望。
+         *     承認期限を過ぎても、定期処理で期限切れになるまでは承認待ちのまま返す（その間は出し直しもできない）。
+         */
+        MyPurchaseRequest: {
+            transactionId: string;
+            /**
+             * Format: date-time
+             * @description 承認期限（購入希望から48時間）
+             */
+            approvalDeadline: string;
+        };
+        /** @description BROWSE 商品ページに出す出品者の情報。学籍番号は含めない（DEAL-1） */
+        ItemSeller: {
+            /** @description 学部・学科の名前。不明なら null */
+            departmentName: string | null;
+            /** @description 入学年度 */
+            admissionYear: number;
+        };
+        /**
+         * @description 支払い方法（ADR 0021）
+         * @enum {string}
+         */
+        PaymentMethod: "card" | "paypay";
+        /**
+         * @description 取引のステータス。requested は購入希望（承認待ち）
+         * @enum {string}
+         */
+        TransactionStatus: "requested" | "rejected" | "expired" | "in_deal" | "cancelled" | "completed";
+        /**
+         * @description ログイン中の本人がその取引の購入者か出品者か
+         * @enum {string}
+         */
+        TransactionRole: "buyer" | "seller";
+        /** @description DEAL-1 購入希望の入力 */
+        PurchaseRequestInput: {
+            paymentMethod: components["schemas"]["PaymentMethod"];
+        };
+        /**
+         * @description 受け渡しトークンの種類（入力の種類にも使う）。qr は受け渡しQR、link は完了リンク、code は6桁のコード
+         * @enum {string}
+         */
+        HandoverTokenKind: "qr" | "link" | "code";
+        /**
+         * @description 受け渡しの完了方法。auto は自動完了（DEAL-5、暫定）
+         * @enum {string}
+         */
+        HandoverMethod: "qr" | "link" | "code" | "auto";
+        /** @description DEAL-3 発行する受け渡しトークンの種類 */
+        HandoverTokenInput: {
+            kind: components["schemas"]["HandoverTokenKind"];
+        };
+        /**
+         * @description DEAL-3 発行した受け渡しトークン。qr は token と code、link は token、code は code だけが入る。
+         *     完了リンクの中身は `/deals/{transactionId}/complete#t=<token>`、QR の中身は `/deals/{transactionId}/complete#q=<token>`（ADR 0024, ADR 0025）。
+         */
+        HandoverToken: {
+            kind: components["schemas"]["HandoverTokenKind"];
+            /** @description QR・完了リンクに載せる使い捨てのトークン */
+            token: string | null;
+            /**
+             * @description 6桁の確認コード・完了コード
+             * @example 582017
+             */
+            code: string | null;
+            /**
+             * Format: date-time
+             * @description 有効期限（qr は5分後、link・code は24時間後）
+             */
+            expiresAt: string;
+        };
+        /** @description DEAL-3 購入者が読み取った・開いた・入力したトークン */
+        HandoverCredential: {
+            kind: components["schemas"]["HandoverTokenKind"];
+            /** @description qr・link はトークン、code は6桁のコード */
+            secret: string;
+        };
+        /**
+         * @description DEAL 取引（購入希望の段階を含む）。`counterpartStudentNumber` は承認（取引成立）の後だけ入り、それより前は null（DEAL-1）。
+         *     手数料の3項目は出品者にだけ、取引成立の後に入る（PAY-2, ADR 0003）。
+         */
+        Transaction: {
+            id: string;
+            role: components["schemas"]["TransactionRole"];
+            status: components["schemas"]["TransactionStatus"];
+            item: components["schemas"]["TransactionItem"];
+            /**
+             * Format: int64
+             * @description 金額（購入希望の時点の商品価格。円）
+             */
+            price: number;
+            paymentMethod: components["schemas"]["PaymentMethod"];
+            /**
+             * Format: date-time
+             * @description 承認期限（購入希望から48時間）
+             */
+            approvalDeadline: string;
+            /** @description 適用した手数料率（ベーシスポイント）。出品者で取引成立後だけ入る */
+            feeRateBasisPoints: number | null;
+            /**
+             * Format: int64
+             * @description 手数料（円）。出品者で取引成立後だけ入る
+             */
+            fee: number | null;
+            /**
+             * Format: int64
+             * @description 出品者の売上（円）。出品者で取引成立後だけ入る
+             */
+            sellerProceeds: number | null;
+            /**
+             * Format: date-time
+             * @description 学籍番号を開示した日時（承認時）
+             */
+            identityDisclosedAt: string | null;
+            /**
+             * Format: date-time
+             * @description 出品者が確認モーダルに同意した日時（DEAL-2）
+             */
+            sellerAcknowledgedAt: string | null;
+            /**
+             * Format: date-time
+             * @description 購入者がキャンセルに同意（申請）した日時（DEAL-4）。取り下げたら null
+             */
+            buyerCancelAgreedAt: string | null;
+            /**
+             * Format: date-time
+             * @description 出品者がキャンセルに同意（申請）した日時（DEAL-4）。取り下げたら null
+             */
+            sellerCancelAgreedAt: string | null;
+            /**
+             * Format: date-time
+             * @description 受け渡しが完了した日時（DEAL-3）
+             */
+            completedAt: string | null;
+            /** @description 受け渡しの完了方法。完了前は null */
+            handoverMethod: components["schemas"]["HandoverMethod"] | null;
+            /** @description 相手の学籍番号。承認の後だけ入る（DEAL-1） */
+            counterpartStudentNumber: string | null;
+            /**
+             * Format: date-time
+             * @description 購入希望を出した日時
+             */
+            createdAt: string;
+        };
+        /** @description 取引に出す商品の情報 */
+        TransactionItem: {
+            shareId: string;
+            title: string;
+            status: components["schemas"]["ItemStatus"];
+        };
+        /**
+         * @description 取引一覧の区分。active は進行中、ended は終了した取引
+         * @enum {string}
+         */
+        TransactionPhase: "active" | "ended";
+        /** @description DEAL 取引一覧（DealList）の1区分 */
+        TransactionList: {
+            /** @description 最後に動いた日時の新しい順 */
+            entries: components["schemas"]["TransactionListEntry"][];
+            /** @description 続きを取るときに cursor に入れる値。続きがなければ null（active は常に null） */
+            nextCursor: string | null;
+        };
+        /**
+         * @description DEAL 取引一覧の1行。ふつうは取引1件だが、出品側の承認待ちの購入希望は商品ごとに1行にまとめる（status が requested、transactionId が null、requestCount が件数）。
+         *     学籍番号・手数料は含めない（DEAL-1）。
+         */
+        TransactionListEntry: {
+            /** @description 取引のID（`/deals/:dealId`）。出品側の商品ごとの承認待ちの行は null */
+            transactionId: string | null;
+            /** @description 商品のID。出品側だけ入る（購入希望の一覧 `/sell/:itemId/requests` に使う）。購入側は null */
+            itemId: string | null;
+            status: components["schemas"]["TransactionStatus"];
+            item: components["schemas"]["TransactionListItem"];
+            /**
+             * Format: int64
+             * @description 取引の金額（円）。出品側の商品ごとの承認待ちの行は今の商品価格
+             */
+            price: number;
+            /** @description 承認待ちの購入希望の件数。出品側の商品ごとの行だけ入る */
+            requestCount: number | null;
+            /**
+             * Format: date-time
+             * @description 承認期限。購入側の購入希望（requested）だけ入る
+             */
+            approvalDeadline: string | null;
+            /**
+             * Format: date-time
+             * @description 受け渡しが完了した日時。完了前は null
+             */
+            completedAt: string | null;
+            /**
+             * Format: date-time
+             * @description 最後に動いた日時。出品側の商品ごとの行は最新の購入希望を出した日時
+             */
+            updatedAt: string;
+        };
+        /** @description 取引一覧に出す商品の情報 */
+        TransactionListItem: {
+            shareId: string;
+            title: string;
+            category: components["schemas"]["ItemCategory"];
+            /** @description 1枚目の写真 */
+            thumbnail: components["schemas"]["ItemImage"] | null;
+        };
+        /**
+         * @description 売上の状態。awaiting_handover 受け渡し待ち / settled 確定（出金できる）/ paid_out 出金済み
+         * @enum {string}
+         */
+        SalesEntryState: "awaiting_handover" | "settled" | "paid_out";
+        /** @description PAY 売上管理（Sales）の集計と明細。金額はすべて円 */
+        Sales: {
+            /**
+             * Format: int64
+             * @description 出金できる売上（settled の売上の合計）
+             */
+            availableAmount: number;
+            /**
+             * Format: int64
+             * @description 受け渡し待ちの売上（awaiting_handover の売上の合計）
+             */
+            awaitingHandoverAmount: number;
+            /**
+             * Format: int64
+             * @description 出金済みの売上（paid_out の売上の合計）
+             */
+            paidOutAmount: number;
+            /** @description 最後に動いた日時の新しい順 */
+            entries: components["schemas"]["SalesEntry"][];
+        };
+        /** @description PAY-2 売上の明細の1行（取引1件）。売上 = 金額 − 手数料 */
+        SalesEntry: {
+            transactionId: string;
+            item: components["schemas"]["TransactionListItem"];
+            state: components["schemas"]["SalesEntryState"];
+            /**
+             * Format: int64
+             * @description 取引の金額（円）
+             */
+            price: number;
+            /** @description 取引に適用した手数料率（ベーシスポイント。取引成立時点の値） */
+            feeRateBasisPoints: number;
+            /**
+             * Format: int64
+             * @description 手数料（円）
+             */
+            fee: number;
+            /**
+             * Format: int64
+             * @description 出品者の売上（円）
+             */
+            sellerProceeds: number;
+            /**
+             * Format: date-time
+             * @description 取引が成立（出品者が承認）した日時
+             */
+            approvedAt: string;
+            /**
+             * Format: date-time
+             * @description 受け渡しが完了した日時。受け渡し待ちなら null
+             */
+            completedAt: string | null;
+            /**
+             * Format: date-time
+             * @description 出金した日時。出金前は null
+             */
+            paidOutAt: string | null;
+        };
+        PurchaseRequestList: {
+            /** @description 希望の古い順 */
+            requests: components["schemas"]["PurchaseRequest"][];
+        };
+        /** @description DEAL-1 出品者に見せる承認待ちの購入希望。購入者の学籍番号は含めない */
+        PurchaseRequest: {
+            transactionId: string;
+            /**
+             * Format: date-time
+             * @description 購入希望を出した日時
+             */
+            requestedAt: string;
+            /**
+             * Format: date-time
+             * @description 承認期限
+             */
+            approvalDeadline: string;
+            buyer: components["schemas"]["RequestBuyer"];
+        };
+        /** @description 購入希望の一覧に出す購入者の情報。学籍番号は含めない（DEAL-1） */
+        RequestBuyer: {
+            /** @description 学部・学科の名前。不明なら null */
+            departmentName: string | null;
+            /** @description 入学年度 */
+            admissionYear: number;
+            /** @description 購入者・出品者として取引を完了した回数 */
+            completedDealCount: number;
+        };
         Health: {
             /** @enum {string} */
             status: "ok";
@@ -32,7 +2125,7 @@ export interface components {
         /** @description すべてのエラー応答の共通形式 */
         Error: {
             /**
-             * @description 機械で判定するためのエラーコード（snake_case。例 invalid_status_transition）
+             * @description 機械で判定するためのエラーコード（snake_case。例 invalid_status_transition）。共通コードの一覧は docs/tech/api.md の API-1
              * @example invalid_status_transition
              */
             code: string;
@@ -55,6 +2148,16 @@ export interface components {
         };
     };
     parameters: {
+        /** @description 学生証のID */
+        StudentCardId: string;
+        /** @description 商品のID */
+        ItemId: string;
+        /** @description 商品の共有用ID（BROWSE） */
+        ShareId: string;
+        /** @description 取引のID */
+        TransactionId: string;
+        /** @description ユーザーのID */
+        UserId: string;
         /** @description ブラウザの localStorage に保存した端末識別子（AUTHN-3） */
         DeviceId: string;
     };
@@ -81,6 +2184,1479 @@ export interface operations {
                 content: {
                     "application/json": components["schemas"]["Health"];
                 };
+            };
+            default: components["responses"]["Error"];
+        };
+    };
+    estimateStudent: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["EmailInput"];
+            };
+        };
+        responses: {
+            /** @description 推定結果 */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["StudentEstimate"];
+                };
+            };
+            default: components["responses"]["Error"];
+        };
+    };
+    sendSignupCode: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["EmailInput"];
+            };
+        };
+        responses: {
+            /** @description 受け付けた（登録済みかどうかにかかわらず同じ応答） */
+            202: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            default: components["responses"]["Error"];
+        };
+    };
+    verifySignupCode: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["SignupCodeVerification"];
+            };
+        };
+        responses: {
+            /** @description コードを確認した */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["SignupCodeVerified"];
+                };
+            };
+            default: components["responses"]["Error"];
+        };
+    };
+    completeSignup: {
+        parameters: {
+            query?: never;
+            header?: {
+                /** @description ブラウザの localStorage に保存した端末識別子（AUTHN-3） */
+                "X-Device-Id"?: components["parameters"]["DeviceId"];
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["SignupCompletion"];
+            };
+        };
+        responses: {
+            /** @description アカウントを作成し、ログイン状態にした */
+            201: {
+                headers: {
+                    /** @description セッションの `__session` Cookie（HttpOnly, Secure, SameSite=Lax） */
+                    "Set-Cookie"?: string;
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["CurrentUser"];
+                };
+            };
+            default: components["responses"]["Error"];
+        };
+    };
+    login: {
+        parameters: {
+            query?: never;
+            header?: {
+                /** @description ブラウザの localStorage に保存した端末識別子（AUTHN-3） */
+                "X-Device-Id"?: components["parameters"]["DeviceId"];
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["LoginInput"];
+            };
+        };
+        responses: {
+            /** @description ログインした */
+            200: {
+                headers: {
+                    /** @description セッションの `__session` Cookie（HttpOnly, Secure, SameSite=Lax） */
+                    "Set-Cookie"?: string;
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["CurrentUser"];
+                };
+            };
+            /** @description 再確認が必要。メールにコードを送った */
+            202: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["LoginChallenge"];
+                };
+            };
+            default: components["responses"]["Error"];
+        };
+    };
+    resendLoginRecheckCode: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["LoginChallengeInput"];
+            };
+        };
+        responses: {
+            /** @description コードを送った */
+            202: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            default: components["responses"]["Error"];
+        };
+    };
+    verifyLoginRecheck: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["LoginRecheckVerification"];
+            };
+        };
+        responses: {
+            /** @description ログインした */
+            200: {
+                headers: {
+                    /** @description セッションの `__session` Cookie（HttpOnly, Secure, SameSite=Lax） */
+                    "Set-Cookie"?: string;
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["CurrentUser"];
+                };
+            };
+            default: components["responses"]["Error"];
+        };
+    };
+    logout: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description ログアウトした */
+            204: {
+                headers: {
+                    /** @description `__session` Cookie を消す */
+                    "Set-Cookie"?: string;
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            default: components["responses"]["Error"];
+        };
+    };
+    sendPasswordResetCode: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["EmailInput"];
+            };
+        };
+        responses: {
+            /** @description 受け付けた（登録済みかどうかにかかわらず同じ応答） */
+            202: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            default: components["responses"]["Error"];
+        };
+    };
+    verifyPasswordResetCode: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["PasswordResetCodeVerification"];
+            };
+        };
+        responses: {
+            /** @description コードを確認した */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PasswordResetCodeVerified"];
+                };
+            };
+            default: components["responses"]["Error"];
+        };
+    };
+    completePasswordReset: {
+        parameters: {
+            query?: never;
+            header?: {
+                /** @description ブラウザの localStorage に保存した端末識別子（AUTHN-3） */
+                "X-Device-Id"?: components["parameters"]["DeviceId"];
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["PasswordResetCompletion"];
+            };
+        };
+        responses: {
+            /** @description パスワードを変更し、ログイン状態にした */
+            200: {
+                headers: {
+                    /** @description セッションの `__session` Cookie（HttpOnly, Secure, SameSite=Lax） */
+                    "Set-Cookie"?: string;
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["CurrentUser"];
+                };
+            };
+            default: components["responses"]["Error"];
+        };
+    };
+    getMe: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description 本人の情報 */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["CurrentUser"];
+                };
+            };
+            default: components["responses"]["Error"];
+        };
+    };
+    listOwnItems: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description 自分の出品の一覧 */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["OwnItemList"];
+                };
+            };
+            default: components["responses"]["Error"];
+        };
+    };
+    getSales: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description 売上 */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Sales"];
+                };
+            };
+            default: components["responses"]["Error"];
+        };
+    };
+    requestPayout: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description 出金後の売上 */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Sales"];
+                };
+            };
+            default: components["responses"]["Error"];
+        };
+    };
+    createStudentCardUpload: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["StudentCardUploadInput"];
+            };
+        };
+        responses: {
+            /** @description 発行した署名付きURL */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["StudentCardUpload"];
+                };
+            };
+            default: components["responses"]["Error"];
+        };
+    };
+    submitStudentCard: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["StudentCardSubmission"];
+            };
+        };
+        responses: {
+            /** @description 登録後の審査状況 */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["StudentCardState"];
+                };
+            };
+            default: components["responses"]["Error"];
+        };
+    };
+    getCurrentStudentCard: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description 審査状況 */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["StudentCardState"];
+                };
+            };
+            default: components["responses"]["Error"];
+        };
+    };
+    createItemImageUpload: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["ImageUploadInput"];
+            };
+        };
+        responses: {
+            /** @description 発行した署名付きURL */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ImageUpload"];
+                };
+            };
+            default: components["responses"]["Error"];
+        };
+    };
+    listItems: {
+        parameters: {
+            query?: {
+                /** @description キーワード（空白区切りで AND） */
+                keyword?: string;
+                category?: components["schemas"]["ItemCategory"];
+                /** @description 授業名（部分一致） */
+                courseName?: string;
+                /** @description 価格の下限（円、この値を含む） */
+                priceMin?: number;
+                /** @description 価格の上限（円、この値を含む） */
+                priceMax?: number;
+                campus?: components["schemas"]["Campus"];
+                condition?: components["schemas"]["ItemCondition"];
+                /** @description 前の応答の nextCursor。省略すると先頭から */
+                cursor?: string;
+                /** @description 1回に返す件数 */
+                limit?: number;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description 商品の一覧 */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ItemList"];
+                };
+            };
+            default: components["responses"]["Error"];
+        };
+    };
+    createItem: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["ItemCreation"];
+            };
+        };
+        responses: {
+            /** @description 作った商品 */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["OwnItem"];
+                };
+            };
+            default: components["responses"]["Error"];
+        };
+    };
+    getOwnItem: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description 商品のID */
+                itemId: components["parameters"]["ItemId"];
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description 商品 */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["OwnItem"];
+                };
+            };
+            default: components["responses"]["Error"];
+        };
+    };
+    updateItem: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description 商品のID */
+                itemId: components["parameters"]["ItemId"];
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["ItemInput"];
+            };
+        };
+        responses: {
+            /** @description 編集後の商品 */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["OwnItem"];
+                };
+            };
+            default: components["responses"]["Error"];
+        };
+    };
+    publishItem: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description 商品のID */
+                itemId: components["parameters"]["ItemId"];
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description 公開後の商品 */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["OwnItem"];
+                };
+            };
+            default: components["responses"]["Error"];
+        };
+    };
+    withdrawItem: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description 商品のID */
+                itemId: components["parameters"]["ItemId"];
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description 取り下げ後の商品 */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["OwnItem"];
+                };
+            };
+            default: components["responses"]["Error"];
+        };
+    };
+    listPurchaseRequests: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description 商品のID */
+                itemId: components["parameters"]["ItemId"];
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description 購入希望の一覧 */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PurchaseRequestList"];
+                };
+            };
+            default: components["responses"]["Error"];
+        };
+    };
+    getPublicItem: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description 商品の共有用ID（BROWSE） */
+                shareId: components["parameters"]["ShareId"];
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description 商品 */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PublicItem"];
+                };
+            };
+            default: components["responses"]["Error"];
+        };
+    };
+    createPurchaseRequest: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description 商品の共有用ID（BROWSE） */
+                shareId: components["parameters"]["ShareId"];
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["PurchaseRequestInput"];
+            };
+        };
+        responses: {
+            /** @description 作った取引（購入希望） */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Transaction"];
+                };
+            };
+            default: components["responses"]["Error"];
+        };
+    };
+    listTransactions: {
+        parameters: {
+            query: {
+                role: components["schemas"]["TransactionRole"];
+                phase: components["schemas"]["TransactionPhase"];
+                /** @description 前の応答の nextCursor（ended だけ）。省略すると先頭から */
+                cursor?: string;
+                /** @description 1回に返す件数（ended だけ。active は全件） */
+                limit?: number;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description 取引の一覧 */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["TransactionList"];
+                };
+            };
+            default: components["responses"]["Error"];
+        };
+    };
+    getTransaction: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description 取引のID */
+                transactionId: components["parameters"]["TransactionId"];
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description 取引 */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Transaction"];
+                };
+            };
+            default: components["responses"]["Error"];
+        };
+    };
+    approveTransaction: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description 取引のID */
+                transactionId: components["parameters"]["TransactionId"];
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description 成立した取引（購入者の学籍番号を含む） */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Transaction"];
+                };
+            };
+            default: components["responses"]["Error"];
+        };
+    };
+    rejectTransaction: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description 取引のID */
+                transactionId: components["parameters"]["TransactionId"];
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description 却下した取引 */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Transaction"];
+                };
+            };
+            default: components["responses"]["Error"];
+        };
+    };
+    acknowledgeTransaction: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description 取引のID */
+                transactionId: components["parameters"]["TransactionId"];
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description 同意を記録した取引 */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Transaction"];
+                };
+            };
+            default: components["responses"]["Error"];
+        };
+    };
+    cancelTransaction: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description 取引のID */
+                transactionId: components["parameters"]["TransactionId"];
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description 同意を記録した取引（双方がそろったらキャンセル済み） */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Transaction"];
+                };
+            };
+            default: components["responses"]["Error"];
+        };
+    };
+    withdrawCancelRequest: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description 取引のID */
+                transactionId: components["parameters"]["TransactionId"];
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description 申請を取り下げた取引 */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Transaction"];
+                };
+            };
+            default: components["responses"]["Error"];
+        };
+    };
+    createHandoverToken: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description 取引のID */
+                transactionId: components["parameters"]["TransactionId"];
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["HandoverTokenInput"];
+            };
+        };
+        responses: {
+            /** @description 発行した受け渡しトークン */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HandoverToken"];
+                };
+            };
+            default: components["responses"]["Error"];
+        };
+    };
+    verifyHandover: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description 取引のID */
+                transactionId: components["parameters"]["TransactionId"];
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["HandoverCredential"];
+            };
+        };
+        responses: {
+            /** @description 使える */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            default: components["responses"]["Error"];
+        };
+    };
+    completeTransaction: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description 取引のID */
+                transactionId: components["parameters"]["TransactionId"];
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["HandoverCredential"];
+            };
+        };
+        responses: {
+            /** @description 完了した取引 */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Transaction"];
+                };
+            };
+            default: components["responses"]["Error"];
+        };
+    };
+    getFeeRate: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description 現在の手数料率 */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["FeeRate"];
+                };
+            };
+            default: components["responses"]["Error"];
+        };
+    };
+    getAdminSession: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description 管理者 */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            default: components["responses"]["Error"];
+        };
+    };
+    listPendingStudentCards: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description 審査待ちの学生証 */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AdminStudentCard"][];
+                };
+            };
+            default: components["responses"]["Error"];
+        };
+    };
+    listStudentCardViews: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description 学生証のID */
+                studentCardId: components["parameters"]["StudentCardId"];
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description 閲覧記録 */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["StudentCardView"][];
+                };
+            };
+            default: components["responses"]["Error"];
+        };
+    };
+    createStudentCardView: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description 学生証のID */
+                studentCardId: components["parameters"]["StudentCardId"];
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description 発行した閲覧URL */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["StudentCardImage"];
+                };
+            };
+            default: components["responses"]["Error"];
+        };
+    };
+    approveStudentCard: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description 学生証のID */
+                studentCardId: components["parameters"]["StudentCardId"];
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description 承認後の学生証 */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AdminStudentCard"];
+                };
+            };
+            default: components["responses"]["Error"];
+        };
+    };
+    rejectStudentCard: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description 学生証のID */
+                studentCardId: components["parameters"]["StudentCardId"];
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description 差し戻し後の学生証 */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AdminStudentCard"];
+                };
+            };
+            default: components["responses"]["Error"];
+        };
+    };
+    listAdminUsers: {
+        parameters: {
+            query?: {
+                /** @description 学籍番号の前方一致 */
+                q?: string;
+                filter?: components["schemas"]["AdminUserFilter"];
+                /** @description 前の応答の nextCursor。省略すると先頭から */
+                cursor?: string;
+                limit?: number;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description ユーザーの一覧 */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AdminUserList"];
+                };
+            };
+            default: components["responses"]["Error"];
+        };
+    };
+    getAdminUser: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description ユーザーのID */
+                userId: components["parameters"]["UserId"];
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description ユーザー */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AdminUser"];
+                };
+            };
+            default: components["responses"]["Error"];
+        };
+    };
+    suspendUser: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description ユーザーのID */
+                userId: components["parameters"]["UserId"];
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description 停止後のユーザー */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AdminUser"];
+                };
+            };
+            default: components["responses"]["Error"];
+        };
+    };
+    unsuspendUser: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description ユーザーのID */
+                userId: components["parameters"]["UserId"];
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description 解除後のユーザー */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AdminUser"];
+                };
+            };
+            default: components["responses"]["Error"];
+        };
+    };
+    updateUserExpiresOn: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description ユーザーのID */
+                userId: components["parameters"]["UserId"];
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["ExpiresOnInput"];
+            };
+        };
+        responses: {
+            /** @description 変更後のユーザー */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AdminUser"];
+                };
+            };
+            default: components["responses"]["Error"];
+        };
+    };
+    deleteUser: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description ユーザーのID */
+                userId: components["parameters"]["UserId"];
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description 削除後のユーザー */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AdminUser"];
+                };
+            };
+            default: components["responses"]["Error"];
+        };
+    };
+    listAdminItems: {
+        parameters: {
+            query?: {
+                /** @description 前の応答の nextCursor。省略すると先頭から */
+                cursor?: string;
+                limit?: number;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description 出品の一覧 */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AdminItemList"];
+                };
+            };
+            default: components["responses"]["Error"];
+        };
+    };
+    suspendItem: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description 商品のID */
+                itemId: components["parameters"]["ItemId"];
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description 停止後の商品 */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AdminItem"];
+                };
+            };
+            default: components["responses"]["Error"];
+        };
+    };
+    listAdminTransactions: {
+        parameters: {
+            query?: {
+                /** @description 前の応答の nextCursor。省略すると先頭から */
+                cursor?: string;
+                limit?: number;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description 取引の一覧 */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AdminTransactionList"];
+                };
+            };
+            default: components["responses"]["Error"];
+        };
+    };
+    cancelTransactionByAdmin: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description 取引のID */
+                transactionId: components["parameters"]["TransactionId"];
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description キャンセル後の取引 */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AdminTransaction"];
+                };
+            };
+            default: components["responses"]["Error"];
+        };
+    };
+    getAdminFeeRate: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description 現在の手数料率 */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AdminFeeRate"];
+                };
+            };
+            default: components["responses"]["Error"];
+        };
+    };
+    updateFeeRate: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["FeeRate"];
+            };
+        };
+        responses: {
+            /** @description 変更後の手数料率 */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AdminFeeRate"];
+                };
+            };
+            default: components["responses"]["Error"];
+        };
+    };
+    receivePaymentWebhook: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description 受け付けた（フェーズ1は何もしない） */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            default: components["responses"]["Error"];
+        };
+    };
+    runShortJob: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description 実行した */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            default: components["responses"]["Error"];
+        };
+    };
+    runDailyJob: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description 実行した */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
             };
             default: components["responses"]["Error"];
         };

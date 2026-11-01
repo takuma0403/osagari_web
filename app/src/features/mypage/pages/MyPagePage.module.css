@@ -1,0 +1,171 @@
+.page {
+  display: flex;
+  flex-direction: column;
+  flex-grow: 1;
+  gap: 14px;
+  padding: 20px var(--space-page);
+}
+
+.title {
+  margin: 0;
+  font-size: var(--text-heading);
+  font-weight: 700;
+}
+
+.profile {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  padding: var(--space-page);
+  border-radius: var(--radius-card);
+  background: var(--color-primary);
+  color: var(--color-surface);
+}
+
+.identity {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.names {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+}
+
+.studentNumber {
+  font-family: var(--font-num);
+  font-size: var(--text-heading);
+  font-weight: 700;
+  letter-spacing: 0.04em;
+}
+
+.department,
+.expiry dt {
+  color: var(--color-primary-soft-2);
+}
+
+.department {
+  font-size: var(--text-label);
+}
+
+.expiry {
+  display: flex;
+  justify-content: space-between;
+  margin: 0;
+  padding-top: 12px;
+  border-top: 1px solid color-mix(in srgb, var(--color-surface) 25%, transparent);
+  font-size: var(--text-label);
+}
+
+.expiry dd {
+  margin: 0;
+  font-weight: 700;
+}
+
+.panel {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-gap);
+}
+
+.toolbar {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+/* 状態のチップは横にスクロールする（商品一覧のカテゴリと同じ） */
+.statuses {
+  display: flex;
+  gap: 8px;
+  margin: -4px calc(var(--space-page) * -1);
+  padding: 4px var(--space-page);
+  overflow-x: auto;
+  scrollbar-width: none;
+}
+
+.order {
+  align-self: flex-end;
+  width: 140px;
+}
+
+.list {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-gap);
+}
+
+.message {
+  margin: 0;
+  padding: 24px 0;
+  color: var(--color-text-muted);
+  font-size: var(--text-body);
+  text-align: center;
+}
+
+.empty {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 6px;
+  padding: 24px 0;
+  color: var(--color-text-muted);
+  font-size: var(--text-body);
+  text-align: center;
+}
+
+.empty p {
+  margin: 0;
+}
+
+.emptyLink {
+  display: inline-flex;
+  align-items: center;
+  min-height: var(--tap-min);
+  padding: 0 10px;
+  font-weight: 700;
+}
+
+.settings {
+  display: flex;
+  flex-direction: column;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-card);
+  background: var(--color-surface);
+}
+
+.setting {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  min-height: 48px;
+  padding: 0 14px;
+  color: var(--color-text);
+  font-size: var(--text-body);
+  text-decoration: none;
+}
+
+.setting:hover {
+  color: var(--color-text);
+}
+
+.setting + .setting {
+  border-top: 1px solid var(--color-border);
+}
+
+.chevron {
+  color: var(--color-text-muted);
+}
+
+.cardStatus {
+  color: var(--color-text-muted);
+  font-size: var(--text-note);
+}
+
+/* 審査中は warning の文字色（デザインの表示） */
+.pending {
+  color: var(--color-warning-text);
+}
