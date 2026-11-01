@@ -1,4 +1,6 @@
 .clear {
+  /* デザイン（SearchFilter）どおり右端に寄せる。文字ボタンの既定の左右の余白を詰める */
+  padding: 0 4px 0 12px;
   color: var(--color-primary);
   font-weight: 700;
 }
@@ -54,10 +56,13 @@
   font-weight: 700;
 }
 
-/* 「この条件で検索」はシートの下端に固定する（シートの下の余白 28px まで地を伸ばす） */
+/*
+ * 「この条件で検索」はシートの下端に固定する（シートの下の余白 28px まで地を伸ばす）。
+ * sticky の位置はシートの余白の内側で決まるので、bottom も余白の分だけ下げる。0 だと帯が 28px 浮いて上の項目に重なる
+ */
 .footer {
   position: sticky;
-  bottom: 0;
+  bottom: -28px;
   margin: 0 -20px -28px;
   padding: 12px 20px 28px;
   border-top: 1px solid var(--color-border);

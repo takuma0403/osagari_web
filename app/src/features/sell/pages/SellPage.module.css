@@ -59,3 +59,10 @@
 .publish {
   flex-grow: 1;
 }
+
+/* PC 幅では下部のボタンを入力欄（TwoColumn の右カラム。左は 360px、間は 32px）にそろえる（DS-1） */
+@media (min-width: 1024px) {
+  .actions {
+    padding-left: calc(var(--space-page) + 360px + 32px);
+  }
+}

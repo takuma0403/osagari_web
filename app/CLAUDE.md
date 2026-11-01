@@ -34,7 +34,7 @@ app/
       schema.gen.ts     … 生成物（編集しない）
       client.ts         … fetch ラッパー、エラー（Error スキーマ）の扱い
     assets/             … 画面で使う画像（logo.png は docs/design/assets/logo.png を 128px に縮小したもの）
-    layouts/            … MobileLayout（390px 基準・PC は中央寄せ）、AdminLayout（PC 幅）
+    layouts/            … UserLayout（390px 基準・広い画面では最大幅の列を中央寄せ、PC はナビを上部に）、AdminLayout（PC 幅）
     components/         … DS-3 の共通部品（Button, TextField, CodeInput, ItemCard, BottomNav …）
       Button/Button.tsx, Button.module.css, Button.test.tsx, Button.stories.tsx
     features/<機能>/     … auth, items, deals, sell, student-card, mypage, sales, admin, legal
@@ -44,13 +44,13 @@ app/
     lib/                … 汎用関数（金額表示、日付、共有文の生成など）
   vite/               … ビルド時に使う Vite プラグイン（legalMarkdown.ts：docs/legal の規約本文を HTML にする）
   public/
-  .storybook/           … Storybook の設定（トークン・フォントの読み込み、390px のビューポート、ルーター）
+  .storybook/           … Storybook の設定（トークン・フォントの読み込み、390px・640px・1280px のビューポート、ルーター）
 ```
 
 ## 規約
 
 - **色・余白・角丸・フォント・文字サイズは必ず `var(--…)` を使う（文字サイズは DS-2 の `--text-*`）。** 16進カラーや px の直書きは tokens.css 以外に書かない（レイアウト上の幅などは除く）。
-- 画面は **390px 幅のスマホを基準**に作り、PC では中央寄せの最大幅（例 480px）にする。管理画面（`features/admin`）だけはPC幅のレイアウト。
+- 画面は **390px 幅のスマホを基準**に作り、640px・1024px 以上の表示は DS-1 の「利用者向け画面の PC 幅」に従う（列の最大幅は画面によって 1080px か 560px。PC の2カラムは `TwoColumn`）。管理画面（`features/admin`）だけはPC幅のレイアウト。
 - タップ領域 44px 以上、アイコンボタンに `aria-label`、入力に `<label>`、エラーは `role="alert"`（[DS-1](../docs/design/README.md)）。
 - 共通部品は `components/` を探してから作る。同じ見た目の部品を画面ごとに作らない。部品を作ったら、状態ごと（無効・エラー・選択中など）の story を `<Name>.stories.tsx` に置く。
 - 金額は `lib/format.ts` の関数で `¥1,500` 形式にする（Outfit フォント）。手数料などの計算はサーバーの値を表示し、フロントで計算しない（出品画面の見込み表示を除く）。

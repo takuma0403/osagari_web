@@ -6,6 +6,7 @@ import { Badge } from '../../../components/Badge/Badge'
 import { Button } from '../../../components/Button/Button'
 import { ConfirmDialog } from '../../../components/ConfirmDialog/ConfirmDialog'
 import { InfoBox } from '../../../components/InfoBox/InfoBox'
+import { TwoColumn } from '../../../components/TwoColumn/TwoColumn'
 import { categoryTint } from '../../../lib/itemOptions'
 import { itemPath } from '../../items/itemDisplay'
 import {
@@ -125,45 +126,54 @@ export function DealRequestsPage() {
     <div className={styles.page}>
       {header}
       <main className={styles.body}>
-        <section className={styles.itemCard}>
-          <DealItemSummary
-            size="sm"
-            title={item.title}
-            price={item.price ?? 0}
-            imageUrl={item.images[0]?.url}
-            tint={item.category ? categoryTint[item.category] : 'textbook'}
-            aside={<Badge tone="warning">あなたが出品</Badge>}
-          />
-          <DealSteps status={item.status} />
-        </section>
-        {actionError && (
-          <InfoBox tone="danger" icon="alert" role="alert">
-            {actionError}
-          </InfoBox>
-        )}
-        {requests.length === 0 ? (
-          <div className={styles.empty}>
-            <p>承認を待っている購入希望はありません。</p>
-            <Link to={itemPath(item.shareId)}>商品ページを見る</Link>
-          </div>
-        ) : (
-          <>
-            <div className={styles.listHeading}>
-              <h2 className={styles.count}>購入希望 {requests.length}件</h2>
-              <span className={styles.muted}>承認できるのは1人だけです</span>
-            </div>
-            {requests.map((request) => (
-              <RequestCard
-                key={request.transactionId}
-                request={request}
-                now={now}
-                disabled={submitting || approved !== null}
-                onApprove={() => setPending({ kind: 'approve', request })}
-                onReject={() => setPending({ kind: 'reject', request })}
+        {/* PC 幅では商品（左）と操作（右）の2カラム（DS-1） */}
+        <TwoColumn
+          start={
+            <section className={styles.itemCard}>
+              <DealItemSummary
+                size="sm"
+                title={item.title}
+                price={item.price ?? 0}
+                imageUrl={item.images[0]?.url}
+                tint={item.category ? categoryTint[item.category] : 'textbook'}
+                aside={<Badge tone="warning">あなたが出品</Badge>}
               />
-            ))}
-          </>
-        )}
+              <DealSteps status={item.status} />
+            </section>
+          }
+          end={
+            <>
+              {actionError && (
+                <InfoBox tone="danger" icon="alert" role="alert">
+                  {actionError}
+                </InfoBox>
+              )}
+              {requests.length === 0 ? (
+                <div className={styles.empty}>
+                  <p>承認を待っている購入希望はありません。</p>
+                  <Link to={itemPath(item.shareId)}>商品ページを見る</Link>
+                </div>
+              ) : (
+                <>
+                  <div className={styles.listHeading}>
+                    <h2 className={styles.count}>購入希望 {requests.length}件</h2>
+                    <span className={styles.muted}>承認できるのは1人だけです</span>
+                  </div>
+                  {requests.map((request) => (
+                    <RequestCard
+                      key={request.transactionId}
+                      request={request}
+                      now={now}
+                      disabled={submitting || approved !== null}
+                      onApprove={() => setPending({ kind: 'approve', request })}
+                      onReject={() => setPending({ kind: 'reject', request })}
+                    />
+                  ))}
+                </>
+              )}
+            </>
+          }
+        />
       </main>
       <ConfirmDialog
         open={pending?.kind === 'approve'}

@@ -61,3 +61,11 @@
   flex-direction: column;
   gap: 10px;
 }
+
+/* 640px 以上では行を2列に並べる（DS-1） */
+@media (min-width: 640px) {
+  .list {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}

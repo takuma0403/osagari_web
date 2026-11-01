@@ -7,6 +7,7 @@ import { SelectField } from '../../../components/SelectField/SelectField'
 import { TextAreaField } from '../../../components/TextAreaField/TextAreaField'
 import { TextField } from '../../../components/TextField/TextField'
 import { Toast } from '../../../components/Toast/Toast'
+import { TwoColumn } from '../../../components/TwoColumn/TwoColumn'
 import { estimateProceeds, formatFeeRate } from '../../../lib/fee'
 import { formatPrice } from '../../../lib/format'
 import { useSession } from '../../auth/session'
@@ -163,75 +164,85 @@ function SellFormView({ sell, editing, title, header }: SellFormViewProps) {
       <fieldset className={styles.body} disabled={disabled}>
         <legend className="visually-hidden">{title}</legend>
         {!sell.editable && status && <NotEditable status={status} />}
-        <PhotoPicker
-          photos={photos.photos}
-          onAdd={(files) => {
-            sell.clearError('photos')
-            void photos.add(files)
-          }}
-          onRemove={photos.remove}
-          onMove={photos.move}
-          error={photos.error ?? errors.photos}
-          disabled={disabled}
+        {/* PC 幅では写真（左）と入力欄（右）の2カラム（DS-1） */}
+        <TwoColumn
+          variant="narrowStart"
+          start={
+            <PhotoPicker
+              photos={photos.photos}
+              onAdd={(files) => {
+                sell.clearError('photos')
+                void photos.add(files)
+              }}
+              onRemove={photos.remove}
+              onMove={photos.move}
+              error={photos.error ?? errors.photos}
+              disabled={disabled}
+            />
+          }
+          end={
+            <>
+              <TextField
+                label="タイトル"
+                size="md"
+                value={form.title}
+                maxLength={ITEM_TITLE_MAX}
+                error={errors.title}
+                onChange={(e) => update('title', e.target.value)}
+              />
+              <div className={styles.pair}>
+                <SelectField
+                  label="カテゴリ"
+                  options={categoryOptions}
+                  value={form.category}
+                  placeholder="選択してください"
+                  error={errors.category}
+                  onChange={(v) => update('category', v)}
+                />
+                <SelectField
+                  label="状態"
+                  options={conditionOptions}
+                  value={form.condition}
+                  placeholder="選択してください"
+                  error={errors.condition}
+                  onChange={(v) => update('condition', v)}
+                />
+              </div>
+              <CategoryDetails form={form} onChange={update} errors={errors} />
+              <TextField
+                label="価格"
+                size="md"
+                prefix="¥"
+                numeric
+                inputMode="numeric"
+                autoComplete="off"
+                value={form.price}
+                error={errors.price}
+                hint={feeHint}
+                onChange={(e) => update('price', e.target.value.replace(/\D/g, '').slice(0, 6))}
+              />
+              <CampusPicker
+                value={form.campus}
+                error={errors.campus}
+                onChange={(v) => update('campus', v)}
+                disabled={disabled}
+              />
+              <TextAreaField
+                label="説明"
+                rows={3}
+                value={form.description}
+                maxLength={ITEM_DESCRIPTION_MAX}
+                error={errors.description}
+                onChange={(e) => update('description', e.target.value)}
+              />
+              {sell.submitError && (
+                <InfoBox tone="danger" icon="alert" role="alert">
+                  {sell.submitError}
+                </InfoBox>
+              )}
+            </>
+          }
         />
-        <TextField
-          label="タイトル"
-          size="md"
-          value={form.title}
-          maxLength={ITEM_TITLE_MAX}
-          error={errors.title}
-          onChange={(e) => update('title', e.target.value)}
-        />
-        <div className={styles.pair}>
-          <SelectField
-            label="カテゴリ"
-            options={categoryOptions}
-            value={form.category}
-            placeholder="選択してください"
-            error={errors.category}
-            onChange={(v) => update('category', v)}
-          />
-          <SelectField
-            label="状態"
-            options={conditionOptions}
-            value={form.condition}
-            placeholder="選択してください"
-            error={errors.condition}
-            onChange={(v) => update('condition', v)}
-          />
-        </div>
-        <CategoryDetails form={form} onChange={update} errors={errors} />
-        <TextField
-          label="価格"
-          size="md"
-          prefix="¥"
-          numeric
-          inputMode="numeric"
-          autoComplete="off"
-          value={form.price}
-          error={errors.price}
-          hint={feeHint}
-          onChange={(e) => update('price', e.target.value.replace(/\D/g, '').slice(0, 6))}
-        />
-        <CampusPicker
-          value={form.campus}
-          error={errors.campus}
-          onChange={(v) => update('campus', v)}
-          disabled={disabled}
-        />
-        <TextAreaField
-          label="説明"
-          rows={3}
-          value={form.description}
-          maxLength={ITEM_DESCRIPTION_MAX}
-          error={errors.description}
-          onChange={(e) => update('description', e.target.value)}
-        />
-        {sell.submitError && (
-          <InfoBox tone="danger" icon="alert" role="alert">
-            {sell.submitError}
-          </InfoBox>
-        )}
       </fieldset>
       {sell.editable && (
         <Actions

@@ -169,3 +169,118 @@
 .pending {
   color: var(--color-warning-text);
 }
+
+/* 640px 以上では行と設定のリンクを2列に並べる（DS-1） */
+@media (min-width: 640px) {
+  .list {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .settings {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .setting + .setting {
+    border-top: none;
+  }
+
+  .setting:nth-child(n + 3) {
+    border-top: 1px solid var(--color-border);
+  }
+
+  .setting:nth-child(even) {
+    border-left: 1px solid var(--color-border);
+  }
+}
+
+/*
+ * PC 幅では、左にプロフィール・設定、右にタブと履歴を置く（DS-1）。
+ * DOM の順（スマホの縦並び）は変えず、グリッドの領域で配置する。
+ * プロフィールはタブの行から始めて上端をそろえ、履歴が長くなったときは最後の行（1fr）が伸びる
+ */
+@media (min-width: 1024px) {
+  .page {
+    display: grid;
+    grid-template-areas:
+      'profile tabs'
+      'profile panel'
+      'settings panel';
+    grid-template-rows: auto auto 1fr;
+    grid-template-columns: 320px minmax(0, 1fr);
+    align-items: start;
+    gap: 16px 40px;
+    padding-top: 24px;
+  }
+
+  /* 上部のナビで「マイページ」を選択中と示すので、見出しは読み上げにだけ残す */
+  .title {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    overflow: hidden;
+    clip-path: inset(50%);
+    white-space: nowrap;
+  }
+
+  .profile {
+    grid-area: profile;
+  }
+
+  /* タブは文字の幅で左に寄せ、下線は右カラムいっぱいに引く */
+  .tabs {
+    grid-area: tabs;
+  }
+
+  .tabs [role='tablist'] {
+    grid-auto-columns: max-content;
+    gap: 28px;
+  }
+
+  .tabs [role='tab'] {
+    padding: 0 4px;
+  }
+
+  /* 右カラムの幅で列数を決める。行が 320px を下回ると商品名が切れるので、1024px では1列、1280px では2列 */
+  .list {
+    grid-template-columns: repeat(auto-fill, minmax(320px, 1fr));
+  }
+
+  .panel {
+    grid-area: panel;
+  }
+
+  /* 状態のチップと並び順は1行にまとめる。チップは横にはみ出させない */
+  .toolbar {
+    flex-direction: row;
+    align-items: center;
+    justify-content: space-between;
+  }
+
+  .statuses {
+    flex-wrap: wrap;
+    margin: 0;
+    padding: 4px 0;
+    overflow-x: visible;
+  }
+
+  .order {
+    flex-shrink: 0;
+    align-self: center;
+  }
+
+  /* 左カラムは狭いので、設定のリンクは1列に戻す */
+  .settings {
+    display: flex;
+    grid-area: settings;
+  }
+
+  .setting:nth-child(n) {
+    border-left: none;
+  }
+
+  .setting + .setting {
+    border-top: 1px solid var(--color-border);
+  }
+}

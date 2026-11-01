@@ -128,3 +128,10 @@
 .muted {
   color: var(--color-text-muted);
 }
+
+/* PC 幅では合計と送信ボタンを右カラム（TwoColumn。左右は半分ずつ、間は 32px）にそろえる（DS-1） */
+@media (min-width: 1024px) {
+  .actions {
+    padding-left: calc(50% + 16px);
+  }
+}

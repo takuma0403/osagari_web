@@ -28,3 +28,31 @@
   color: var(--color-primary);
   font-weight: 700;
 }
+
+/* PC 幅（1024px 以上）の上部の横ナビ。中身は一覧の列（最大 1080px）の左右にそろえる（DS-1） */
+.top {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  height: 56px;
+  padding-inline: max(var(--space-page), calc((100% - 1080px) / 2 + var(--space-page)));
+  border-bottom: 1px solid var(--color-border);
+  background: var(--color-surface);
+}
+
+.brand {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-right: auto;
+  font-size: var(--text-header);
+  font-weight: 700;
+}
+
+.top .link {
+  flex-direction: row;
+  justify-content: center;
+  gap: 6px;
+  padding: 0 12px;
+  font-size: var(--text-body);
+}
