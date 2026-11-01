@@ -6,6 +6,7 @@ import { Badge } from '../../../components/Badge/Badge'
 import { Button, ButtonLink } from '../../../components/Button/Button'
 import { Icon } from '../../../components/Icon/Icon'
 import { InfoBox } from '../../../components/InfoBox/InfoBox'
+import { TwoColumn } from '../../../components/TwoColumn/TwoColumn'
 import { formatPrice, formatShortDateTime } from '../../../lib/format'
 import { buildHandoverUrl } from '../../../lib/handoverLink'
 import {
@@ -100,11 +101,15 @@ export function DealDetailPage() {
         {transaction.status === 'completed' ? (
           <CompletedView transaction={transaction} />
         ) : transaction.status !== 'in_deal' ? (
-          <section className={styles.card}>
-            <Summary transaction={transaction} />
-            <DealSteps status={transaction.item.status} />
-            <p className={styles.text}>{statusText[transaction.status]}</p>
-          </section>
+          <TwoColumn
+            start={
+              <section className={styles.card}>
+                <Summary transaction={transaction} />
+                <DealSteps status={transaction.item.status} />
+                <p className={styles.text}>{statusText[transaction.status]}</p>
+              </section>
+            }
+          />
         ) : (
           // 完了リンク・完了コードの表示中も残し、閉じた同意シートが戻ったときに開き直さないようにする
           <CancelRequestFrame
@@ -116,20 +121,29 @@ export function DealDetailPage() {
             {transaction.role === 'buyer' ? (
               <BuyerView transaction={transaction} />
             ) : issued ? (
-              <>
-                <HandoverIssued
-                  kind={issued.kind === 'link' ? 'link' : 'code'}
-                  value={
-                    issued.kind === 'link'
-                      ? buildHandoverUrl(window.location.origin, dealId, 'link', issued.token ?? '')
-                      : (issued.code ?? '')
-                  }
-                  expiresAt={issued.expiresAt}
-                />
-                <Button variant="text" size="sm" onClick={() => setIssued(null)}>
-                  受け渡し画面に戻る
-                </Button>
-              </>
+              <TwoColumn
+                start={
+                  <>
+                    <HandoverIssued
+                      kind={issued.kind === 'link' ? 'link' : 'code'}
+                      value={
+                        issued.kind === 'link'
+                          ? buildHandoverUrl(
+                              window.location.origin,
+                              dealId,
+                              'link',
+                              issued.token ?? '',
+                            )
+                          : (issued.code ?? '')
+                      }
+                      expiresAt={issued.expiresAt}
+                    />
+                    <Button variant="text" size="sm" onClick={() => setIssued(null)}>
+                      受け渡し画面に戻る
+                    </Button>
+                  </>
+                }
+              />
             ) : (
               <SellerHandover dealId={dealId} onIssued={setIssued} onExpired={reload} />
             )}
@@ -277,39 +291,47 @@ function SellerHandover({
           {error}
         </InfoBox>
       )}
-      <HandoverPanel
-        url={qr?.token ? buildHandoverUrl(window.location.origin, dealId, 'qr', qr.token) : null}
-        code={qr?.code ?? null}
-        expiresAt={qr?.expiresAt ?? null}
-        onReissue={reissue}
-        reissuing={issuing !== null}
+      <TwoColumn
+        start={
+          <HandoverPanel
+            url={
+              qr?.token ? buildHandoverUrl(window.location.origin, dealId, 'qr', qr.token) : null
+            }
+            code={qr?.code ?? null}
+            expiresAt={qr?.expiresAt ?? null}
+            onReissue={reissue}
+            reissuing={issuing !== null}
+          />
+        }
+        end={
+          <section className={styles.card}>
+            <h2 className={styles.cardTitle}>読み取ってもらい忘れたとき</h2>
+            <p className={styles.muted}>
+              完了リンクか6桁のコードを発行してTeamsで送ってください（24時間有効）。
+            </p>
+            <div className={styles.issueButtons}>
+              <Button
+                variant="secondary"
+                size="sm"
+                fullWidth
+                onClick={() => issue('link')}
+                disabled={issuing !== null}
+              >
+                完了リンクを発行
+              </Button>
+              <Button
+                variant="secondary"
+                size="sm"
+                fullWidth
+                onClick={() => issue('code')}
+                disabled={issuing !== null}
+              >
+                完了コードを発行
+              </Button>
+            </div>
+          </section>
+        }
       />
-      <section className={styles.card}>
-        <h2 className={styles.cardTitle}>読み取ってもらい忘れたとき</h2>
-        <p className={styles.muted}>
-          完了リンクか6桁のコードを発行してTeamsで送ってください（24時間有効）。
-        </p>
-        <div className={styles.issueButtons}>
-          <Button
-            variant="secondary"
-            size="sm"
-            fullWidth
-            onClick={() => issue('link')}
-            disabled={issuing !== null}
-          >
-            完了リンクを発行
-          </Button>
-          <Button
-            variant="secondary"
-            size="sm"
-            fullWidth
-            onClick={() => issue('code')}
-            disabled={issuing !== null}
-          >
-            完了コードを発行
-          </Button>
-        </div>
-      </section>
     </>
   )
 }
@@ -318,60 +340,72 @@ function SellerHandover({
 function BuyerView({ transaction }: { transaction: Transaction }) {
   const base = `/deals/${encodeURIComponent(transaction.id)}`
   return (
-    <>
-      <section className={styles.card}>
-        <Summary transaction={transaction} />
-        {transaction.counterpartStudentNumber && (
-          <p className={styles.muted}>
-            出品者の学籍番号{' '}
-            <span className={styles.studentNumber}>{transaction.counterpartStudentNumber}</span>
-          </p>
-        )}
-        <DealSteps status={transaction.item.status} />
-      </section>
-      <InfoBox icon="qr">
-        商品を受け取って確認したら、出品者が表示したQRコードを読み取ってください。読み取ると代金が出品者に支払われ、取引が完了します。
-      </InfoBox>
-      <ButtonLink to={`${base}/scan`} icon="camera" fullWidth>
-        QRを読み取る
-      </ButtonLink>
-      <ButtonLink to={`${base}/complete`} variant="secondary" size="md" fullWidth>
-        完了コードを入力
-      </ButtonLink>
-    </>
+    <TwoColumn
+      start={
+        <section className={styles.card}>
+          <Summary transaction={transaction} />
+          {transaction.counterpartStudentNumber && (
+            <p className={styles.muted}>
+              出品者の学籍番号{' '}
+              <span className={styles.studentNumber}>{transaction.counterpartStudentNumber}</span>
+            </p>
+          )}
+          <DealSteps status={transaction.item.status} />
+        </section>
+      }
+      end={
+        <>
+          <InfoBox icon="qr">
+            商品を受け取って確認したら、出品者が表示したQRコードを読み取ってください。読み取ると代金が出品者に支払われ、取引が完了します。
+          </InfoBox>
+          <ButtonLink to={`${base}/scan`} icon="camera" fullWidth>
+            QRを読み取る
+          </ButtonLink>
+          <ButtonLink to={`${base}/complete`} variant="secondary" size="md" fullWidth>
+            完了コードを入力
+          </ButtonLink>
+        </>
+      }
+    />
   )
 }
 
 /** 受け渡し完了。出品者には確定した売上を出す（PAY-2。金額はサーバーの値） */
 function CompletedView({ transaction }: { transaction: Transaction }) {
   return (
-    <>
-      <section className={styles.done}>
-        <span className={styles.check}>
-          <Icon name="check" size={26} strokeWidth={2} />
-        </span>
-        <h2 className={styles.statusTitle}>受け渡しが完了しました</h2>
-        {transaction.role === 'seller' && transaction.sellerProceeds !== null ? (
-          <p className={styles.text}>
-            売上 <b className={styles.num}>{formatPrice(transaction.sellerProceeds)}</b>{' '}
-            が確定しました。
-          </p>
-        ) : (
-          <p className={styles.text}>代金が出品者に支払われました。</p>
-        )}
-        {transaction.completedAt && (
-          <p className={styles.muted}>{formatShortDateTime(transaction.completedAt)} 完了</p>
-        )}
-      </section>
-      <section className={styles.card}>
-        <Summary transaction={transaction} />
-        <DealSteps status="completed" />
-      </section>
-      {transaction.role === 'seller' && (
-        <ButtonLink to="/mypage/sales" variant="secondary" size="md" fullWidth>
-          売上管理を見る
-        </ButtonLink>
-      )}
-    </>
+    <TwoColumn
+      start={
+        <section className={styles.done}>
+          <span className={styles.check}>
+            <Icon name="check" size={26} strokeWidth={2} />
+          </span>
+          <h2 className={styles.statusTitle}>受け渡しが完了しました</h2>
+          {transaction.role === 'seller' && transaction.sellerProceeds !== null ? (
+            <p className={styles.text}>
+              売上 <b className={styles.num}>{formatPrice(transaction.sellerProceeds)}</b>{' '}
+              が確定しました。
+            </p>
+          ) : (
+            <p className={styles.text}>代金が出品者に支払われました。</p>
+          )}
+          {transaction.completedAt && (
+            <p className={styles.muted}>{formatShortDateTime(transaction.completedAt)} 完了</p>
+          )}
+        </section>
+      }
+      end={
+        <>
+          <section className={styles.card}>
+            <Summary transaction={transaction} />
+            <DealSteps status="completed" />
+          </section>
+          {transaction.role === 'seller' && (
+            <ButtonLink to="/mypage/sales" variant="secondary" size="md" fullWidth>
+              売上管理を見る
+            </ButtonLink>
+          )}
+        </>
+      }
+    />
   )
 }

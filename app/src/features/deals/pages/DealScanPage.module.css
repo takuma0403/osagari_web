@@ -53,3 +53,12 @@
   background: transparent;
   color: var(--color-surface);
 }
+
+/* 広い画面では暗い地を列いっぱいに広げ、中身は 480px に収めて中央に置く（DS-1） */
+@media (min-width: 640px) {
+  .body {
+    width: 100%;
+    max-width: 480px;
+    margin-inline: auto;
+  }
+}

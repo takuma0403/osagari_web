@@ -6,6 +6,7 @@ import { Badge } from '../../../components/Badge/Badge'
 import { Button } from '../../../components/Button/Button'
 import { Icon } from '../../../components/Icon/Icon'
 import { InfoBox } from '../../../components/InfoBox/InfoBox'
+import { TwoColumn } from '../../../components/TwoColumn/TwoColumn'
 import { formatPrice } from '../../../lib/format'
 import { campusOptions, categoryTint, labelOf } from '../../../lib/itemOptions'
 import type { PublicItem } from '../../items/api'
@@ -102,46 +103,57 @@ export function RequestPage() {
     <div className={styles.page}>
       {header}
       <main className={styles.body}>
-        <section className={styles.card}>
-          <DealItemSummary
-            title={item.title}
-            price={item.price}
-            imageUrl={item.images[0]?.url}
-            tint={categoryTint[item.category]}
-            note={`${labelOf(campusOptions, item.campus)}キャンパスで受け渡し`}
-          />
-        </section>
-        <fieldset className={styles.payment} disabled={submitting || !!blocked}>
-          <legend className={styles.legend}>支払い方法</legend>
-          {paymentOptions.map((option) => (
-            <label key={option.value} className={styles.option}>
-              <input
-                type="radio"
-                name={radioName}
-                value={option.value}
-                checked={paymentMethod === option.value}
-                onChange={() => setPaymentMethod(option.value)}
-                className={styles.radio}
+        {/* PC 幅では商品（左）と操作（右）の2カラム（DS-1） */}
+        <TwoColumn
+          start={
+            <section className={styles.card}>
+              <DealItemSummary
+                title={item.title}
+                price={item.price}
+                imageUrl={item.images[0]?.url}
+                tint={categoryTint[item.category]}
+                note={`${labelOf(campusOptions, item.campus)}キャンパスで受け渡し`}
               />
-              {option.label}
-              {option.note && <span className={styles.optionNote}>{option.note}</span>}
-            </label>
-          ))}
-        </fieldset>
-        <div className={styles.qrNote}>
-          <Icon name="qr" size={20} className={styles.qrIcon} />
-          <span>代金は、商品を受け取る際、QRコードを読み取った時点で出品者に支払われます。</span>
-        </div>
-        {blocked && (
-          <InfoBox tone="warning" icon="info">
-            {blocked}
-          </InfoBox>
-        )}
-        {error && (
-          <InfoBox tone="danger" icon="alert" role="alert">
-            {error}
-          </InfoBox>
-        )}
+            </section>
+          }
+          end={
+            <>
+              <fieldset className={styles.payment} disabled={submitting || !!blocked}>
+                <legend className={styles.legend}>支払い方法</legend>
+                {paymentOptions.map((option) => (
+                  <label key={option.value} className={styles.option}>
+                    <input
+                      type="radio"
+                      name={radioName}
+                      value={option.value}
+                      checked={paymentMethod === option.value}
+                      onChange={() => setPaymentMethod(option.value)}
+                      className={styles.radio}
+                    />
+                    {option.label}
+                    {option.note && <span className={styles.optionNote}>{option.note}</span>}
+                  </label>
+                ))}
+              </fieldset>
+              <div className={styles.qrNote}>
+                <Icon name="qr" size={20} className={styles.qrIcon} />
+                <span>
+                  代金は、商品を受け取る際、QRコードを読み取った時点で出品者に支払われます。
+                </span>
+              </div>
+              {blocked && (
+                <InfoBox tone="warning" icon="info">
+                  {blocked}
+                </InfoBox>
+              )}
+              {error && (
+                <InfoBox tone="danger" icon="alert" role="alert">
+                  {error}
+                </InfoBox>
+              )}
+            </>
+          }
+        />
       </main>
       <div className={styles.actions}>
         <div className={styles.total}>
