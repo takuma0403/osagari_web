@@ -28,7 +28,17 @@ HOSTING_ORIGINS=("https://${PROJECT_ID}.web.app" "https://${PROJECT_ID}.firebase
 # Secret Manager のシークレット名
 SECRET_DATABASE_URL=database-url
 SECRET_ADMIN_STUDENT_NUMBERS=admin-student-numbers
-SECRETS=("$SECRET_DATABASE_URL" "$SECRET_ADMIN_STUDENT_NUMBERS")
+# Gmail のアプリパスワード（#41, AUTHN-7）
+SECRET_SMTP_PASSWORD=smtp-password
+SECRETS=("$SECRET_DATABASE_URL" "$SECRET_ADMIN_STUDENT_NUMBERS" "$SECRET_SMTP_PASSWORD")
+
+# 認証コードのメールを送るアプリ専用の Gmail アカウント（#41, AUTHN-7）。差出人として受信者に見えるので秘密ではない
+SMTP_USERNAME=sagadai.osagari@gmail.com
+SMTP_FROM="佐賀大お下がりフリマ 運営 <${SMTP_USERNAME}>"
+
+# コードのメールの送信数が Gmail の上限に近づいたときの通知（#41, AUTHN-6）。通知先のアドレスは書かない（setup.sh の実行時に渡す）
+ALERT_CHANNEL_NAME="osagari 運用通知"
+ALERT_POLICY_NAME="コードのメールの送信数が上限に近い"
 
 # Turso の本番DB（グループは aws-ap-northeast-1。ADR 0041）
 TURSO_DB=osagari
