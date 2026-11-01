@@ -1,11 +1,11 @@
 # infra（本番環境）
 
-API（`server/`）を Cloud Run に、画面（`app/`）を Firebase Hosting に出し、Turso と Secret Manager をつなぐためのスクリプトと手順です（#38, #39）。方針は [ARCH・COST](../docs/tech/00-overview.md) と [ADR 0042](../docs/decisions/0042-cloud-run-secret-manager-deploy.md)、リージョンは [ADR 0041](../docs/decisions/0041-production-regions-and-domain.md)、メールは [ADR 0044](../docs/decisions/0044-production-gmail-smtp.md)、Hosting と CI からのデプロイは [ADR 0045](../docs/decisions/0045-hosting-and-ci-deploy.md)。
+API（`server/`）を Cloud Run に、画面（`app/`）を Firebase Hosting に出し、Turso と Secret Manager をつなぐためのスクリプトと手順です（#38, #39）。方針は [ARCH・COST](../docs/tech/00-overview.md) と [ADR 0042](../docs/decisions/0042-cloud-run-secret-manager-deploy.md)、リージョンは [ADR 0041](../docs/decisions/0041-production-regions-and-domain.md)、メールは [ADR 0044](../docs/decisions/0044-production-gmail-smtp.md)、Hosting と CI からのデプロイは [ADR 0045](../docs/decisions/0045-hosting-and-ci-deploy.md)、定期処理と予算アラートは [ADR 0046](../docs/decisions/0046-cloud-scheduler-and-budget-alert.md)。
 
 | ファイル | 役割 |
 | --- | --- |
 | [config.sh](config.sh) | プロジェクトID・リージョン・サービス名・シークレット名などの共通の値（秘密情報は書かない） |
-| [setup.sh](setup.sh) | API の有効化、Artifact Registry、実行用サービスアカウント、シークレットの器と読み取り権限、Cloud Storage のバケット・CORS・権限、メールの送信数の通知、GitHub Actions 用の Workload Identity とデプロイ用サービスアカウント |
+| [setup.sh](setup.sh) | API の有効化、Artifact Registry、実行用サービスアカウント、シークレットの器と読み取り権限、Cloud Storage のバケット・CORS・権限、メールの送信数の通知、GitHub Actions 用の Workload Identity とデプロイ用サービスアカウント、定期処理の Cloud Scheduler、予算アラート |
 | [set-secret.sh](set-secret.sh) | 標準入力の値をシークレットの新しいバージョンにし、古いバージョンを破棄する |
 | [deploy-server.sh](deploy-server.sh) | イメージのビルドと push → マイグレーション（Cloud Run ジョブ）→ Cloud Run サービスの更新 → `/api/health` の確認 |
 | [deploy-app.sh](deploy-app.sh) | 画面のビルド → Firebase Hosting へのデプロイ（設定はルートの [firebase.json](../firebase.json)）→ Hosting 経由の `/api/health` の確認 |
@@ -22,6 +22,7 @@ API（`server/`）を Cloud Run に、画面（`app/`）を Firebase Hosting に
 | Cloud Run ジョブ | `osagari-migrate` | 同じイメージの `/migrate up` |
 | Firebase Hosting | サイト `osagari-web-dev`（`https://osagari-web-dev.web.app`） | `/api/**` を `osagari-api` に転送し、ほかは `index.html` を返す |
 | サービスアカウント | `osagari-api@…` | サービスとジョブの両方で使う |
+| サービスアカウント | `osagari-scheduler@…` | Cloud Scheduler が内部用エンドポイントを呼ぶときの OIDC トークンに使う。ロールは付けない（[JOBS-1](../docs/tech/jobs-payment-mock.md)） |
 | サービスアカウント | `osagari-deployer@…` | GitHub Actions がデプロイに使う。鍵は作らない |
 | Workload Identity | プール `github`・プロバイダ `github` | `takuma0403/osagari_web` の main の workflow だけを受け入れる |
 | Artifact Registry | `osagari`（asia-northeast1） | 最新3件より古いイメージは自動で消える |
@@ -29,13 +30,15 @@ API（`server/`）を Cloud Run に、画面（`app/`）を Firebase Hosting に
 | Turso | `osagari`（default グループ、aws-ap-northeast-1） | |
 | Cloud Storage | `osagari-web-dev-item-images`・`osagari-web-dev-student-cards`（us-central1） | 公開範囲・CORS・権限は [STORAGE](../docs/tech/storage.md) |
 | Gmail | `sagadai.osagari@gmail.com` | 認証コードの送信元。2段階認証を有効にし、アプリパスワードで送る（[AUTHN-7](../docs/tech/auth.md)） |
+| Cloud Scheduler | `osagari-jobs-short`（15分ごと）・`osagari-jobs-daily`（毎日3時）（asia-northeast1、Asia/Tokyo） | `POST /api/internal/jobs/short`・`/daily` を呼ぶ。失敗は1分以上あけて3回まで再試行 |
+| 予算 | `osagari 月の予算`（請求先アカウント全体、月500円） | 50%・90%・100%で請求先アカウントの管理者と運用通知のチャンネルに通知（[COST](../docs/tech/00-overview.md)） |
 | Cloud Monitoring | 通知チャンネル `osagari 運用通知`、アラートポリシー `コードのメールの送信数が上限に近い` | 直近24時間の送信が400通に達した警告ログで、1時間に1回まで運用者にメールする（[AUTHN-6](../docs/tech/auth.md)） |
 
 環境変数のうち秘密情報・個人情報（Turso の接続URL、管理者の学籍番号、Gmail のアプリパスワード）は Secret Manager から、それ以外は `deploy-server.sh` が直接設定します。一覧は [server/.env.example](../server/.env.example)。
 
 ## 初回の構築
 
-必要なもの：gcloud（請求先アカウントを使える Google アカウントでログイン。`gcloud beta` のコマンドも使う）、turso CLI（ログイン済み）、docker、送信用の Gmail アカウントのアプリパスワード。
+必要なもの：gcloud（請求先アカウントを使える Google アカウントでログイン。予算の作成に請求先アカウントの管理者の権限が要る。`gcloud beta` のコマンドも使う）、turso CLI（ログイン済み）、docker、送信用の Gmail アカウントのアプリパスワード。
 
 1. プロジェクトを作り、請求先アカウントに紐づける。
 
@@ -52,6 +55,8 @@ API（`server/`）を Cloud Run に、画面（`app/`）を Firebase Hosting に
    ```
 
    通知が届くかは、Cloud Console の「Monitoring → アラート → 通知チャンネルを編集」からテスト通知を送って確かめる。
+
+   予算の金額は円（`500JPY`）なので、請求先アカウントの通貨が円でないと作れない。Cloud Scheduler のジョブも作られるが、手順6で API を出すまでは呼び出しが失敗する（出したあとは次の回から通る）。
 
 3. Turso の本番DBを作り、接続URL（トークン入り）を Secret Manager に入れる。値は画面に出さない。
 
@@ -130,10 +135,18 @@ API（`server/`）を Cloud Run に、画面（`app/`）を Firebase Hosting に
 - **Turso のトークンの入れ替え**：`turso db tokens invalidate osagari` で既存のトークンをすべて無効にし、手順3の2行目で新しいトークンを入れてから `infra/deploy-server.sh` を実行します。無効にしてから新しいリビジョンが出るまでは API が DB に接続できないので、利用の少ない時間に行います。
 - **画面のデプロイ**：`infra/deploy-app.sh`。`app/` か `firebase.json` に未コミットの変更があるときは止まります。戻すときは Firebase Console の Hosting のリリース履歴から前のリリースを「ロールバック」します（リリースのメッセージがコミットです）。
 - **ログ**：`gcloud run services logs read osagari-api --region asia-northeast1 --project osagari-web-dev`
+- **定期処理**：状態（最後に動いた時刻と結果）は一覧で、すぐ動かしたいときは手動で実行します。ジョブの結果は API のログ（`/api/internal/jobs/*`）で見ます。認証に失敗すると 404 になります（audience かサービスアカウントが API の環境変数と合っていない）。
+
+  ```sh
+  gcloud scheduler jobs list --location asia-northeast1 --project osagari-web-dev
+  gcloud scheduler jobs run osagari-jobs-short --location asia-northeast1 --project osagari-web-dev
+  ```
+
+- **時刻・再試行・予算の変更**：[config.sh](config.sh) と [setup.sh](setup.sh) を直して `infra/setup.sh` を実行し直します（ジョブと予算は上書きされます）。
 - **Gmail のアプリパスワードの入れ替え**：Google アカウントで新しいアプリパスワードを作り、手順5で入れて `infra/deploy-server.sh` を実行してから、古いアプリパスワードを削除します。
 - **通知先・アラートの変更**：`setup.sh` は通知チャンネルとアラートポリシーを表示名で探し、あれば作り直しません。通知先を変える、またはポリシーの中身を変えるときは、Cloud Console で直すか、消してから `setup.sh` を実行し直します。
 - **送信数の通知が来たら**：無料の Gmail は1日およそ500通までです。ログで送信先の偏りや不正な利用がないかを確認します（[AUTHN-6](../docs/tech/auth.md)）。
 
 ## 後続の issue で足すもの
 
-- Cloud Scheduler とそのサービスアカウント `osagari-scheduler@…`、予算アラート、DBバックアップ（#40）
+- DBバックアップ（#118。方式は未定）

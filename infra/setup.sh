@@ -10,10 +10,11 @@ gc() { gcloud --project "$PROJECT_ID" --quiet "$@"; }
 
 echo "==> API を有効にする"
 # iamcredentials は署名付きURLの署名（IAM signBlob）と GitHub Actions からの SA の借用に使う（STORAGE, #39）。
-# logging・monitoring は送信数の通知に使う（AUTHN-6）。sts は Workload Identity 連携、firebasehosting は画面の配信に使う（#39）
+# logging・monitoring は送信数の通知に使う（AUTHN-6）。sts は Workload Identity 連携、firebasehosting は画面の配信に使う（#39）。
+# cloudscheduler は定期処理（JOBS-1）、billingbudgets は予算アラート（COST）に使う（#40）
 gc services enable run.googleapis.com artifactregistry.googleapis.com secretmanager.googleapis.com iam.googleapis.com \
   storage.googleapis.com iamcredentials.googleapis.com logging.googleapis.com monitoring.googleapis.com \
-  sts.googleapis.com firebasehosting.googleapis.com
+  sts.googleapis.com firebasehosting.googleapis.com cloudscheduler.googleapis.com billingbudgets.googleapis.com
 
 echo "==> Artifact Registry のリポジトリ"
 if ! gc artifacts repositories describe "$AR_REPO" --location "$REGION" >/dev/null 2>&1; then
@@ -152,5 +153,51 @@ fi
 pool=$(gc iam workload-identity-pools describe "$WIF_POOL" --location global --format 'value(name)')
 gc iam service-accounts add-iam-policy-binding "$DEPLOYER_SA" --role roles/iam.workloadIdentityUser \
   --member "principalSet://iam.googleapis.com/${pool}/attribute.repository/${GITHUB_REPO}" >/dev/null
+
+echo "==> 定期処理の Cloud Scheduler（#40, JOBS-1）"
+if ! gc iam service-accounts describe "$SCHEDULER_SA" >/dev/null 2>&1; then
+  gc iam service-accounts create "${SCHEDULER_SA%%@*}" --display-name "osagari 定期処理（Cloud Scheduler）"
+fi
+# API は公開のサービスなので、この SA にロールは付けない。Cloud Scheduler が付ける OIDC ID トークンの
+# audience とメールアドレスをアプリが照合する（ADR 0027）。audience は deploy-server.sh の JOBS_OIDC_AUDIENCE と同じ値
+url=$(service_url)
+# ジョブは失敗すると 500 を返すので、間をあけて再試行させる（JOBS-1）。期限は Cloud Run のリクエストの既定の期限に合わせる
+scheduler_args=(
+  --location "$SCHEDULER_LOCATION" --time-zone "$SCHEDULER_TIME_ZONE"
+  --http-method POST --attempt-deadline 300s
+  --oidc-service-account-email "$SCHEDULER_SA" --oidc-token-audience "$url"
+  --max-retry-attempts 3 --min-backoff 60s
+)
+upsert_scheduler_job() {
+  local name=$1 schedule=$2 path=$3 action=create
+  if gc scheduler jobs describe "$name" --location "$SCHEDULER_LOCATION" >/dev/null 2>&1; then
+    action=update
+  fi
+  gc scheduler jobs "$action" http "$name" "${scheduler_args[@]}" --schedule "$schedule" --uri "${url}${path}" >/dev/null
+}
+upsert_scheduler_job "$SCHEDULER_JOB_SHORT" "$SCHEDULER_SCHEDULE_SHORT" /api/internal/jobs/short
+upsert_scheduler_job "$SCHEDULER_JOB_DAILY" "$SCHEDULER_SCHEDULE_DAILY" /api/internal/jobs/daily
+
+echo "==> 予算アラート（#40, COST）"
+# 請求先アカウント全体にかける。ID はリポジトリに書かず、プロジェクトの紐づけから取る。
+# 通知は請求先アカウントの管理者（既定）と運用通知のチャンネルに送る。作成・更新には請求先アカウントの管理者の権限が要る
+billing_account=$(gc billing projects describe "$PROJECT_ID" --format 'value(billingAccountName)')
+billing_account=${billing_account#billingAccounts/}
+budget_args=(
+  --billing-project "$PROJECT_ID" --budget-amount "$BUDGET_AMOUNT"
+  --notifications-rule-monitoring-notification-channels "$channel"
+)
+budget=$(gc billing budgets list --billing-account "$billing_account" --billing-project "$PROJECT_ID" \
+  --filter "displayName=\"${BUDGET_NAME}\"" --format 'value(name)' | head -n1)
+if [ -z "$budget" ]; then
+  thresholds=()
+  for percent in "${BUDGET_THRESHOLDS[@]}"; do thresholds+=(--threshold-rule "percent=${percent}"); done
+  gc billing budgets create --billing-account "$billing_account" --display-name "$BUDGET_NAME" "${budget_args[@]}" "${thresholds[@]}" >/dev/null
+else
+  # 既存の予算はフルネーム（billingAccounts/…/budgets/…）で指す。閾値は入れ替える
+  thresholds=(--clear-threshold-rules)
+  for percent in "${BUDGET_THRESHOLDS[@]}"; do thresholds+=(--add-threshold-rule "percent=${percent}"); done
+  gc billing budgets update "$budget" "${budget_args[@]}" "${thresholds[@]}" >/dev/null
+fi
 
 echo "完了。次はシークレットの値を入れる（infra/README.md）"
