@@ -1,0 +1,85 @@
+# main への push で本番に出す（#39, ADR 0045）。dev への push では出さない（検査だけの ci.yml が動く）。
+# GCP へは Workload Identity 連携で入る（鍵ファイルは使わない）。プロバイダは main の workflow だけを受け入れるので、手動実行も main からだけ通る。
+# API を先に出してから画面を出す（新しい画面が古い API を呼ばないように）。
+
+name: Deploy
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+# デプロイを途中で止めない（マイグレーションの途中で中断しないように）。後の push は前のデプロイの完了を待つ
+concurrency:
+  group: deploy
+  cancel-in-progress: false
+
+permissions:
+  contents: read
+  id-token: write
+
+env:
+  # infra/config.sh の値と同じ。秘密ではないので直接書く
+  WORKLOAD_IDENTITY_PROVIDER: projects/654570659964/locations/global/workloadIdentityPools/github/providers/github
+  SERVICE_ACCOUNT: osagari-deployer@osagari-web-dev.iam.gserviceaccount.com
+  REGION: asia-northeast1
+
+jobs:
+  changes:
+    runs-on: ubuntu-latest
+    outputs:
+      server: ${{ github.event_name == 'workflow_dispatch' || steps.filter.outputs.server == 'true' }}
+      app: ${{ github.event_name == 'workflow_dispatch' || steps.filter.outputs.app == 'true' }}
+    steps:
+      - uses: actions/checkout@v7
+      - uses: dorny/paths-filter@v4
+        id: filter
+        if: github.event_name == 'push'
+        with:
+          filters: |
+            server:
+              - 'server/**'
+              - 'infra/config.sh'
+              - 'infra/deploy-server.sh'
+              - '.github/workflows/deploy.yml'
+            app:
+              - 'app/**'
+              - 'docs/legal/**'
+              - '.nvmrc'
+              - 'firebase.json'
+              - 'infra/config.sh'
+              - 'infra/deploy-app.sh'
+              - '.github/workflows/deploy.yml'
+
+  server:
+    needs: changes
+    if: needs.changes.outputs.server == 'true'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+      - uses: google-github-actions/auth@v3
+        with:
+          workload_identity_provider: ${{ env.WORKLOAD_IDENTITY_PROVIDER }}
+          service_account: ${{ env.SERVICE_ACCOUNT }}
+      - uses: google-github-actions/setup-gcloud@v3
+      - run: gcloud auth configure-docker "${REGION}-docker.pkg.dev" --quiet
+      - run: infra/deploy-server.sh
+
+  app:
+    needs: [changes, server]
+    # server がスキップされたときも動かす。server が失敗・中断したときは出さない
+    if: ${{ !cancelled() && needs.changes.outputs.app == 'true' && (needs.server.result == 'success' || needs.server.result == 'skipped') }}
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-node@v7
+        with:
+          node-version-file: .nvmrc
+          cache: npm
+          cache-dependency-path: app/package-lock.json
+      # firebase-tools は auth が書き出す認証情報ファイル（GOOGLE_APPLICATION_CREDENTIALS）を使う
+      - uses: google-github-actions/auth@v3
+        with:
+          workload_identity_provider: ${{ env.WORKLOAD_IDENTITY_PROVIDER }}
+          service_account: ${{ env.SERVICE_ACCOUNT }}
+      - run: infra/deploy-app.sh
