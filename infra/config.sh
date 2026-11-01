@@ -10,8 +10,15 @@ SERVICE=osagari-api
 MIGRATE_JOB=osagari-migrate
 # API とマイグレーションを動かすサービスアカウント
 RUNTIME_SA="osagari-api@${PROJECT_ID}.iam.gserviceaccount.com"
-# Cloud Scheduler のサービスアカウント（作成と権限付与は #40。内部用エンドポイントの照合に使う。JOBS-1）
+# Cloud Scheduler のサービスアカウント（#40）。内部用エンドポイントの照合に使う（JOBS-1, ADR 0027）
 SCHEDULER_SA="osagari-scheduler@${PROJECT_ID}.iam.gserviceaccount.com"
+# Cloud Scheduler のジョブ（#40, JOBS-1, ADR 0046）。無料枠に収めるため2つにまとめる。時刻は日本時間
+SCHEDULER_LOCATION=$REGION
+SCHEDULER_TIME_ZONE=Asia/Tokyo
+SCHEDULER_JOB_SHORT=osagari-jobs-short
+SCHEDULER_SCHEDULE_SHORT="*/15 * * * *"
+SCHEDULER_JOB_DAILY=osagari-jobs-daily
+SCHEDULER_SCHEDULE_DAILY="0 3 * * *"
 
 # GitHub Actions からのデプロイ（#39, ADR 0045）。鍵ファイルを使わず、Workload Identity 連携で main の workflow だけがこの SA になれる
 DEPLOYER_SA="osagari-deployer@${PROJECT_ID}.iam.gserviceaccount.com"
@@ -52,3 +59,11 @@ ALERT_POLICY_NAME="コードのメールの送信数が上限に近い"
 
 # Turso の本番DB（グループは aws-ap-northeast-1。ADR 0041）
 TURSO_DB=osagari
+
+# Cloud Run サービスの URL（https://<サービス名>-<プロジェクト番号>.<リージョン>.run.app）。
+# 内部用エンドポイントの audience にも使う（deploy-server.sh の JOBS_OIDC_AUDIENCE と Cloud Scheduler のジョブで同じ値にする。JOBS-1）
+service_url() {
+  local number
+  number=$(gcloud --project "$PROJECT_ID" projects describe "$PROJECT_ID" --format 'value(projectNumber)')
+  echo "https://${SERVICE}-${number}.${REGION}.run.app"
+}

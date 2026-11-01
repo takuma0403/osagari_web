@@ -28,10 +28,8 @@ gc run jobs deploy "$MIGRATE_JOB" --region "$REGION" --image "$image" \
   --tasks 1 --max-retries 0 --task-timeout 300s
 gc run jobs execute "$MIGRATE_JOB" --region "$REGION" --wait
 
-# サービスの URL は https://<サービス名>-<プロジェクト番号>.<リージョン>.run.app で決まる。
-# 内部用エンドポイントの audience にはこの URL を使う（Cloud Scheduler のジョブにも同じ値を設定する。JOBS-1, #40）
-project_number=$(gc projects describe "$PROJECT_ID" --format 'value(projectNumber)')
-url="https://${SERVICE}-${project_number}.${REGION}.run.app"
+# 内部用エンドポイントの audience にはサービスの URL を使う（Cloud Scheduler のジョブにも同じ値を設定する。JOBS-1, #40）
+url=$(service_url)
 
 env_file=$(mktemp)
 trap 'rm -f "$env_file"' EXIT
