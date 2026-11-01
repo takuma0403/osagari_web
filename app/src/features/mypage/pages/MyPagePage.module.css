@@ -196,34 +196,55 @@
 }
 
 /*
- * PC 幅では、左に見出し・プロフィール・設定、右にタブと履歴を置く（DS-1）。
+ * PC 幅では、左にプロフィール・設定、右にタブと履歴を置く（DS-1）。
  * DOM の順（スマホの縦並び）は変えず、グリッドの領域で配置する。
- * 履歴が長くなったときは最後の行（1fr）が伸び、プロフィールと設定の間は空かない
+ * プロフィールはタブの行から始めて上端をそろえ、履歴が長くなったときは最後の行（1fr）が伸びる
  */
 @media (min-width: 1024px) {
   .page {
     display: grid;
     grid-template-areas:
-      'title tabs'
+      'profile tabs'
       'profile panel'
       'settings panel';
     grid-template-rows: auto auto 1fr;
     grid-template-columns: 320px minmax(0, 1fr);
     align-items: start;
-    gap: 14px 32px;
+    gap: 16px 40px;
+    padding-top: 24px;
   }
 
+  /* 上部のナビで「マイページ」を選択中と示すので、見出しは読み上げにだけ残す */
   .title {
-    grid-area: title;
-    align-self: center;
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    overflow: hidden;
+    clip-path: inset(50%);
+    white-space: nowrap;
   }
 
   .profile {
     grid-area: profile;
   }
 
+  /* タブは文字の幅で左に寄せ、下線は右カラムいっぱいに引く */
   .tabs {
     grid-area: tabs;
+  }
+
+  .tabs [role='tablist'] {
+    grid-auto-columns: max-content;
+    gap: 28px;
+  }
+
+  .tabs [role='tab'] {
+    padding: 0 4px;
+  }
+
+  /* 右カラムの幅で列数を決める。行が 320px を下回ると商品名が切れるので、1024px では1列、1280px では2列 */
+  .list {
+    grid-template-columns: repeat(auto-fill, minmax(320px, 1fr));
   }
 
   .panel {
