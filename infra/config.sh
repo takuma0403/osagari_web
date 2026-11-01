@@ -17,9 +17,13 @@ SCHEDULER_SA="osagari-scheduler@${PROJECT_ID}.iam.gserviceaccount.com"
 AR_REPO=osagari
 IMAGE="${REGION}-docker.pkg.dev/${PROJECT_ID}/${AR_REPO}/api"
 
-# Cloud Storage のバケット（作成・CORS・権限は #69。リージョンは us-central1。ADR 0041）
+# Cloud Storage のバケット（#69, STORAGE）。常時無料枠のある us-central1 に置く（ADR 0041）
+STORAGE_LOCATION=us-central1
 BUCKET_ITEM_IMAGES="${PROJECT_ID}-item-images"
 BUCKET_STUDENT_CARDS="${PROJECT_ID}-student-cards"
+BUCKETS=("$BUCKET_ITEM_IMAGES" "$BUCKET_STUDENT_CARDS")
+# ブラウザからの直接アップロードを CORS で許可するオリジン（Firebase Hosting の標準ドメイン。ADR 0041）
+HOSTING_ORIGINS=("https://${PROJECT_ID}.web.app" "https://${PROJECT_ID}.firebaseapp.com")
 
 # Secret Manager のシークレット名
 SECRET_DATABASE_URL=database-url

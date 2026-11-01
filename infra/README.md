@@ -5,7 +5,7 @@ API（`server/`）を Cloud Run に出し、Turso と Secret Manager をつな�
 | ファイル | 役割 |
 | --- | --- |
 | [config.sh](config.sh) | プロジェクトID・リージョン・サービス名・シークレット名などの共通の値（秘密情報は書かない） |
-| [setup.sh](setup.sh) | API の有効化、Artifact Registry、実行用サービスアカウント、シークレットの器と読み取り権限 |
+| [setup.sh](setup.sh) | API の有効化、Artifact Registry、実行用サービスアカウント、シークレットの器と読み取り権限、Cloud Storage のバケット・CORS・権限 |
 | [set-secret.sh](set-secret.sh) | 標準入力の値をシークレットの新しいバージョンにし、古いバージョンを破棄する |
 | [deploy-server.sh](deploy-server.sh) | イメージのビルドと push → マイグレーション（Cloud Run ジョブ）→ Cloud Run サービスの更新 → `/api/health` の確認 |
 
@@ -22,6 +22,7 @@ API（`server/`）を Cloud Run に出し、Turso と Secret Manager をつな�
 | Artifact Registry | `osagari`（asia-northeast1） | 最新3件より古いイメージは自動で消える |
 | Secret Manager | `database-url`・`admin-student-numbers` | 有効なバージョンは各1つ |
 | Turso | `osagari`（default グループ、aws-ap-northeast-1） | |
+| Cloud Storage | `osagari-web-dev-item-images`・`osagari-web-dev-student-cards`（us-central1） | 公開範囲・CORS・権限は [STORAGE](../docs/tech/storage.md) |
 
 環境変数のうち秘密情報・個人情報（Turso の接続URL、管理者の学籍番号）は Secret Manager から、それ以外は `deploy-server.sh` が直接設定します。一覧は [server/.env.example](../server/.env.example)。
 
@@ -82,7 +83,6 @@ API（`server/`）を Cloud Run に出し、Turso と Secret Manager をつな�
 
 ## 後続の issue で足すもの
 
-- Cloud Storage のバケット・CORS・権限（#69）。バケット名は `config.sh` で先に決めてあります
 - Cloud Scheduler とそのサービスアカウント `osagari-scheduler@…`、予算アラート、DBバックアップ（#40）
 - Gmail の差出人とアプリパスワード（#41）。それまで `SMTP_FROM` は仮の値で、メール送信は失敗します
-- Firebase Hosting と CI からのデプロイ（#39）
+- Firebase Hosting と CI からのデプロイ（#39）。Hosting のサイト名が `osagari-web-dev` でなくなったら、`config.sh` の `HOSTING_ORIGINS` を直して `setup.sh` を実行し直す
