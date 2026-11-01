@@ -22,5 +22,9 @@
 - **ローカル**：fake-gcs-server は署名を検証せずに署名付きURL形式の PUT を受け付け、CORS も許可する（署名に含まれる `x-goog-content-length-range`・`x-goog-if-generation-match` は `-cors-headers` で許可ヘッダーに加える）。API はダミーの署名で URL を作り、ブラウザから届くホスト（`STORAGE_PUBLIC_HOST`）を URL に入れる。
 - **画像の縮小**：アップロード前にブラウザで縮小・圧縮し、保存容量と転送量を抑えます（例：長辺1600px、JPEGまたはWebP）。
 - **学生証の削除**：アカウントの失効・削除から3年たった画像を、定期処理でDBの削除予定日に従って削除し、`image_deleted_at` を記録します（行は残す）。アップロードURLを発行したまま登録されなかったオブジェクトも、作られてから24時間たったら定期処理で削除します（[ADR 0033](../decisions/0033-account-expiry-and-daily-job.md)）。
-- **暗号化**：Cloud Storage は保存データを標準で暗号化しています。学生証のバケットには公開アクセス防止を設定し、誤って公開されないようにします。
+- **暗号化**：Cloud Storage は保存データを標準で暗号化しています。商品写真・学生証のバケットとも公開アクセス防止を設定し、誤って公開されないようにします（[ADR 0043](../decisions/0043-production-cloud-storage-settings.md)）。
+- **本番の設定**（[ADR 0043](../decisions/0043-production-cloud-storage-settings.md)、手順は [infra/README.md](../../infra/README.md)）：
+  - ソフト削除は無効にし、削除したオブジェクトはすぐに消える（期限が来た学生証を確実に消すため）。
+  - CORS は Firebase Hosting の標準ドメインからの PUT だけを許可し、`Content-Type`・`x-goog-if-generation-match`・`x-goog-content-length-range` を通す。
+  - API のサービスアカウントには、バケットごとの読み書きの権限と、自分自身への `roles/iam.serviceAccountTokenCreator` を付ける。署名付きURLは鍵ファイルを使わず IAM signBlob で署名する。
 - **リージョン**：Cloud Storage の常時無料枠（5GB）は米国の一部リージョンだけが対象なので、商品写真・学生証のバケットとも us-central1 に置きます。東京から表示すると少し遅くなりますが、費用を優先します（[ADR 0041](../decisions/0041-production-regions-and-domain.md)）。
