@@ -22,7 +22,7 @@ API（`server/`）を Cloud Run に出し、Turso と Secret Manager をつな�
 | Artifact Registry | `osagari`（asia-northeast1） | 最新3件より古いイメージは自動で消える |
 | Secret Manager | `database-url`・`admin-student-numbers` | 有効なバージョンは各1つ |
 | Turso | `osagari`（default グループ、aws-ap-northeast-1） | |
-| Cloud Storage | `osagari-web-dev-item-images`・`osagari-web-dev-student-cards`（us-central1） | 公開アクセス防止、ソフト削除なし。CORS は Firebase Hosting のオリジンからの PUT だけ許可 |
+| Cloud Storage | `osagari-web-dev-item-images`・`osagari-web-dev-student-cards`（us-central1） | 公開範囲・CORS・権限は [STORAGE](../docs/tech/storage.md) |
 
 環境変数のうち秘密情報・個人情報（Turso の接続URL、管理者の学籍番号）は Secret Manager から、それ以外は `deploy-server.sh` が直接設定します。一覧は [server/.env.example](../server/.env.example)。
 

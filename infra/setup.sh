@@ -19,7 +19,8 @@ if ! gc artifacts repositories describe "$AR_REPO" --location "$REGION" >/dev/nu
 fi
 # 無料枠（0.5GB）に収めるため、最新3件より古いイメージを消す（COST）
 policy=$(mktemp)
-trap 'rm -f "$policy"' EXIT
+cors=$(mktemp)
+trap 'rm -f "$policy" "$cors"' EXIT
 cat >"$policy" <<'JSON'
 [
   {"name": "keep-latest-3", "action": {"type": "Keep"}, "mostRecentVersions": {"keepCount": 3}},
@@ -45,8 +46,6 @@ done
 
 echo "==> Cloud Storage のバケット（#69, STORAGE）"
 # ブラウザが署名付きURLに直接 PUT するときのヘッダー（server/internal/storage の putHeaders と合わせる）
-cors=$(mktemp)
-trap 'rm -f "$policy" "$cors"' EXIT
 origins=$(printf '"%s",' "${HOSTING_ORIGINS[@]}")
 cat >"$cors" <<JSON
 [
