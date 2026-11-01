@@ -25,7 +25,7 @@ Vite + React のSPAを Firebase Hosting に置きます。ログイン必須の�
 
 - 言語は TypeScript。スタイリングは **CSS Modules + CSS変数**（デザイントークンは [design/README.md](../design/README.md) を正とし、`app/src/styles/tokens.css` に1対1で写す）。
 - APIの型は [docs/api/openapi.yaml](../api/openapi.yaml) から openapi-typescript で生成し、手書きしない。
-- 画面のルートは次のとおり（実装は `app/src/routes.tsx`。変えるときは両方を直す）。利用者向けは 390px 基準・広い画面では最大幅の列を中央に寄せる（`UserLayout`。商品一覧・検索結果は `wide` で列を広げる）、管理画面は PC 幅（`AdminLayout`）で表示する（[DS-1](../design/README.md)）。下部ナビ（DS-3 の `BottomNav`）は、デザインでナビのある商品一覧・検索結果・取引一覧・マイページ（Main・Search・DealList・MyPage）だけに出す（[ADR 0004](../decisions/0004-storybook-and-bottom-nav.md)）。PC 幅（1024px 以上）ではナビを上部に置き、Tab の順を見た目にそろえるため、`matchMedia`（`lib/useMediaQuery.ts`）で幅を見て DOM 上もナビを本文の前に移す（[ADR 0048](../decisions/0048-user-layout-pc-width.md)）。表の「スマホ」は PC で 560px の列、「スマホ＋下部ナビ」は PC で上部の横ナビになる。
+- 画面のルートは次のとおり（実装は `app/src/routes.tsx`。変えるときは両方を直す）。利用者向けは 390px 基準・広い画面では最大幅の列を中央に寄せる（`UserLayout`。一覧・出品・取引の画面は `wide` で列を広げる）、管理画面は PC 幅（`AdminLayout`）で表示する（[DS-1](../design/README.md)）。下部ナビ（DS-3 の `BottomNav`）は、デザインでナビのある商品一覧・検索結果・取引一覧・マイページ（Main・Search・DealList・MyPage）だけに出す（[ADR 0004](../decisions/0004-storybook-and-bottom-nav.md)）。PC 幅（1024px 以上）ではナビを上部に置き、Tab の順を見た目にそろえるため、`matchMedia`（`lib/useMediaQuery.ts`）で幅を見て DOM 上もナビを本文の前に移す（[ADR 0048](../decisions/0048-user-layout-pc-width.md)）。表の「スマホ」「スマホ＋下部ナビ」の PC での列の幅と並べ方は DS-1 のとおりで、「スマホ＋下部ナビ」は PC で上部の横ナビになる。
 
   | パス | 画面 | レイアウト |
   | --- | --- | --- |

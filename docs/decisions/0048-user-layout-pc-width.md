@@ -11,10 +11,11 @@
 ## 決定
 
 - ブレークポイントは 640px と 1024px。値は DS-1 に書き、CSS には数値を直接書く（CSS 変数は `@media` の条件に使えないため、トークンにはしない）。
-- 列の最大幅は、商品一覧・検索結果が 1080px、それ以外が 560px。BottomSheet の幅も 560px にそろえる。
+- 列の最大幅は、一覧（商品一覧・検索結果・取引一覧・マイページ）・出品・取引の画面が 1080px、それ以外（商品詳細・学生証・売上管理・ログイン前・規約）が 560px。BottomSheet の幅は 560px にそろえる。
 - 1024px 以上では `BottomNav` を上部の横ナビ（ロゴ＋アプリ名＋5項目）にする。出す画面はスマホと同じ4画面（ADR 0004 のまま）。
 - 上部に置くときは、DOM 上でもナビを本文の前に移す。CSS の `order` で見た目だけ動かすと、Tab の順が「本文 → 上部ナビ」になり見た目と食い違うため（DS-1 のアクセシビリティ）。幅は `matchMedia` で見る（`lib/useMediaQuery.ts`）。
-- 商品一覧のグリッドは 2・3・4列、検索結果は 1024px 以上で 2列。
+- 商品一覧のグリッドは 2・3・4列。検索結果・取引一覧・マイページの行は 640px 以上で 2列。
+- 出品と取引の画面は、1024px 以上で左右2カラムにする（左に写真欄・商品・QR、右に入力欄・操作）。部品 `TwoColumn` を足し、スマホでは `display: contents` で枠を持たせず、390px の並びを変えない。
 - PC 幅も扱うので、レイアウトの名前を `MobileLayout` から `UserLayout` に変える。
 
 ## 理由と検討した選択肢
@@ -27,9 +28,11 @@
 | ブレークポイント 640px・1024px（採用） | 小さめのタブレットから列を増やせる | — |
 | DOM の位置を JS で切り替える（採用） | Tab の順と見た目が一致する | 幅の判定に JS が要る（matchMedia がない環境ではスマホの並び） |
 | CSS の `order` だけで動かす | JS が要らない | PC で Tab の順が見た目と食い違う |
+| 出品・取引を 1080px で2カラム（採用） | 横の空きを使え、商品と操作を同時に見られる | 画面ごとに左右の分け方を決め、JSX を包み直す必要がある |
+| 出品・取引を 560px の列のまま | 変更がない | 1280px で左右が大きく空く |
 
 ## 影響
 
-- 更新したドキュメント：[design/README.md](../design/README.md)（DS-1、DS-3 の `BottomNav`）、[tech/frontend.md](../tech/frontend.md)（FE-1）、[app/CLAUDE.md](../../app/CLAUDE.md)。
-- 実装：`app/src/layouts/UserLayout`（`MobileLayout` から改名、`nav`・`wide`）、`BottomNav` の `placement`、`lib/useMediaQuery.ts`、商品一覧・検索結果の CSS、`Modal` の BottomSheet の幅、Storybook のビューポート（#128）。
+- 更新したドキュメント：[design/README.md](../design/README.md)（DS-1、DS-3 の `BottomNav`・`TwoColumn`）、[tech/frontend.md](../tech/frontend.md)（FE-1）、[app/CLAUDE.md](../../app/CLAUDE.md)。
+- 実装：`app/src/layouts/UserLayout`（`MobileLayout` から改名、`nav`・`wide`）、`BottomNav` の `placement`、`lib/useMediaQuery.ts`、`components/TwoColumn`、一覧・出品・取引の画面の CSS と JSX、`Modal` の BottomSheet の幅、Storybook のビューポート（#128）。
 - ADR 0038 などにある `MobileLayout` の記述は、当時の記録としてそのまま残す。

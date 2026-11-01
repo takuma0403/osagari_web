@@ -12,9 +12,20 @@
 - **スマホ優先**：利用者向け画面は幅 390px（高さ 844px）のスマホを基準に作られている。管理画面だけはPC幅（1280px、流体レイアウト）。
 - **利用者向け画面の PC 幅**：キャンバスには PC 幅の利用者画面がないため、既存の部品を組み替えて補う（[ADR 0048](../decisions/0048-user-layout-pc-width.md)）。390px の見た目は変えない。
   - ブレークポイントは **640px**（タブレット）と **1024px**（PC）。CSS 変数は `@media` の条件に使えないので、CSS には数値を直接書く。
-  - 列の最大幅は、商品一覧・検索結果が **1080px**、それ以外（取引一覧・マイページ・詳細・フォーム・ログイン前の画面）が **560px**。最大幅を超えたら列の左右に `--color-border` の線を引く。BottomSheet の幅も 560px の列に合わせる。
+  - 列の最大幅は **1080px** と **560px** の2つ。最大幅を超えたら、列の左右に `--color-border` の線を引く。BottomSheet の幅は 560px に合わせる。
+    - 1080px：商品一覧・検索結果・取引一覧・マイページ・出品・取引の画面（購入希望、購入希望の一覧、取引詳細、QR読み取り、受け渡しの完了）。
+    - 560px：商品詳細・学生証・売上管理・ログイン前の画面・規約。
   - 1024px 以上では、`BottomNav` を画面上部の横ナビにする（DS-3）。出す画面はスマホと同じ。商品一覧のヘッダーのロゴ行は、上部ナビと重なるので隠す。
-  - 商品一覧のグリッド（ItemCard）は 2列 → 640px 以上で 3列 → 1024px 以上で 4列。検索結果（ItemRow）は 1024px 以上で 2列。
+  - 一覧の列数：
+    - 商品一覧のグリッド（ItemCard）は、2列 → 640px 以上で 3列 → 1024px 以上で 4列。
+    - 検索結果（ItemRow）・取引一覧の行・マイページの行と設定のリンクは、640px 以上で 2列。取引一覧の購入・出品のタブは最大 400px。
+  - 1024px 以上の2カラム（`TwoColumn`）：
+    - 出品：左に写真欄（360px）、右に入力欄。下部のボタンは右カラムにそろえる。
+    - 取引の画面：左に商品のカード、右に操作。
+      - 取引詳細（出品者・取引中）は、左に受け渡しQR、右に完了リンク・完了コードの発行。
+      - 受け渡し完了後は、左に完了の表示、右に商品と売上管理への導線。
+      - 購入希望（決済モック）は、下部の合計と送信ボタンを右カラムにそろえる。
+    - QR読み取りは、暗い地を列いっぱいにし、中身を 480px（640px 以上）に収める。
 - **タップ領域は 44px 以上**：アイコンボタン 44×44、主要ボタンの高さ 52px、副ボタン 48px、チップ 36px（行全体で44pxを確保）。
 - **アクセシビリティ**：アイコンだけのボタンには `aria-label`、入力欄には `<label>`、エラーは `role="alert"`、トーストは `role="status"`、モーダルとボトムシートは `role="dialog"` と `aria-labelledby`。
 - **絵文字は使わず**、アイコンは線画のインラインSVG（stroke 1.8〜2.4、24×24 viewBox）。
@@ -146,7 +157,7 @@ Google Fonts から `Zen+Kaku+Gothic+New:wght@400;500;700` と `Outfit:wght@500;
 | `Toast` | 紺地・白文字・pill、`role="status"` | DetailShare |
 | `StepIndicator` | `STEP n / 3`（Outfit 13px / primary） | SignUp, Code, Password |
 
-DS-3 の部品を作るために足した補助の部品（画面からも使える）：`Icon`（デザインの線画アイコンを名前で呼ぶ）、`ItemPhoto`（ItemCard・ItemRow の写真枠。写真がないときは `--color-cat-*` の地）、`Modal`（BottomSheet・ConfirmDialog の土台。幕・Esc・フォーカスの閉じ込めと復帰）、`SelectField`・`TextAreaField`（Sell のカテゴリ・状態の選択と説明。TextField と同じ枠・ラベル・エラーの形）、`Avatar`（学部の頭文字の丸いアイコン。Detail の出品者、DealRequests の購入者は 40px、MyPage の本人は 48px の白地（`size="lg"`・`inverse`））。
+DS-3 の部品を作るために足した補助の部品（画面からも使える）：`Icon`（デザインの線画アイコンを名前で呼ぶ）、`ItemPhoto`（ItemCard・ItemRow の写真枠。写真がないときは `--color-cat-*` の地）、`Modal`（BottomSheet・ConfirmDialog の土台。幕・Esc・フォーカスの閉じ込めと復帰）、`SelectField`・`TextAreaField`（Sell のカテゴリ・状態の選択と説明。TextField と同じ枠・ラベル・エラーの形）、`Avatar`（学部の頭文字の丸いアイコン。Detail の出品者、DealRequests の購入者は 40px、MyPage の本人は 48px の白地（`size="lg"`・`inverse`））、`TwoColumn`（PC 幅で中身を左右2カラムに分ける枠。スマホでは枠を持たず縦に並ぶ。DS-1、[ADR 0048](../decisions/0048-user-layout-pc-width.md)）。
 
 ## DS-4 画面 ↔ アートボード ↔ 要件 の対応
 
