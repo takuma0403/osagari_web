@@ -194,3 +194,72 @@
     border-left: 1px solid var(--color-border);
   }
 }
+
+/*
+ * PC 幅では、左に見出し・プロフィール・設定、右にタブと履歴を置く（DS-1）。
+ * DOM の順（スマホの縦並び）は変えず、グリッドの領域で配置する。
+ * 履歴が長くなったときは最後の行（1fr）が伸び、プロフィールと設定の間は空かない
+ */
+@media (min-width: 1024px) {
+  .page {
+    display: grid;
+    grid-template-areas:
+      'title tabs'
+      'profile panel'
+      'settings panel';
+    grid-template-rows: auto auto 1fr;
+    grid-template-columns: 320px minmax(0, 1fr);
+    align-items: start;
+    gap: 14px 32px;
+  }
+
+  .title {
+    grid-area: title;
+    align-self: center;
+  }
+
+  .profile {
+    grid-area: profile;
+  }
+
+  .tabs {
+    grid-area: tabs;
+  }
+
+  .panel {
+    grid-area: panel;
+  }
+
+  /* 状態のチップと並び順は1行にまとめる。チップは横にはみ出させない */
+  .toolbar {
+    flex-direction: row;
+    align-items: center;
+    justify-content: space-between;
+  }
+
+  .statuses {
+    flex-wrap: wrap;
+    margin: 0;
+    padding: 4px 0;
+    overflow-x: visible;
+  }
+
+  .order {
+    flex-shrink: 0;
+    align-self: center;
+  }
+
+  /* 左カラムは狭いので、設定のリンクは1列に戻す */
+  .settings {
+    display: flex;
+    grid-area: settings;
+  }
+
+  .setting:nth-child(n) {
+    border-left: none;
+  }
+
+  .setting + .setting {
+    border-top: 1px solid var(--color-border);
+  }
+}
