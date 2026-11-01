@@ -1,16 +1,33 @@
+.root {
+  display: flex;
+  flex-direction: column;
+  min-height: 100dvh;
+}
+
+/* 列の最大幅（DS-1）。フォーム・詳細・取引は 560px、一覧（wide）は 1080px */
 .frame {
   display: flex;
   flex-direction: column;
+  flex-grow: 1;
   width: 100%;
-  max-width: 480px;
-  min-height: 100dvh;
+  max-width: 560px;
   margin: 0 auto;
   background: var(--color-bg);
 }
 
-/* PC で中央の列だと分かるように、最大幅を超えたら左右に線を引く */
-@media (min-width: 481px) {
-  .frame {
+.wide {
+  max-width: 1080px;
+}
+
+/* 列だと分かるように、最大幅を超えたら左右に線を引く */
+@media (min-width: 561px) {
+  .frame:not(.wide) {
+    border-inline: 1px solid var(--color-border);
+  }
+}
+
+@media (min-width: 1081px) {
+  .wide {
     border-inline: 1px solid var(--color-border);
   }
 }
@@ -19,6 +36,12 @@
   display: flex;
   flex-direction: column;
   flex-grow: 1;
+}
+
+.topNav {
+  position: sticky;
+  top: 0;
+  z-index: 10;
 }
 
 .bottomNav {

@@ -22,11 +22,11 @@
   outline: none;
 }
 
-/* 利用者向け画面の列（MobileLayout の最大幅 480px）に合わせて中央に置く */
+/* 利用者向け画面の列（UserLayout のフォーム向けの最大幅 560px）に合わせて中央に置く */
 .bottom {
   bottom: 0;
   left: 50%;
-  width: min(100%, 480px);
+  width: min(100%, 560px);
   transform: translateX(-50%);
   border-radius: var(--radius-sheet) var(--radius-sheet) 0 0;
 }
