@@ -112,7 +112,7 @@ func Test新規登録からログイン状態まで(t *testing.T) {
 		t.Fatalf("estimate: %d %s", rec.Code, rec.Body.String())
 	}
 	est := decode[api.StudentEstimate](t, rec)
-	if est.DepartmentName == nil || *est.DepartmentName != "理工学部 理工学科" || est.ExpiresOn.String() != "2030-03-31" {
+	if est.DepartmentName == nil || *est.DepartmentName != "理工学部 理工学科" || est.ExpiresOn.String() != "2034-03-31" {
 		t.Errorf("estimate=%+v", est)
 	}
 

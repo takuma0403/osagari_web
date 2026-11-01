@@ -23,6 +23,7 @@ const (
 	CodeVerificationCodeExpired apperr.Code = "verification_code_expired"
 	CodeInvalidSetupToken       apperr.Code = "invalid_setup_token"
 	CodeInvalidPasswordLength   apperr.Code = "invalid_password_length"
+	CodeSignupPeriodEnded       apperr.Code = "signup_period_ended"
 )
 
 var (
@@ -32,6 +33,8 @@ var (
 		"手続きの有効期限が切れました。もう一度最初からやり直してください")
 	errPasswordLength = apperr.New(http.StatusBadRequest, CodeInvalidPasswordLength,
 		fmt.Sprintf("パスワードは%d文字以上%d文字以下にしてください", auth.MinPasswordLength, auth.MaxPasswordLength))
+	errSignupPeriodEnded = apperr.New(http.StatusBadRequest, CodeSignupPeriodEnded,
+		"この学籍番号は、登録できる期間を過ぎています")
 )
 
 // SignupDeps は SignupService の依存。
@@ -59,12 +62,25 @@ func NewSignupService(d SignupDeps) *SignupService {
 }
 
 // Estimate は大学のメールアドレスから学部・入学年度・有効期限を推定する（AUTH-2〜4）。登録済みかどうかには触れない。
+// 有効期限を過ぎた学籍番号は signup_period_ended にする（AUTH-3, ADR 0047）。
 func (s *SignupService) Estimate(rawEmail string) (domain.StudentEstimate, error) {
-	_, number, err := domain.NormalizeStudentEmail(rawEmail)
+	_, est, err := estimateSignup(rawEmail, s.d.Clock.Now())
+	return est, err
+}
+
+// estimateSignup は大学のメールアドレスを正規化し、学籍番号から推定した情報を返す（AUTH-2〜4）。
+// 形式が違えば invalid_email、有効期限を過ぎていれば signup_period_ended を返す（AUTH-1, AUTH-3, ADR 0047）。
+// 学籍番号だけで決まるので、登録の有無を調べる前に呼ぶ（AUTHN-2）。
+func estimateSignup(rawEmail string, now time.Time) (string, domain.StudentEstimate, error) {
+	email, number, err := domain.NormalizeStudentEmail(rawEmail)
 	if err != nil {
-		return domain.StudentEstimate{}, errInvalidEmail
+		return "", domain.StudentEstimate{}, errInvalidEmail
 	}
-	return domain.EstimateStudent(number), nil
+	est := domain.EstimateStudent(number)
+	if est.IsExpired(now) {
+		return "", domain.StudentEstimate{}, errSignupPeriodEnded
+	}
+	return email, est, nil
 }
 
 // SendCode は新規登録の認証コードを送る（AUTHN-2）。
@@ -73,16 +89,17 @@ func (s *SignupService) Estimate(rawEmail string) (domain.StudentEstimate, error
 // （コードの生成・argon2id・保存・メール1通の送信）を行い、メールの本文だけを変える。
 // 登録済みのアドレスに保存したコードは誰にも届かないので、確認には使えない。
 func (s *SignupService) SendCode(ctx context.Context, rawEmail string) error {
-	email, _, err := domain.NormalizeStudentEmail(rawEmail)
+	now := s.d.Clock.Now()
+	email, _, err := estimateSignup(rawEmail, now)
 	if err != nil {
-		return errInvalidEmail
+		return err
 	}
 	registered, err := s.d.Users.ExistsByEmail(ctx, email)
 	if err != nil {
 		return apperr.Internal(err)
 	}
 	// 登録済みでも同じようにコードを作って保存する（所要時間とその後の確認の応答を揃える。ADR 0007）
-	code, err := issueCode(ctx, s.d.Codes, s.d.Logger, email, domain.VerificationPurposeSignup, s.d.Clock.Now())
+	code, err := issueCode(ctx, s.d.Codes, s.d.Logger, email, domain.VerificationPurposeSignup, now)
 	if err != nil {
 		return err
 	}
@@ -106,11 +123,11 @@ type VerifiedSignup struct {
 // VerifyCode は新規登録のコードを確認し、パスワード設定用の一時トークンを発行する（AUTHN-2, AUTHN-6）。
 // 入力の回数の数え方は verifyCode を参照。
 func (s *SignupService) VerifyCode(ctx context.Context, rawEmail, code string) (VerifiedSignup, error) {
-	email, number, err := domain.NormalizeStudentEmail(rawEmail)
-	if err != nil {
-		return VerifiedSignup{}, errInvalidEmail
-	}
 	now := s.d.Clock.Now()
+	email, est, err := estimateSignup(rawEmail, now)
+	if err != nil {
+		return VerifiedSignup{}, err
+	}
 	if err := verifyCode(ctx, s.d.Codes, email, domain.VerificationPurposeSignup, code, now); err != nil {
 		return VerifiedSignup{}, err
 	}
@@ -119,7 +136,7 @@ func (s *SignupService) VerifyCode(ctx context.Context, rawEmail, code string) (
 	if err != nil {
 		return VerifiedSignup{}, apperr.Internal(err)
 	}
-	return VerifiedSignup{SetupToken: token, Estimate: domain.EstimateStudent(number)}, nil
+	return VerifiedSignup{SetupToken: token, Estimate: est}, nil
 }
 
 // issueSetupToken はパスワード設定用の一時トークン（auth.SetupTokenTTL 有効・一度だけ使える）を発行し、
@@ -172,11 +189,11 @@ func (s *SignupService) Complete(ctx context.Context, setupToken, password, devi
 		if err != nil {
 			return err
 		}
-		_, number, err := domain.NormalizeStudentEmail(t.Email)
+		// コードの確認からここまでの間に有効期限を過ぎた場合も断る。エラーでトランザクションを戻すので、トークンは消費しない
+		_, est, err := estimateSignup(t.Email, now)
 		if err != nil {
 			return err
 		}
-		est := domain.EstimateStudent(number)
 		u := &domain.User{
 			Email:          t.Email,
 			StudentNumber:  est.StudentNumber,
