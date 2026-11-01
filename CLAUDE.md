@@ -69,7 +69,7 @@ scripts/             … check-docs.mjs（docs検査）、hooks/
 | docs の検査（リンク切れ・章ID重複） | `node scripts/check-docs.mjs` |
 | ローカル環境（DB・ストレージ・メール・API）の起動 | `cd server && docker compose up -d` |
 | app の開発サーバー | `cd app && nvm use && npm run dev` |
-| 本番へのデプロイ（API・マイグレーション） | `infra/deploy-server.sh`（初回の構築は [infra/README.md](infra/README.md)） |
+| 本番へのデプロイ | dev → main のマージで GitHub Actions が実行（手元からは `infra/deploy-server.sh`・`infra/deploy-app.sh`。初回の構築は [infra/README.md](infra/README.md)） |
 | app / server の個別コマンド | `app/CLAUDE.md`・`server/CLAUDE.md` の「コマンド」 |
 
 ## issue・ブランチ・PR の運用

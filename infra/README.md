@@ -1,13 +1,15 @@
 # infra（本番環境）
 
-API（`server/`）を Cloud Run に出し、Turso と Secret Manager をつなぐためのスクリプトと手順です（#38）。方針は [ARCH・COST](../docs/tech/00-overview.md) と [ADR 0042](../docs/decisions/0042-cloud-run-secret-manager-deploy.md)、リージョンは [ADR 0041](../docs/decisions/0041-production-regions-and-domain.md)、メールは [ADR 0044](../docs/decisions/0044-production-gmail-smtp.md)。
+API（`server/`）を Cloud Run に、画面（`app/`）を Firebase Hosting に出し、Turso と Secret Manager をつなぐためのスクリプトと手順です（#38, #39）。方針は [ARCH・COST](../docs/tech/00-overview.md) と [ADR 0042](../docs/decisions/0042-cloud-run-secret-manager-deploy.md)、リージョンは [ADR 0041](../docs/decisions/0041-production-regions-and-domain.md)、メールは [ADR 0044](../docs/decisions/0044-production-gmail-smtp.md)、Hosting と CI からのデプロイは [ADR 0045](../docs/decisions/0045-hosting-and-ci-deploy.md)。
 
 | ファイル | 役割 |
 | --- | --- |
 | [config.sh](config.sh) | プロジェクトID・リージョン・サービス名・シークレット名などの共通の値（秘密情報は書かない） |
-| [setup.sh](setup.sh) | API の有効化、Artifact Registry、実行用サービスアカウント、シークレットの器と読み取り権限、Cloud Storage のバケット・CORS・権限、メールの送信数の通知 |
+| [setup.sh](setup.sh) | API の有効化、Artifact Registry、実行用サービスアカウント、シークレットの器と読み取り権限、Cloud Storage のバケット・CORS・権限、メールの送信数の通知、GitHub Actions 用の Workload Identity とデプロイ用サービスアカウント |
 | [set-secret.sh](set-secret.sh) | 標準入力の値をシークレットの新しいバージョンにし、古いバージョンを破棄する |
 | [deploy-server.sh](deploy-server.sh) | イメージのビルドと push → マイグレーション（Cloud Run ジョブ）→ Cloud Run サービスの更新 → `/api/health` の確認 |
+| [deploy-app.sh](deploy-app.sh) | 画面のビルド → Firebase Hosting へのデプロイ（設定はルートの [firebase.json](../firebase.json)）→ Hosting 経由の `/api/health` の確認 |
+| [../.github/workflows/deploy.yml](../.github/workflows/deploy.yml) | main への push で、変更のあった側を上の2つのスクリプトで出す（API → 画面の順） |
 
 スクリプトは `gcloud` に必ず `--project` を渡すので、手元の gcloud の既定プロジェクトは変えなくてよいです。どれも何度実行しても同じ結果になります。
 
@@ -18,7 +20,10 @@ API（`server/`）を Cloud Run に出し、Turso と Secret Manager をつな�
 | GCP プロジェクト | `osagari-web-dev` | Firebase も同じプロジェクト |
 | Cloud Run サービス | `osagari-api`（asia-northeast1） | 0〜2台、1 vCPU・512MiB、CPU はリクエスト処理中だけ |
 | Cloud Run ジョブ | `osagari-migrate` | 同じイメージの `/migrate up` |
+| Firebase Hosting | サイト `osagari-web-dev`（`https://osagari-web-dev.web.app`） | `/api/**` を `osagari-api` に転送し、ほかは `index.html` を返す |
 | サービスアカウント | `osagari-api@…` | サービスとジョブの両方で使う |
+| サービスアカウント | `osagari-deployer@…` | GitHub Actions がデプロイに使う。鍵は作らない |
+| Workload Identity | プール `github`・プロバイダ `github` | `takuma0403/osagari_web` の main の workflow だけを受け入れる |
 | Artifact Registry | `osagari`（asia-northeast1） | 最新3件より古いイメージは自動で消える |
 | Secret Manager | `database-url`・`admin-student-numbers`・`smtp-password` | 有効なバージョンは各1つ |
 | Turso | `osagari`（default グループ、aws-ap-northeast-1） | |
@@ -89,9 +94,31 @@ API（`server/`）を Cloud Run に出し、Turso と Secret Manager をつな�
 
    結果は [tech/open-questions.md](../docs/tech/open-questions.md) の「大学のメールでGmailからの送信が迷惑メール扱いされないかの確認」に記録する。
 
+8. Firebase をプロジェクトに追加し（既定のサイト `osagari-web-dev` ができる）、`setup.sh` を実行し直して GitHub Actions 用の設定を作る。
+
+   ```sh
+   firebase login
+   firebase projects:addfirebase osagari-web-dev
+   infra/setup.sh
+   ```
+
+   `deploy.yml` の `WORKLOAD_IDENTITY_PROVIDER` はプロジェクト番号を含む。プロジェクトを作り直したら書き換える。
+
+9. 画面を手元から出して、Hosting 経由で動くか確かめる。
+
+   ```sh
+   infra/deploy-app.sh
+   ```
+
+   - `https://osagari-web-dev.web.app/items/xxxx` を開いて画面が出る（SPA のフォールバック）
+   - 新規登録 → ログインまで通り、マイページが開く（`__session` が Hosting 経由で往復する。[API](../docs/tech/api.md)）
+
+   以降は dev → main のマージで GitHub Actions が出す。
+
 ## 日々の運用
 
-- **デプロイ**：`infra/deploy-server.sh`。マイグレーションを先に適用してから API を更新します。イメージのタグは git のコミットで、`server/` に未コミットの変更があるときは止まります（どのコミットのイメージかを特定でき、ロールバック先を選べるようにするため）。
+- **デプロイ**：dev → main のマージで GitHub Actions（`deploy.yml`）が出します。dev への push では出ません。Actions の「Deploy」を main で手動実行すると、変更の有無にかかわらず両方を出します。手元から出すときは下の2つです。
+- **API のデプロイ**：`infra/deploy-server.sh`。マイグレーションを先に適用してから API を更新します。イメージのタグは git のコミットで、`server/` に未コミットの変更があるときは止まります（どのコミットのイメージかを特定でき、ロールバック先を選べるようにするため）。
 - **マイグレーションだけ**：`gcloud run jobs execute osagari-migrate --region asia-northeast1 --project osagari-web-dev --wait`。結果は Cloud Run ジョブのログで確認します。マイグレーションは前のバージョンの API でも動くように書きます（API より先に適用されるため）。
 - **ロールバック**：前のリビジョンにトラフィックを戻します。スキーマは戻らないので、必要なら別にマイグレーションを書きます。
 
@@ -101,6 +128,7 @@ API（`server/`）を Cloud Run に出し、Turso と Secret Manager をつな�
   ```
 
 - **Turso のトークンの入れ替え**：`turso db tokens invalidate osagari` で既存のトークンをすべて無効にし、手順3の2行目で新しいトークンを入れてから `infra/deploy-server.sh` を実行します。無効にしてから新しいリビジョンが出るまでは API が DB に接続できないので、利用の少ない時間に行います。
+- **画面のデプロイ**：`infra/deploy-app.sh`。`app/` か `firebase.json` に未コミットの変更があるときは止まります。戻すときは Firebase Console の Hosting のリリース履歴から前のリリースを「ロールバック」します（リリースのメッセージがコミットです）。
 - **ログ**：`gcloud run services logs read osagari-api --region asia-northeast1 --project osagari-web-dev`
 - **Gmail のアプリパスワードの入れ替え**：Google アカウントで新しいアプリパスワードを作り、手順5で入れて `infra/deploy-server.sh` を実行してから、古いアプリパスワードを削除します。
 - **通知先・アラートの変更**：`setup.sh` は通知チャンネルとアラートポリシーを表示名で探し、あれば作り直しません。通知先を変える、またはポリシーの中身を変えるときは、Cloud Console で直すか、消してから `setup.sh` を実行し直します。
@@ -109,4 +137,3 @@ API（`server/`）を Cloud Run に出し、Turso と Secret Manager をつな�
 ## 後続の issue で足すもの
 
 - Cloud Scheduler とそのサービスアカウント `osagari-scheduler@…`、予算アラート、DBバックアップ（#40）
-- Firebase Hosting と CI からのデプロイ（#39）。Hosting のサイト名が `osagari-web-dev` でなくなったら、`config.sh` の `HOSTING_ORIGINS` を直して `setup.sh` を実行し直す

@@ -9,9 +9,11 @@ source ./config.sh
 gc() { gcloud --project "$PROJECT_ID" --quiet "$@"; }
 
 echo "==> API を有効にする"
-# iamcredentials は署名付きURLの署名（IAM signBlob）に使う（STORAGE）。logging・monitoring は送信数の通知に使う（AUTHN-6）
+# iamcredentials は署名付きURLの署名（IAM signBlob）と GitHub Actions からの SA の借用に使う（STORAGE, #39）。
+# logging・monitoring は送信数の通知に使う（AUTHN-6）。sts は Workload Identity 連携、firebasehosting は画面の配信に使う（#39）
 gc services enable run.googleapis.com artifactregistry.googleapis.com secretmanager.googleapis.com iam.googleapis.com \
-  storage.googleapis.com iamcredentials.googleapis.com logging.googleapis.com monitoring.googleapis.com
+  storage.googleapis.com iamcredentials.googleapis.com logging.googleapis.com monitoring.googleapis.com \
+  sts.googleapis.com firebasehosting.googleapis.com
 
 echo "==> Artifact Registry のリポジトリ"
 if ! gc artifacts repositories describe "$AR_REPO" --location "$REGION" >/dev/null 2>&1; then
@@ -115,5 +117,40 @@ if [ -z "$(gc monitoring policies list --filter "displayName=\"${ALERT_POLICY_NA
 JSON
   gc monitoring policies create --policy-from-file "$alert" >/dev/null
 fi
+
+echo "==> GitHub Actions からのデプロイ（#39, ADR 0045）"
+if ! gc iam service-accounts describe "$DEPLOYER_SA" >/dev/null 2>&1; then
+  gc iam service-accounts create "${DEPLOYER_SA%%@*}" --display-name "osagari デプロイ（GitHub Actions）"
+fi
+# deploy-server.sh：Cloud Run のサービスとジョブの更新（--allow-unauthenticated で IAM も設定するので admin）、
+# プロジェクト番号の取得（browser）。deploy-app.sh：Hosting のデプロイと、API が有効かの確認（serviceUsageViewer）
+for role in roles/run.admin roles/browser roles/firebasehosting.admin roles/serviceusage.serviceUsageViewer; do
+  gc projects add-iam-policy-binding "$PROJECT_ID" \
+    --member "serviceAccount:${DEPLOYER_SA}" --role "$role" --condition None >/dev/null
+done
+# イメージの push はリポジトリ単位、実行用 SA でのデプロイはその SA 単位で許可する（プロジェクト全体には付けない）
+gc artifacts repositories add-iam-policy-binding "$AR_REPO" --location "$REGION" \
+  --member "serviceAccount:${DEPLOYER_SA}" --role roles/artifactregistry.writer >/dev/null
+gc iam service-accounts add-iam-policy-binding "$RUNTIME_SA" \
+  --member "serviceAccount:${DEPLOYER_SA}" --role roles/iam.serviceAccountUser >/dev/null
+
+if ! gc iam workload-identity-pools describe "$WIF_POOL" --location global >/dev/null 2>&1; then
+  gc iam workload-identity-pools create "$WIF_POOL" --location global --display-name "GitHub Actions"
+fi
+# このリポジトリの main ブランチの workflow だけを受け入れる。dev やほかのブランチ・フォークからは本番に出せない
+oidc_args=(
+  --workload-identity-pool "$WIF_POOL" --location global
+  --issuer-uri https://token.actions.githubusercontent.com
+  --attribute-mapping "google.subject=assertion.sub,attribute.repository=assertion.repository,attribute.ref=assertion.ref"
+  --attribute-condition "assertion.repository == '${GITHUB_REPO}' && assertion.ref == 'refs/heads/main'"
+)
+if gc iam workload-identity-pools providers describe "$WIF_PROVIDER" --workload-identity-pool "$WIF_POOL" --location global >/dev/null 2>&1; then
+  gc iam workload-identity-pools providers update-oidc "$WIF_PROVIDER" "${oidc_args[@]}" >/dev/null
+else
+  gc iam workload-identity-pools providers create-oidc "$WIF_PROVIDER" "${oidc_args[@]}" --display-name "GitHub Actions"
+fi
+pool=$(gc iam workload-identity-pools describe "$WIF_POOL" --location global --format 'value(name)')
+gc iam service-accounts add-iam-policy-binding "$DEPLOYER_SA" --role roles/iam.workloadIdentityUser \
+  --member "principalSet://iam.googleapis.com/${pool}/attribute.repository/${GITHUB_REPO}" >/dev/null
 
 echo "完了。次はシークレットの値を入れる（infra/README.md）"

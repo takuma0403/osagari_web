@@ -13,6 +13,12 @@ RUNTIME_SA="osagari-api@${PROJECT_ID}.iam.gserviceaccount.com"
 # Cloud Scheduler のサービスアカウント（作成と権限付与は #40。内部用エンドポイントの照合に使う。JOBS-1）
 SCHEDULER_SA="osagari-scheduler@${PROJECT_ID}.iam.gserviceaccount.com"
 
+# GitHub Actions からのデプロイ（#39, ADR 0045）。鍵ファイルを使わず、Workload Identity 連携で main の workflow だけがこの SA になれる
+DEPLOYER_SA="osagari-deployer@${PROJECT_ID}.iam.gserviceaccount.com"
+GITHUB_REPO=takuma0403/osagari_web
+WIF_POOL=github
+WIF_PROVIDER=github
+
 # コンテナイメージの置き場所
 AR_REPO=osagari
 IMAGE="${REGION}-docker.pkg.dev/${PROJECT_ID}/${AR_REPO}/api"
@@ -22,8 +28,12 @@ STORAGE_LOCATION=us-central1
 BUCKET_ITEM_IMAGES="${PROJECT_ID}-item-images"
 BUCKET_STUDENT_CARDS="${PROJECT_ID}-student-cards"
 BUCKETS=("$BUCKET_ITEM_IMAGES" "$BUCKET_STUDENT_CARDS")
+# Firebase Hosting のサイト（既定のサイト名はプロジェクトIDと同じ。#39）。独自ドメインは使わない（ADR 0041）
+HOSTING_SITE=$PROJECT_ID
 # ブラウザからの直接アップロードを CORS で許可するオリジン（Firebase Hosting の標準ドメイン。ADR 0041）
-HOSTING_ORIGINS=("https://${PROJECT_ID}.web.app" "https://${PROJECT_ID}.firebaseapp.com")
+HOSTING_ORIGINS=("https://${HOSTING_SITE}.web.app" "https://${HOSTING_SITE}.firebaseapp.com")
+# deploy-app.sh が使う firebase-tools の版（CI と手元で揃える）
+FIREBASE_TOOLS_VERSION=15.34.0
 
 # Secret Manager のシークレット名
 SECRET_DATABASE_URL=database-url

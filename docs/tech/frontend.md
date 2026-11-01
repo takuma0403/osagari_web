@@ -4,11 +4,11 @@
 
 ## FE フロントエンド
 
-Vite + React のSPAを Firebase Hosting に置きます。ログイン必須のアプリなので、検索エンジン向けのSSRは必要ありません。Firebase Hosting は無料のSparkプランで使えます。
+Vite + React のSPAを Firebase Hosting に置きます。ログイン必須のアプリなので、検索エンジン向けのSSRは必要ありません。Firebase Hosting は無料の Spark プランでも使えますが、このプロジェクトは Cloud Run のために請求先アカウントに紐づけているので、自動で Blaze プランになります。Hosting はその無料枠内で使います（[ADR 0045](../decisions/0045-hosting-and-ci-deploy.md)）。
 
 | 選択肢 | 費用 | 判断 |
 | --- | --- | --- |
-| Vite + React（SPA）を Firebase Hosting に置く | 無料（Sparkプランで可） | **採用** |
+| Vite + React（SPA）を Firebase Hosting に置く | 無料（無料枠内） | **採用** |
 | Next.js を Firebase App Hosting に置く | Blazeプラン（従量課金）が必須。無料枠あり | SSRが必要になったら検討 |
 | Next.js を Vercel の Hobby プランに置く | 無料だが非商用に限る | **不採用**。手数料を取るので商用扱いになり、有料のProプランが必要 |
 
