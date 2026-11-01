@@ -1,4 +1,5 @@
 import { NavLink } from 'react-router'
+import { AppLogo } from '../AppLogo/AppLogo'
 import { Icon } from '../Icon/Icon'
 import type { IconName } from '../Icon/iconPaths'
 import styles from './BottomNav.module.css'
@@ -11,13 +12,28 @@ const tabs: { to: string; label: string; icon: IconName }[] = [
   { to: '/mypage', label: 'マイページ', icon: 'user' },
 ]
 
+type Props = {
+  /**
+   * 置く場所。bottom はスマホの下部5タブ（デザインのとおり）、top は PC 幅（1024px 以上）の上部の横ナビ。
+   * top はキャンバスにないため、ロゴとアプリ名を左に置き、同じ5項目を横に並べる（DS-1）
+   */
+  placement?: 'bottom' | 'top'
+}
+
 /**
- * 利用者向け画面の下部ナビ（DS-3）。5タブで、いまの画面のタブを primary + 太字にし aria-current="page" を付ける。
- * routes.tsx でナビのある画面の MobileLayout に渡す。
+ * 利用者向け画面のナビ（DS-3）。5タブで、いまの画面のタブを primary + 太字にし aria-current="page" を付ける。
+ * UserLayout がナビのある画面で描き、画面幅に応じて placement を切り替える。
  */
-export function BottomNav() {
+export function BottomNav({ placement = 'bottom' }: Props) {
+  const top = placement === 'top'
   return (
-    <nav aria-label="メインメニュー" className={styles.nav}>
+    <nav aria-label="メインメニュー" className={top ? styles.top : styles.nav}>
+      {top && (
+        <div className={styles.brand}>
+          <AppLogo size={32} />
+          <span>佐賀大お下がりフリマ</span>
+        </div>
+      )}
       {tabs.map(({ to, label, icon }) => (
         <NavLink
           key={to}
