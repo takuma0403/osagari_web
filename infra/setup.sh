@@ -1,6 +1,7 @@
 #!/usr/bin/env bash
 # 本番環境の土台を作る（#38, ADR 0042）。何度実行しても同じ結果になる。
 # 前提：GCP プロジェクトが作成済みで、請求先アカウントに紐づいていること（手順は infra/README.md）。
+# 初回は通知先のメールアドレスを ALERT_EMAIL で渡す（通知チャンネルを作ったあとは不要）。
 set -euo pipefail
 cd "$(dirname "$0")"
 source ./config.sh
@@ -8,9 +9,9 @@ source ./config.sh
 gc() { gcloud --project "$PROJECT_ID" --quiet "$@"; }
 
 echo "==> API を有効にする"
-# iamcredentials は署名付きURLの署名（IAM signBlob）に使う（STORAGE）
+# iamcredentials は署名付きURLの署名（IAM signBlob）に使う（STORAGE）。logging・monitoring は送信数の通知に使う（AUTHN-6）
 gc services enable run.googleapis.com artifactregistry.googleapis.com secretmanager.googleapis.com iam.googleapis.com \
-  storage.googleapis.com iamcredentials.googleapis.com
+  storage.googleapis.com iamcredentials.googleapis.com logging.googleapis.com monitoring.googleapis.com
 
 echo "==> Artifact Registry のリポジトリ"
 if ! gc artifacts repositories describe "$AR_REPO" --location "$REGION" >/dev/null 2>&1; then
@@ -20,7 +21,8 @@ fi
 # 無料枠（0.5GB）に収めるため、最新3件より古いイメージを消す（COST）
 policy=$(mktemp)
 cors=$(mktemp)
-trap 'rm -f "$policy" "$cors"' EXIT
+alert=$(mktemp)
+trap 'rm -f "$policy" "$cors" "$alert"' EXIT
 cat >"$policy" <<'JSON'
 [
   {"name": "keep-latest-3", "action": {"type": "Keep"}, "mostRecentVersions": {"keepCount": 3}},
@@ -75,5 +77,43 @@ echo "==> 署名付きURLの署名の権限"
 # 鍵ファイルを持たず、自分自身の IAM signBlob で署名するため（STORAGE, #15）
 gc iam service-accounts add-iam-policy-binding "$RUNTIME_SA" \
   --member "serviceAccount:${RUNTIME_SA}" --role roles/iam.serviceAccountTokenCreator >/dev/null
+
+echo "==> コードのメールの送信数の通知（#41, AUTHN-6）"
+# 通知チャンネルは表示名で探し、なければ ALERT_EMAIL のアドレスで作る。通知先のアドレスはリポジトリに書かない
+channel=$(gc beta monitoring channels list --filter "displayName=\"${ALERT_CHANNEL_NAME}\"" --format 'value(name)' | head -n1)
+if [ -z "$channel" ]; then
+  : "${ALERT_EMAIL:?通知チャンネルがまだないので、通知先のメールアドレスを ALERT_EMAIL で渡してください（infra/README.md）}"
+  channel=$(gc beta monitoring channels create --display-name "$ALERT_CHANNEL_NAME" --type email \
+    --channel-labels "email_address=${ALERT_EMAIL}" --format 'value(name)')
+fi
+# 直近24時間の送信が上限に近づくと API が WARN のログを出す（server/internal/service/code.go の warnIfManyMails）。
+# ログが出るたびに通知されないよう、通知は1時間に1回までにする
+if [ -z "$(gc monitoring policies list --filter "displayName=\"${ALERT_POLICY_NAME}\"" --format 'value(name)')" ]; then
+  cat >"$alert" <<JSON
+{
+  "displayName": "${ALERT_POLICY_NAME}",
+  "severity": "WARNING",
+  "combiner": "OR",
+  "conditions": [
+    {
+      "displayName": "送信数の警告のログが出た",
+      "conditionMatchedLog": {
+        "filter": "resource.type=\"cloud_run_revision\" AND resource.labels.service_name=\"${SERVICE}\" AND severity=WARNING AND jsonPayload.message=\"コードのメールの送信数が1日の上限に近づいています\""
+      }
+    }
+  ],
+  "alertStrategy": {
+    "notificationRateLimit": {"period": "3600s"},
+    "autoClose": "86400s"
+  },
+  "notificationChannels": ["${channel}"],
+  "documentation": {
+    "mimeType": "text/markdown",
+    "content": "無料の Gmail は1日およそ500通までしか送れません。直近24時間に送ったコードのメールが400通に達しました（AUTHN-6）。送信は止めていません。ログで送信先の偏りや不正な利用がないかを確認してください。"
+  }
+}
+JSON
+  gc monitoring policies create --policy-from-file "$alert" >/dev/null
+fi
 
 echo "完了。次はシークレットの値を入れる（infra/README.md）"

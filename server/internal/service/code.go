@@ -98,6 +98,7 @@ func warnIfManyMails(ctx context.Context, codes VerificationCodeStore, logger *s
 		return
 	}
 	if n >= auth.MailWarnThreshold {
+		// 本番のアラート（infra/setup.sh）はこの文言との完全一致で検知する。変えるときは両方を直す
 		logger.WarnContext(ctx, "コードのメールの送信数が1日の上限に近づいています",
 			"count", n, "threshold", auth.MailWarnThreshold, "window_hours", int(auth.MailWarnWindow.Hours()))
 	}
