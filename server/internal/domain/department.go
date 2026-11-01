@@ -6,12 +6,15 @@ type Department struct {
 	Code string
 	// Name は表示名（例「理工学部 理工学科」）
 	Name string
-	// Years は修業年限。有効期限の計算に使う（AUTH-3）
+	// Years は修業年限。2倍した在学年限を有効期限の計算に使う（AUTH-3）
 	Years int
 }
 
 // defaultYears は表にない学部・学科コードの修業年限（AUTH-4「表にないコードの扱い」）。
 const defaultYears = 4
+
+// enrollmentLimitFactor は修業年限に掛けて在学年限にする倍数（AUTH-3, ADR 0047）。
+const enrollmentLimitFactor = 2
 
 // departments は AUTH-4 の表の写し。表が更新されたらここだけを直す。
 // 大学院の研究科コードと改組前のコードは未確認のため載せない（表にないコードは不明として扱う。docs/product/open-questions.md）。

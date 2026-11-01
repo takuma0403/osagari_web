@@ -34,6 +34,7 @@ export interface paths {
          * 学籍番号から学部・入学年度・有効期限を推定する
          * @description AUTH-2, AUTH-4: 新規登録画面の入力中の表示に使う。学籍番号から計算するだけで、登録済みかどうかには触れない。
          *     メールアドレスを URL に載せない（リクエストログに残さない）ため、本文で受け取る。
+         *     有効期限を過ぎた学籍番号は 400 signup_period_ended（AUTH-3, ADR 0047）。
          */
         post: operations["estimateStudent"];
         delete?: never;
@@ -56,6 +57,7 @@ export interface paths {
          * @description AUTHN-2: 大学のメールアドレス（^\d{8}@edu\.cc\.saga-u\.ac\.jp$）に6桁のコード（10分有効）を送る。
          *     登録済みのアドレスにはコードの代わりに「登録済みです」の案内を送り、応答は未登録のときと同じにする（登録の有無を判別させない）。
          *     形式が違うアドレスには送らず 400 invalid_email を返す。
+         *     学籍番号から計算した有効期限を過ぎていれば、登録の有無にかかわらず送らずに 400 signup_period_ended を返す（AUTH-3, ADR 0047）。
          *     同じアドレスへのコード送信は、用途（新規登録・パスワード再設定・ログインの再確認）をまとめて1分に1回・1時間に5回までで、超えたら送らずに 429 too_many_requests（AUTHN-6）。登録の有無にかかわらず同じように数える。
          */
         post: operations["sendSignupCode"];
@@ -78,6 +80,7 @@ export interface paths {
          * 新規登録の認証コードを確認する
          * @description AUTHN-2, AUTHN-6: コードが一致したら、パスワード設定用の一時トークン（15分有効・一度だけ使える）と推定結果を返す。
          *     不一致は 400 invalid_verification_code（メッセージに残り回数）。期限切れ・使用済み・入力ミスが5回に達したコードは 400 verification_code_expired。
+         *     学籍番号から計算した有効期限を過ぎていれば 400 signup_period_ended（AUTH-3, ADR 0047）。
          */
         post: operations["verifySignupCode"];
         delete?: never;
@@ -100,6 +103,7 @@ export interface paths {
          * @description AUTHN-2, AUTH-2〜4, AUTHN-5: 一時トークンを使ってパスワード（10文字以上128文字以下）を設定し、学籍番号から入学年度・学部・有効期限を計算してアカウントを作る。
          *     そのままログイン状態にし、`__session` Cookie を返す。`X-Device-Id` があれば、その端末を登録済みの端末にする（AUTHN-3）。
          *     トークンが無効・期限切れ・使用済みなら 400 invalid_setup_token、パスワードの長さが範囲外なら 400 invalid_password_length。
+         *     学籍番号から計算した有効期限を過ぎていれば 400 signup_period_ended（トークンは消費しない。AUTH-3, ADR 0047）。
          */
         post: operations["completeSignup"];
         delete?: never;
@@ -1290,7 +1294,7 @@ export interface components {
             departmentName: string | null;
             /**
              * Format: date
-             * @description 有効期限の初期値（入学年度 + 修業年限 の3月31日。不明なら4年）
+             * @description 有効期限の初期値（入学年度 + 修業年限×2 の3月31日。不明なら8年。AUTH-3）
              * @example 2030-03-31
              */
             expiresOn: string;

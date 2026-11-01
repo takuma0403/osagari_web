@@ -34,9 +34,12 @@ type StudentEstimate struct {
 	DepartmentCode string
 	// Department は AUTH-4 の表で確定した学部・学科。表にないコードは nil（不明）
 	Department *Department
-	// ExpiresOn は有効期限の初期値（入学年度 + 修業年限 の3月31日、UTC の0時）
+	// ExpiresOn は有効期限の初期値（入学年度 + 在学年限（修業年限×2）の3月31日、UTC の0時）
 	ExpiresOn time.Time
 }
+
+// IsExpired は now の時点で推定した有効期限を過ぎているか（新規登録できないか）を返す（AUTH-1, AUTH-3, ADR 0047）。
+func (e StudentEstimate) IsExpired(now time.Time) bool { return isPastExpiresOn(e.ExpiresOn, now) }
 
 // EstimateStudent は8桁の学籍番号から入学年度・学部・有効期限を推定する（AUTH-2〜4）。
 // 学籍番号は NormalizeStudentEmail で検証済みのものを渡す。
@@ -53,6 +56,6 @@ func EstimateStudent(studentNumber string) StudentEstimate {
 		est.Department = &d
 		years = d.Years
 	}
-	est.ExpiresOn = time.Date(est.AdmissionYear+years, time.March, 31, 0, 0, 0, 0, time.UTC)
+	est.ExpiresOn = time.Date(est.AdmissionYear+years*enrollmentLimitFactor, time.March, 31, 0, 0, 0, 0, time.UTC)
 	return est
 }

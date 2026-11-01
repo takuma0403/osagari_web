@@ -45,7 +45,12 @@ func (u User) IsExpired(now time.Time) bool {
 	if u.Status == UserStatusExpired {
 		return true
 	}
-	ey, em, ed := u.ExpiresOn.Date()
+	return isPastExpiresOn(u.ExpiresOn, now)
+}
+
+// isPastExpiresOn は now の日本時間の日付が有効期限（その日の終わりまで使える）を過ぎているかを返す。
+func isPastExpiresOn(expiresOn, now time.Time) bool {
+	ey, em, ed := expiresOn.Date()
 	return JSTDate(now).After(time.Date(ey, em, ed, 0, 0, 0, 0, time.UTC))
 }
 
