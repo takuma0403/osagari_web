@@ -7,7 +7,7 @@ import styles from './UserLayout.module.css'
 type Props = {
   /** ナビ（BottomNav）を出す。デザインでナビのある画面（Main・Search・DealList・MyPage）だけで付ける */
   nav?: boolean
-  /** 列を最大 1080px に広げる（一覧・商品詳細・出品・取引。DS-1）。省くとフォーム向けの最大 560px */
+  /** 列を最大 1080px に広げる（一覧・商品詳細・出品・取引・学生証・売上管理。DS-1）。省くとフォーム向けの最大 560px */
   wide?: boolean
   /** 中身を直接渡す（ルートの外で枠だけ使うとき）。省くと子ルート（Outlet）を出す */
   children?: ReactNode
