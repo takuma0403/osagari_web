@@ -27,7 +27,8 @@
 
 | 機能 | 要件 | 技術 | 画面（[design](design/README.md)） | データ | 関連する未決事項 |
 | --- | --- | --- | --- | --- | --- |
-| 新規登録・ログイン・再確認・パスワード再設定 | [AUTH-1](product/01-account-auth.md) | [AUTHN-1〜7](tech/auth.md), [API](tech/api.md)（`__session`） | Login, SignUp, Code, Password, Recheck | User, セッション, 認証コード, 端末 | 教職員の利用 |
+| 新規登録・ログイン・再確認・パスワード再設定 | [AUTH-1](product/01-account-auth.md) | [AUTHN-1〜7](tech/auth.md), [API](tech/api.md)（`__session`） | Login, SignUp, Code, Password, Recheck | User, セッション, 認証コード, 端末 | — |
+| 教職員の利用（登録・ログイン・有効期限・身分証・開示） | [AUTH-5](product/01-account-auth.md), [CARD](product/02-student-card.md), [DEAL-1](product/05-deal-flow.md) | [AUTHN-8](tech/auth.md), [API](tech/api.md) | デザインなし（Login・SignUp・Code・Password・Recheck・StudentCard の部品で組む） | User（種別）, StudentCard | 留学生のアドレス |
 | 学籍番号からの学部・有効期限の推定 | [AUTH-2〜4](product/01-account-auth.md) | [AUTHN-2](tech/auth.md) | SignUp, Password, MyPage | User | 学部コードの最新版、大学院、延長 |
 | アカウントの失効・削除 | [AUTH-3](product/01-account-auth.md) | [JOBS-1](tech/jobs-payment-mock.md) | MyPage | User, StudentCard | 問い合わせの窓口 |
 | 学生証登録・審査 | [CARD](product/02-student-card.md), [ADMIN](product/07-admin.md) | [STORAGE](tech/storage.md), [JOBS-1](tech/jobs-payment-mock.md) | StudentCard, AdminCard | StudentCard | — |
