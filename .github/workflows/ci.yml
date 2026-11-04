@@ -1,13 +1,14 @@
 # PR・push ごとに server・app・docs を検査する（#4）。
+# feat-staff は教職員の機能（#129〜#131）をまとめて dev に入れるための作業用ブランチ。
 # 変更パスで job を絞る。workflow レベルの paths だと必須チェックが待機中のまま残るため、changes job の結果で各 job をスキップする。
 
 name: CI
 
 on:
   pull_request:
-    branches: [dev, main]
+    branches: [dev, main, feat-staff]
   push:
-    branches: [dev, main]
+    branches: [dev, main, feat-staff]
 
 concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}
