@@ -23,8 +23,8 @@ argument-hint: "<追加・変更するAPI>"
    - 金額は `integer`（円）、手数料率は `integer`（ベーシスポイント）、日時は `string` / `format: date-time`（UTC）
    - エラーは `components/responses/Error`（`Error{code, message}`）を使う。`code` は snake_case
    - 認証が不要な操作だけ `security: []` を付ける（既定はセッション必須）
-   - 管理者向けは `/admin/**`、定期処理は `/internal/**`、教職員向けは将来 `/staff/**`（今は作らない）
-   - 個人情報（学籍番号）を返すのは、仕様上開示してよい場面だけ（DEAL-1：承認後の当事者のみ）
+   - 管理者向けは `/admin/**`、定期処理は `/internal/**`、教職員向けの認証・身分証の提出は `/staff/**`（AUTHN-8。ログイン後の共通APIは学生と同じパス）
+   - 個人情報（学籍番号、教職員のメールアドレス）を返すのは、仕様上開示してよい場面だけ（DEAL-1：承認後の当事者のみ）
 3. 型を生成する（雛形を作った後）。
    - server：`cd server && go generate ./internal/api`
    - app：`cd app && npm run gen:api`

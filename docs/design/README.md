@@ -147,7 +147,7 @@ Google Fonts から `Zen+Kaku+Gothic+New:wght@400;500;700` と `Outfit:wght@500;
 | `AppHeader` | 戻るボタン（44px）＋タイトル＋右側の補足（バッジ等）。高さ56px | 多数 |
 | `Button` | primary（塗り）/ secondary（primary枠 1.5px）/ ghost（border枠）/ danger（danger枠 1.5px、キャンセル申請など）/ text、高さ 52・48・44。リンク版は `ButtonLink` | 全体 |
 | `TextField` | ラベル＋高さ52pxの入力枠。フォーカス中は primary 1.5px、エラーは danger 1.5px | Login, SignUp, Password, Sell |
-| `EmailField` | 学籍番号8桁の入力＋固定の `@edu.cc.saga-u.ac.jp` 表示 | Login, SignUp |
+| `EmailField` | 学籍番号8桁の入力＋固定の `@edu.cc.saga-u.ac.jp` 表示。教職員用の画面（デザインなし）では、@より前の入力とドメイン（`cc.saga-u.ac.jp`／`edu.cc.saga-u.ac.jp`）の選択に広げて使う（[AUTH-5](../product/01-account-auth.md)、[ADR 0051](../decisions/0051-staff-accounts.md)） | Login, SignUp |
 | `CodeInput` | 6桁×1マス（grid 6列、高さ52px、Outfit 22px）＋有効期限・再送 | Code, Recheck |
 | `Chip` | 高さ36px。選択中 primary 塗り／絞り込み条件は primary-soft＋×アイコン | Main, Search, SearchFilter |
 | `Badge` | 11〜12px / 700 / pill。primary-soft・warning を基本に、danger（停止など）・neutral（終了）・surface（写真の上のカテゴリ） | Detail, Request ほか |

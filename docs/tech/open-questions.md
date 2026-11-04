@@ -11,6 +11,6 @@
 - [ ] 本番の決済サービスの選定（要件定義書の「決済サービスの候補」を参照）
 - [x] 独自ドメインを使うか（使わない場合は Firebase Hosting の標準ドメイン）→ 使わない（[ADR 0041](../decisions/0041-production-regions-and-domain.md)）
 
-* [ ] 教職員用の画面・API・認証経路の設計（要件定義書の検討結果を待つ）
+- [x] 教職員用の画面・API・認証経路の設計 → 認証と身分証の提出だけを `/api/staff/**` と教職員用の画面に分ける（[AUTHN-8](auth.md)、[ADR 0051](../decisions/0051-staff-accounts.md)）
 
 > 要件定義書の「決済サービスの候補」→ [product/06-payment.md](../product/06-payment.md) の PAY-4
