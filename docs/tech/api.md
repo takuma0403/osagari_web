@@ -24,9 +24,7 @@ APIが担当する主な処理は次のとおりです。
 - 決済処理（当面はモック）
 - 管理者向けの処理（学生証の審査、ユーザーの停止、手数料率の設定など）
 
-**教職員用のAPI（検討保留）**：教職員にも対応する予定で、教職員用の画面とAPIは学生用と分ける前提です（例：`/api/staff/**`）。詳細は要件定義書の「教職員の利用」で検討中です。
-
-> 要件定義書の「教職員の利用」→ [product/01-account-auth.md](../product/01-account-auth.md) の AUTH-5
+**教職員用のAPI**：教職員の新規登録・ログイン・再確認・パスワードの再設定は `/api/staff/auth/**`、身分証の提出は `/api/staff/**` の下に、学生用とは別に置きます。ログイン後のそのほかのAPI（一覧・出品・取引・売上・マイページ）は共通で、応答に利用者の種別（`accountType`）を含め、学部・入学年度や開示する識別子（学籍番号かメールアドレス）を種別に応じて返します（[AUTH-5](../product/01-account-auth.md)、[AUTHN-8](auth.md)、[ADR 0051](../decisions/0051-staff-accounts.md)）。
 
 ### API-1 実装方針（ハーネス整備時の決定）
 
@@ -51,7 +49,7 @@ APIが担当する主な処理は次のとおりです。
 
   | code | HTTP | 使う場面 |
   | --- | --- | --- |
-  | `invalid_email` | 400 | 大学のメールアドレス（`^\d{8}@edu\.cc\.saga-u\.ac\.jp$`）の形式ではない（[AUTHN-2](auth.md)） |
+  | `invalid_email` | 400 | 大学のメールアドレスの形式ではない。学生用は `^\d{8}@edu\.cc\.saga-u\.ac\.jp$`（[AUTHN-2](auth.md)）、教職員用は [AUTHN-8](auth.md) の形式 |
   | `signup_period_ended` | 400 | 新規登録で、学籍番号から計算した有効期限を過ぎている（[AUTH-3](../product/01-account-auth.md)、[ADR 0047](../decisions/0047-account-period-enrollment-limit.md)） |
   | `invalid_verification_code` | 400 | 認証コードが違う。メッセージに残りの回数を入れる（[AUTHN-6](auth.md)） |
   | `verification_code_expired` | 400 | 認証コードが期限切れ・使用済み・入力の上限に達した |
@@ -66,7 +64,7 @@ APIが担当する主な処理は次のとおりです。
   | `invalid_item_image_upload` | 400 | 商品写真の登録で、オブジェクトが本人のものでない・アップロードされていない・JPEG/WebP でない・5MB を超える・ほかの商品で使われている（[STORAGE](storage.md)） |
   | `invalid_handover_token` | 400 | 受け渡しの QR・完了リンク・完了コードが違う・期限切れ・使用済み（[DEAL-3](../product/05-deal-flow.md)、[ADR 0024](../decisions/0024-handover-token-flow.md)） |
 
-  管理API（`/api/admin/**`）は、未ログインでも管理者でなくても 404 `not_found` を返し、存在しないパスと区別できないようにする。管理者は環境変数 `ADMIN_STUDENT_NUMBERS`（学籍番号の許可リスト）で決める（[ADR 0015](../decisions/0015-admin-authorization.md)）。
+  管理API（`/api/admin/**`）は、未ログインでも管理者でなくても 404 `not_found` を返し、存在しないパスと区別できないようにする。管理者は環境変数 `ADMIN_STUDENT_NUMBERS`（学籍番号の許可リスト）で決める（[ADR 0015](../decisions/0015-admin-authorization.md)）。教職員は学籍番号を持たないため、許可リストには教職員のメールアドレス（小文字）も書けるようにし、学籍番号かメールアドレスのどちらかが一致すれば管理者とする。環境変数とシークレットの名前は変えない（[ADR 0051](../decisions/0051-staff-accounts.md)）。
 
   表にない 4xx（413・415 など）は HTTP ステータスをそのまま使い、`code` は `bad_request` にする。5xx はすべて 500 `internal_error` にする。
 
