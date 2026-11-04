@@ -8,8 +8,8 @@
 
 | 日本語 | コード（型） | テーブル | 説明 |
 | --- | --- | --- | --- |
-| ユーザー | `User` | `users` | 学生アカウント |
-| 学生証 | `StudentCard` | `student_cards` | 出品に必要な学生証画像と審査状態 |
+| ユーザー | `User` | `users` | 学生・教職員のアカウント |
+| 学生証 | `StudentCard` | `student_cards` | 出品に必要な学生証画像と審査状態。教職員の身分証も同じテーブルに持つ（[CARD](product/02-student-card.md)） |
 | 学生証の閲覧記録 | `StudentCardView` | `student_card_views` | 管理者が画像を閲覧した記録 |
 | 商品 | `Item` | `items` | 出品物 |
 | 商品画像 | `ItemImage` | `item_images` | 商品の写真（表示順つき） |
@@ -29,6 +29,7 @@
 
 | 日本語 | コード | 値 |
 | --- | --- | --- |
+| ユーザーの種別 | `AccountType` | `student` 学生 / `staff` 教職員（[AUTH-5](product/01-account-auth.md)） |
 | ユーザーの状態 | `UserStatus` | `active` 有効 / `suspended` 停止 / `expired` 失効 / `deleted` 削除 |
 | 出品者の承認状態 | `SellerStatus` | `none` 未登録 / `pending` 審査中 / `approved` 承認 / `rejected` 差し戻し |
 | 学生証の審査状態 | `StudentCardStatus` | `pending` / `approved` / `rejected` |
@@ -56,11 +57,13 @@
 
 | 日本語 | コード | 説明 |
 | --- | --- | --- |
-| 学籍番号 | `studentNumber` / `student_number` | メールアドレスの@より前（8桁） |
+| 学籍番号 | `studentNumber` / `student_number` | メールアドレスの@より前（8桁）。教職員は空 |
+| 教職員 | `AccountType` = `staff` | 学生以外の大学のアカウント（[AUTH-5](product/01-account-auth.md)）。学籍番号・入学年度・学部を持たない |
+| 身分証 | `StudentCard`（教職員の行） | 教職員が出品のために提出する職員証などの画像。コードでは学生証と同じ型・テーブルを使う（[CARD](product/02-student-card.md)） |
 | 入学年度 | `admissionYear` | 学籍番号の上2桁 + 2000 |
 | 学部・学科コード | `departmentCode` | 学籍番号の3〜5桁目 |
 | 学部・学科 | `department` | [AUTH-4](product/01-account-auth.md) の表で確定した学部・学科のコード。表にないコードは空（不明）で登録し、管理者が後から直す。`departmentCode`（学籍番号から取った値）とは別に持つ |
-| 有効期限 | `expiresOn` | アカウントの失効日（3月31日） |
+| 有効期限 | `expiresOn` | アカウントの失効日（3月31日）。教職員はコードで確認するたびに更新する（[AUTHN-8](tech/auth.md)） |
 | 学籍番号からの推定 | `StudentEstimate` | 学籍番号から推定した入学年度・学部・有効期限（[AUTH-2〜4](product/01-account-auth.md)） |
 | 自分の情報 | `CurrentUser` | ログイン中の本人に返すユーザー情報（API のスキーマ名） |
 | 手数料率 | `feeRate` | 取引ごとに記録する。整数のベーシスポイント（1% = 100）で保持し、浮動小数点を使わない |
@@ -70,6 +73,6 @@
 | 承認期限 | `approvalDeadline` | 購入希望から48時間 |
 | 共有用ID | `shareId` | 商品ページの固定URL `/items/:shareId` に使う |
 | 確認モーダルへの同意日時 | `sellerAcknowledgedAt` | [DEAL-2](product/05-deal-flow.md) |
-| 学籍番号の開示日時 | `identityDisclosedAt` | 承認時に記録 |
+| 学籍番号の開示日時 | `identityDisclosedAt` | 承認時に記録。教職員はメールアドレスを開示する（[DEAL-1](product/05-deal-flow.md)） |
 | 退学の申請日時 | `withdrawalRequestedAt` / `withdrawal_requested_at` | 本人が退学を申請した日時。管理者が削除するまで残る（[ADR 0034](decisions/0034-admin-users-deals-settings.md)） |
 | キャンセル回数 | `cancelCount` | 双方の同意でキャンセルになった取引の数。購入者・出品者の両方に数える（[DEAL-4](product/05-deal-flow.md)、[ADR 0034](decisions/0034-admin-users-deals-settings.md)） |
