@@ -124,6 +124,35 @@ describe('StudentCardPage', () => {
     expect(screen.queryByRole('img')).not.toBeInTheDocument()
   })
 
+  it('PC 幅では撮り直しのボタンを画像より前（左カラム）に出す（DS-1）', async () => {
+    vi.stubGlobal(
+      'matchMedia',
+      vi.fn((query: string) => ({
+        matches: true,
+        media: query,
+        addEventListener: () => {},
+        removeEventListener: () => {},
+      })),
+    )
+    const { user } = setup({})
+    await screen.findByRole('button', { name: '学生証の画像を選ぶ' })
+    await selectImage(user)
+
+    const image = await screen.findByRole('img', { name: '登録した学生証の画像' })
+    const retake = screen.getByRole('button', { name: '撮り直す' })
+    expect(retake.compareDocumentPosition(image) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy()
+  })
+
+  it('スマホ幅では撮り直しのボタンを画像の下に出す', async () => {
+    const { user } = setup({})
+    await screen.findByRole('button', { name: '学生証の画像を選ぶ' })
+    await selectImage(user)
+
+    const image = await screen.findByRole('img', { name: '登録した学生証の画像' })
+    const retake = screen.getByRole('button', { name: '撮り直す' })
+    expect(image.compareDocumentPosition(retake) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy()
+  })
+
   it('差し戻しは理由の案内と撮り直しを出す', async () => {
     setup({
       current: () => json({ ...pending, status: 'rejected', reviewedAt: '2026-10-09T01:30:00Z' }),

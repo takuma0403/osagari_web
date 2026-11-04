@@ -1,5 +1,4 @@
 import { Navigate, type RouteObject } from 'react-router'
-import { BottomNav } from './components/BottomNav/BottomNav'
 import { NotFoundPage } from './components/NotFoundPage/NotFoundPage'
 import { AdminCardPage } from './features/admin/pages/AdminCardPage'
 import { AdminDealsPage } from './features/admin/pages/AdminDealsPage'
@@ -28,7 +27,7 @@ import { SalesPage } from './features/sales/pages/SalesPage'
 import { SellPage } from './features/sell/pages/SellPage'
 import { StudentCardPage } from './features/student-card/pages/StudentCardPage'
 import { AdminLayout } from './layouts/AdminLayout/AdminLayout'
-import { MobileLayout } from './layouts/MobileLayout/MobileLayout'
+import { UserLayout } from './layouts/UserLayout/UserLayout'
 
 /**
  * 全画面のルート（FE）。商品ページの共有リンク（/items/:shareId）を含め、すべて SPA のルートとして扱う。
@@ -44,7 +43,7 @@ export const routes: RouteObject[] = [
         element: <GuestOnly />,
         children: [
           {
-            element: <MobileLayout />,
+            element: <UserLayout />,
             children: [
               { path: '/login', element: <LoginPage /> },
               { path: '/signup', element: <SignUpPage /> },
@@ -60,7 +59,7 @@ export const routes: RouteObject[] = [
       },
       {
         // 利用規約・プライバシーポリシー（本文の正本は docs/legal）。ログインの有無にかかわらず見られる
-        element: <MobileLayout />,
+        element: <UserLayout />,
         children: [
           { path: '/terms', element: <LegalPage doc="terms" /> },
           { path: '/privacy', element: <LegalPage doc="privacy" /> },
@@ -72,8 +71,9 @@ export const routes: RouteObject[] = [
         element: <RequireAuth />,
         children: [
           {
-            // 利用者向けの画面のうち、下部ナビ（BottomNav）を出すもの。デザインでナビがあるのは Main・Search・DealList・MyPage
-            element: <MobileLayout bottomNav={<BottomNav />} />,
+            // 利用者向けの画面のうち、ナビ（BottomNav）を出すもの。デザインでナビがあるのは Main・Search・DealList・MyPage。
+            // PC 幅では列を 1080px に広げ、一覧の列数を増やす（DS-1）
+            element: <UserLayout nav wide />,
             children: [
               { path: '/', element: <MainPage /> },
               { path: '/search', element: <SearchPage /> },
@@ -82,8 +82,8 @@ export const routes: RouteObject[] = [
             ],
           },
           {
-            // 利用者向けの画面のうち、下部ナビを出さないもの（詳細・入力・取引の操作など）
-            element: <MobileLayout />,
+            // ナビを出さない画面のうち、PC 幅で列を広げて2カラムにするもの（商品詳細、出品・取引の操作、学生証、売上管理。DS-1）
+            element: <UserLayout wide />,
             children: [
               { path: '/items/:shareId', element: <DetailPage /> },
               { path: '/items/:shareId/request', element: <RequestPage /> },
@@ -117,7 +117,7 @@ export const routes: RouteObject[] = [
         ],
       },
       {
-        element: <MobileLayout />,
+        element: <UserLayout />,
         children: [{ path: '*', element: <NotFoundPage /> }],
       },
     ],

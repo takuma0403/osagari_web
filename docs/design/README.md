@@ -10,6 +10,26 @@
 ## DS-1 基本方針
 
 - **スマホ優先**：利用者向け画面は幅 390px（高さ 844px）のスマホを基準に作られている。管理画面だけはPC幅（1280px、流体レイアウト）。
+- **利用者向け画面の PC 幅**：キャンバスには PC 幅の利用者画面がないため、既存の部品を組み替えて補う（[ADR 0048](../decisions/0048-user-layout-pc-width.md)）。390px の見た目は変えない。
+  - ブレークポイントは **640px**（タブレット）と **1024px**（PC）。CSS 変数は `@media` の条件に使えないので、CSS には数値を直接書く。
+  - 列の最大幅は **1080px** と **560px** の2つ。最大幅を超えたら、列の左右に `--color-border` の線を引く。BottomSheet の幅は 560px に合わせる。
+    - 1080px：商品一覧・検索結果・取引一覧・マイページ・商品詳細・出品・取引の画面（購入希望、購入希望の一覧、取引詳細、QR読み取り、受け渡しの完了）・学生証・売上管理。
+    - 560px：ログイン前の画面・規約。
+  - 1024px 以上では、`BottomNav` を画面上部の横ナビにする（DS-3）。出す画面はスマホと同じ。商品一覧のヘッダーのロゴ行は、上部ナビと重なるので隠す。
+  - 一覧の列数：
+    - 商品一覧のグリッド（ItemCard）は、2列 → 640px 以上で 3列 → 1024px 以上で 4列。
+    - 検索結果（ItemRow）・取引一覧の行・マイページの行と設定のリンクは、640px 以上で 2列。取引一覧の購入・出品のタブは最大 400px。
+  - 1024px 以上の2カラム（`TwoColumn`）：
+    - 商品詳細：左に写真（360px の正方形・角丸。本文をスクロールしても上に残す）、右に商品の情報と出品者。下部のボタンは右カラムにそろえる（[ADR 0049](../decisions/0049-item-detail-pc-two-column.md)）。
+    - 出品：左に写真欄（360px）、右に入力欄。下部のボタンは右カラムにそろえる。
+    - 取引の画面：左に商品のカード、右に操作。
+      - 取引詳細（出品者・取引中）は、左に受け渡しQR、右に完了リンク・完了コードの発行。
+      - 受け渡し完了後は、左に完了の表示、右に商品と売上管理への導線。
+      - 購入希望（決済モック）は、下部の合計と送信ボタンを右カラムにそろえる。
+    - 売上管理：左に売上の概要と出金のボタン（360px。明細をスクロールしても上に残す）、右に売上の明細（[ADR 0050](../decisions/0050-student-card-sales-pc-two-column.md)）。
+    - 学生証：左に説明・審査の段階・却下のお知らせ・画像を選ぶボタン、右に登録した画像・保管の注意書き（左右は半分ずつ。同 ADR）。ボタンは見た目と Tab の順をそろえるため、DOM 上も左カラムに移す（スマホでは画像の下のまま）。
+    - QR読み取りは、暗い地を列いっぱいにし、中身を 480px（640px 以上）に収める。
+  - マイページ（1024px 以上）：左（320px）にプロフィール・設定のリンク（1列）、右にタブと出品・購入の履歴を置き、プロフィールとタブの上端をそろえる。見出しは上部ナビと重なるので読み上げにだけ残す。タブは文字の幅で左に寄せる。状態のチップと並び順は1行にまとめ、履歴の行は幅 320px 以上を保てる列数（1024px で1列、1280px で2列）にする。DOM の順はスマホと同じ。
 - **タップ領域は 44px 以上**：アイコンボタン 44×44、主要ボタンの高さ 52px、副ボタン 48px、チップ 36px（行全体で44pxを確保）。
 - **アクセシビリティ**：アイコンだけのボタンには `aria-label`、入力欄には `<label>`、エラーは `role="alert"`、トーストは `role="status"`、モーダルとボトムシートは `role="dialog"` と `aria-labelledby`。
 - **絵文字は使わず**、アイコンは線画のインラインSVG（stroke 1.8〜2.4、24×24 viewBox）。
@@ -123,7 +143,7 @@ Google Fonts から `Zen+Kaku+Gothic+New:wght@400;500;700` と `Outfit:wght@500;
 
 | 部品 | 見た目 | 出てくる画面 |
 | --- | --- | --- |
-| `BottomNav` | 下部5タブ（ホーム／検索／出品／取引／マイページ）。選択中は primary + 700 | Main, Search, DealList, MyPage |
+| `BottomNav` | 下部5タブ（ホーム／検索／出品／取引／マイページ）。選択中は primary + 700。PC 幅（1024px 以上）では上部の横ナビ（`placement="top"`。高さ56px、左にロゴ32px＋アプリ名、右に同じ5項目をアイコンとラベルの横並びで。DS-1、[ADR 0048](../decisions/0048-user-layout-pc-width.md)） | Main, Search, DealList, MyPage |
 | `AppHeader` | 戻るボタン（44px）＋タイトル＋右側の補足（バッジ等）。高さ56px | 多数 |
 | `Button` | primary（塗り）/ secondary（primary枠 1.5px）/ ghost（border枠）/ danger（danger枠 1.5px、キャンセル申請など）/ text、高さ 52・48・44。リンク版は `ButtonLink` | 全体 |
 | `TextField` | ラベル＋高さ52pxの入力枠。フォーカス中は primary 1.5px、エラーは danger 1.5px | Login, SignUp, Password, Sell |
@@ -141,7 +161,7 @@ Google Fonts から `Zen+Kaku+Gothic+New:wght@400;500;700` と `Outfit:wght@500;
 | `Toast` | 紺地・白文字・pill、`role="status"` | DetailShare |
 | `StepIndicator` | `STEP n / 3`（Outfit 13px / primary） | SignUp, Code, Password |
 
-DS-3 の部品を作るために足した補助の部品（画面からも使える）：`Icon`（デザインの線画アイコンを名前で呼ぶ）、`ItemPhoto`（ItemCard・ItemRow の写真枠。写真がないときは `--color-cat-*` の地）、`Modal`（BottomSheet・ConfirmDialog の土台。幕・Esc・フォーカスの閉じ込めと復帰）、`SelectField`・`TextAreaField`（Sell のカテゴリ・状態の選択と説明。TextField と同じ枠・ラベル・エラーの形）、`Avatar`（学部の頭文字の丸いアイコン。Detail の出品者、DealRequests の購入者は 40px、MyPage の本人は 48px の白地（`size="lg"`・`inverse`））。
+DS-3 の部品を作るために足した補助の部品（画面からも使える）：`Icon`（デザインの線画アイコンを名前で呼ぶ）、`ItemPhoto`（ItemCard・ItemRow の写真枠。写真がないときは `--color-cat-*` の地）、`Modal`（BottomSheet・ConfirmDialog の土台。幕・Esc・フォーカスの閉じ込めと復帰）、`SelectField`・`TextAreaField`（Sell のカテゴリ・状態の選択と説明。TextField と同じ枠・ラベル・エラーの形）、`Avatar`（学部の頭文字の丸いアイコン。Detail の出品者、DealRequests の購入者は 40px、MyPage の本人は 48px の白地（`size="lg"`・`inverse`））、`TwoColumn`（PC 幅で中身を左右2カラムに分ける枠。スマホでは枠を持たず縦に並ぶ。DS-1、[ADR 0048](../decisions/0048-user-layout-pc-width.md)）。
 
 ## DS-4 画面 ↔ アートボード ↔ 要件 の対応
 

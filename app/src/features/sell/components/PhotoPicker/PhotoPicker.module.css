@@ -11,6 +11,14 @@
   overflow-x: auto;
 }
 
+/* PC 幅の出品画面では左カラムに置くので、折り返して全部を見せる（DS-1） */
+@media (min-width: 1024px) {
+  .row {
+    flex-wrap: wrap;
+    overflow-x: visible;
+  }
+}
+
 .slot {
   position: relative;
   flex-shrink: 0;

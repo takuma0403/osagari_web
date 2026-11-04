@@ -5,6 +5,7 @@ import { AppHeader } from '../../../components/AppHeader/AppHeader'
 import { Button } from '../../../components/Button/Button'
 import { CodeInput } from '../../../components/CodeInput/CodeInput'
 import { InfoBox } from '../../../components/InfoBox/InfoBox'
+import { TwoColumn } from '../../../components/TwoColumn/TwoColumn'
 import { parseHandoverFragment } from '../../../lib/handoverLink'
 import type { HandoverCredential } from '../api'
 import { DealItemSummary } from '../components/DealItemSummary/DealItemSummary'
@@ -120,64 +121,75 @@ export function DealCompletePage() {
     <div className={styles.page}>
       {header}
       <main className={styles.body}>
-        <section className={styles.item}>
-          <DealItemSummary
-            title={transaction.item.title}
-            price={transaction.price}
-            tint="textbook"
-          />
-          {transaction.role === 'buyer' && transaction.counterpartStudentNumber && (
-            <p className={styles.muted}>
-              出品者の学籍番号{' '}
-              <span className={styles.studentNumber}>{transaction.counterpartStudentNumber}</span>
-            </p>
-          )}
-        </section>
-        {!canComplete ? (
-          <InfoBox tone="danger" icon="alert" role="alert">
-            {transaction.status === 'completed'
-              ? 'この取引は受け渡しが完了しています。'
-              : '受け渡しを完了できるのは、取引中の取引の購入者だけです。'}{' '}
-            <Link to={base}>取引詳細へ</Link>
-          </InfoBox>
-        ) : fromUrl ? (
-          linkState === 'checking' ? (
-            <p role="status">確認しています…</p>
-          ) : linkState === 'invalid' ? (
-            <InfoBox tone="danger" icon="alert" role="alert">
-              {fromUrl.kind === 'qr' ? invalidQrMessage : invalidLinkMessage}
-            </InfoBox>
-          ) : (
-            !receipt.open && (
-              <Button
-                fullWidth
-                onClick={() => verify({ kind: fromUrl.kind, secret: fromUrl.token })}
-              >
-                受け渡しを完了する
-              </Button>
-            )
-          )
-        ) : (
-          <section className={styles.codeCard}>
-            <h2 className={styles.cardTitle}>完了コードを入力</h2>
-            <p className={styles.muted}>
-              出品者からTeamsで届いた6桁のコード、または受け渡しQRの下に表示された確認コードを入力してください。
-            </p>
-            <CodeInput
-              value={code}
-              onChange={(next) => {
-                setCode(next)
-                setCodeError(undefined)
-              }}
-              label="完了コード"
-              error={codeError}
-              disabled={verifying}
-            />
-            <Button fullWidth onClick={submitCode} disabled={code.length !== 6 || verifying}>
-              次へ
-            </Button>
-          </section>
-        )}
+        {/* PC 幅では商品（左）と操作（右）の2カラム（DS-1） */}
+        <TwoColumn
+          start={
+            <section className={styles.item}>
+              <DealItemSummary
+                title={transaction.item.title}
+                price={transaction.price}
+                tint="textbook"
+              />
+              {transaction.role === 'buyer' && transaction.counterpartStudentNumber && (
+                <p className={styles.muted}>
+                  出品者の学籍番号{' '}
+                  <span className={styles.studentNumber}>
+                    {transaction.counterpartStudentNumber}
+                  </span>
+                </p>
+              )}
+            </section>
+          }
+          end={
+            <>
+              {!canComplete ? (
+                <InfoBox tone="danger" icon="alert" role="alert">
+                  {transaction.status === 'completed'
+                    ? 'この取引は受け渡しが完了しています。'
+                    : '受け渡しを完了できるのは、取引中の取引の購入者だけです。'}{' '}
+                  <Link to={base}>取引詳細へ</Link>
+                </InfoBox>
+              ) : fromUrl ? (
+                linkState === 'checking' ? (
+                  <p role="status">確認しています…</p>
+                ) : linkState === 'invalid' ? (
+                  <InfoBox tone="danger" icon="alert" role="alert">
+                    {fromUrl.kind === 'qr' ? invalidQrMessage : invalidLinkMessage}
+                  </InfoBox>
+                ) : (
+                  !receipt.open && (
+                    <Button
+                      fullWidth
+                      onClick={() => verify({ kind: fromUrl.kind, secret: fromUrl.token })}
+                    >
+                      受け渡しを完了する
+                    </Button>
+                  )
+                )
+              ) : (
+                <section className={styles.codeCard}>
+                  <h2 className={styles.cardTitle}>完了コードを入力</h2>
+                  <p className={styles.muted}>
+                    出品者からTeamsで届いた6桁のコード、または受け渡しQRの下に表示された確認コードを入力してください。
+                  </p>
+                  <CodeInput
+                    value={code}
+                    onChange={(next) => {
+                      setCode(next)
+                      setCodeError(undefined)
+                    }}
+                    label="完了コード"
+                    error={codeError}
+                    disabled={verifying}
+                  />
+                  <Button fullWidth onClick={submitCode} disabled={code.length !== 6 || verifying}>
+                    次へ
+                  </Button>
+                </section>
+              )}
+            </>
+          }
+        />
       </main>
       <ReceiptConfirmDialog
         open={receipt.open}

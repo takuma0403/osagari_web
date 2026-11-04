@@ -80,3 +80,16 @@
   padding: 10px;
   font-weight: 700;
 }
+
+/* 640px 以上では行を2列に並べ、タブは横に伸ばしすぎない（DS-1） */
+@media (min-width: 640px) {
+  .tabs {
+    width: 100%;
+    max-width: 400px;
+  }
+
+  .list {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}

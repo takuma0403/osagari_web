@@ -4,7 +4,7 @@ import { isApiError } from '../../api/client'
 import { Button } from '../../components/Button/Button'
 import { InfoBox } from '../../components/InfoBox/InfoBox'
 import { NotFoundPage } from '../../components/NotFoundPage/NotFoundPage'
-import { MobileLayout } from '../../layouts/MobileLayout/MobileLayout'
+import { UserLayout } from '../../layouts/UserLayout/UserLayout'
 import { getAdminSession } from './api'
 import styles from './RequireAdmin.module.css'
 
@@ -51,13 +51,13 @@ export function RequireAdmin() {
       return <Outlet />
     case 'notFound':
       return (
-        <MobileLayout>
+        <UserLayout>
           <NotFoundPage />
-        </MobileLayout>
+        </UserLayout>
       )
     case 'error':
       return (
-        <MobileLayout>
+        <UserLayout>
           <div className={styles.error}>
             <InfoBox tone="danger" icon="alert" role="alert">
               <p>{check.message}</p>
@@ -66,7 +66,7 @@ export function RequireAdmin() {
               </Button>
             </InfoBox>
           </div>
-        </MobileLayout>
+        </UserLayout>
       )
   }
 }

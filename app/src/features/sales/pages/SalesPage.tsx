@@ -5,6 +5,7 @@ import { Button } from '../../../components/Button/Button'
 import { ConfirmDialog } from '../../../components/ConfirmDialog/ConfirmDialog'
 import { InfoBox } from '../../../components/InfoBox/InfoBox'
 import { Toast } from '../../../components/Toast/Toast'
+import { TwoColumn } from '../../../components/TwoColumn/TwoColumn'
 import { formatPrice } from '../../../lib/format'
 import { SalesEntryRow } from '../components/SalesEntryRow/SalesEntryRow'
 import { SalesSummary } from '../components/SalesSummary/SalesSummary'
@@ -65,25 +66,39 @@ export function SalesPage() {
         )}
         {state.status === 'ready' && (
           <>
-            <SalesSummary
-              availableAmount={state.sales.availableAmount}
-              awaitingHandoverAmount={state.sales.awaitingHandoverAmount}
-              paidOutAmount={state.sales.paidOutAmount}
-              onPayout={openConfirm}
-              payoutDisabled={paying}
-            />
-            <h2 className={styles.sectionTitle}>売上の明細</h2>
-            {state.sales.entries.length === 0 ? (
-              <p className={styles.message}>まだ売上はありません。</p>
-            ) : (
-              <ul className={styles.entries}>
-                {state.sales.entries.map((entry) => (
-                  <li key={entry.transactionId}>
-                    <SalesEntryRow entry={entry} />
-                  </li>
-                ))}
-              </ul>
-            )}
+            {/* PC 幅では売上の概要（左、360px）と明細（右）の2カラム（DS-1） */}
+            <div className={styles.columns}>
+              <TwoColumn
+                variant="narrowStart"
+                start={
+                  <div className={styles.summary}>
+                    <SalesSummary
+                      availableAmount={state.sales.availableAmount}
+                      awaitingHandoverAmount={state.sales.awaitingHandoverAmount}
+                      paidOutAmount={state.sales.paidOutAmount}
+                      onPayout={openConfirm}
+                      payoutDisabled={paying}
+                    />
+                  </div>
+                }
+                end={
+                  <>
+                    <h2 className={styles.sectionTitle}>売上の明細</h2>
+                    {state.sales.entries.length === 0 ? (
+                      <p className={styles.message}>まだ売上はありません。</p>
+                    ) : (
+                      <ul className={styles.entries}>
+                        {state.sales.entries.map((entry) => (
+                          <li key={entry.transactionId}>
+                            <SalesEntryRow entry={entry} />
+                          </li>
+                        ))}
+                      </ul>
+                    )}
+                  </>
+                }
+              />
+            </div>
             <ConfirmDialog
               open={confirming}
               title="出金を申請しますか？"

@@ -82,13 +82,15 @@ export function MyPagePage() {
     <div className={styles.page}>
       <h1 className={styles.title}>マイページ</h1>
       {user && <Profile user={user} />}
-      <SegmentedTabs
-        label="履歴の種類"
-        options={tabs}
-        value={tab}
-        onChange={changeTab}
-        variant="underline"
-      />
+      <div className={styles.tabs}>
+        <SegmentedTabs
+          label="履歴の種類"
+          options={tabs}
+          value={tab}
+          onChange={changeTab}
+          variant="underline"
+        />
+      </div>
       <div id={panelId} role="tabpanel" className={styles.panel}>
         <History
           state={state}

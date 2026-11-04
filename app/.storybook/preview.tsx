@@ -14,13 +14,23 @@ const preview: Preview = {
   ],
   parameters: {
     layout: 'padded',
-    // DS-1: 利用者向け画面は 390px のスマホが基準
+    // DS-1: 利用者向け画面は 390px のスマホが基準。640px・1024px で PC 幅の表示に切り替わるので、その確認用も置く
     viewport: {
       options: {
         mobile390: {
           name: 'スマホ（390×844）',
           styles: { width: '390px', height: '844px' },
           type: 'mobile',
+        },
+        tablet640: {
+          name: 'タブレット（640×1024）',
+          styles: { width: '640px', height: '1024px' },
+          type: 'tablet',
+        },
+        pc1280: {
+          name: 'PC（1280×800）',
+          styles: { width: '1280px', height: '800px' },
+          type: 'desktop',
         },
       },
     },
