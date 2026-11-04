@@ -4,7 +4,7 @@
   min-height: 100dvh;
 }
 
-/* 列の最大幅（DS-1）。フォームなどは 560px、一覧・商品詳細・出品・取引（wide）は 1080px */
+/* 列の最大幅（DS-1）。フォームなどは 560px、一覧・商品詳細・出品・取引・学生証・売上管理（wide）は 1080px */
 .frame {
   display: flex;
   flex-direction: column;

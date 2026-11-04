@@ -134,7 +134,7 @@
   }
 
   /* 写真が追従できるよう、左カラムを右カラム（商品の情報）と同じ高さに伸ばす。TwoColumn は上ぞろえ */
-  .main > * {
+  .main > div {
     align-items: stretch;
   }
 
