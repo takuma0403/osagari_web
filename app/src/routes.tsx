@@ -43,9 +43,14 @@ export const routes: RouteObject[] = [
         element: <GuestOnly />,
         children: [
           {
+            // ログインは PC 幅でも 560px の列のまま（DS-1）
             element: <UserLayout />,
+            children: [{ path: '/login', element: <LoginPage /> }],
+          },
+          {
+            // 登録などの手順は、PC 幅で中央のカードにするので列を広げる（DS-1）
+            element: <UserLayout wide />,
             children: [
-              { path: '/login', element: <LoginPage /> },
               { path: '/signup', element: <SignUpPage /> },
               { path: '/signup/code', element: <CodePage flow="signup" /> },
               { path: '/signup/password', element: <PasswordPage flow="signup" /> },
@@ -58,8 +63,9 @@ export const routes: RouteObject[] = [
         ],
       },
       {
-        // 利用規約・プライバシーポリシー（本文の正本は docs/legal）。ログインの有無にかかわらず見られる
-        element: <UserLayout />,
+        // 利用規約・プライバシーポリシー（本文の正本は docs/legal）。ログインの有無にかかわらず見られる。
+        // PC 幅では列を広げる（DS-1）
+        element: <UserLayout wide />,
         children: [
           { path: '/terms', element: <LegalPage doc="terms" /> },
           { path: '/privacy', element: <LegalPage doc="privacy" /> },
