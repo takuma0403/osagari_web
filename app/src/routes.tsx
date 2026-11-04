@@ -82,9 +82,10 @@ export const routes: RouteObject[] = [
             ],
           },
           {
-            // ナビを出さない画面のうち、PC 幅で列を広げて2カラムにするもの（出品・取引の操作。DS-1）
+            // ナビを出さない画面のうち、PC 幅で列を広げて2カラムにするもの（商品詳細、出品・取引の操作。DS-1）
             element: <UserLayout wide />,
             children: [
+              { path: '/items/:shareId', element: <DetailPage /> },
               { path: '/items/:shareId/request', element: <RequestPage /> },
               { path: '/sell', element: <SellPage /> },
               { path: '/sell/:itemId', element: <SellPage /> },
@@ -95,10 +96,9 @@ export const routes: RouteObject[] = [
             ],
           },
           {
-            // ナビを出さず、PC 幅でも 560px の列のままの画面（商品詳細・学生証・売上管理）
+            // ナビを出さず、PC 幅でも 560px の列のままの画面（学生証・売上管理）
             element: <UserLayout />,
             children: [
-              { path: '/items/:shareId', element: <DetailPage /> },
               { path: '/mypage/student-card', element: <StudentCardPage /> },
               { path: '/mypage/sales', element: <SalesPage /> },
             ],

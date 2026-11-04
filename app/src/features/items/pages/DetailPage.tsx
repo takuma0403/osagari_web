@@ -11,6 +11,7 @@ import {
 import { Icon } from '../../../components/Icon/Icon'
 import { InfoBox } from '../../../components/InfoBox/InfoBox'
 import { Toast } from '../../../components/Toast/Toast'
+import { TwoColumn } from '../../../components/TwoColumn/TwoColumn'
 import { formatPrice, formatShortDateTime } from '../../../lib/format'
 import {
   campusOptions,
@@ -192,40 +193,54 @@ export function DetailPage() {
 
   return (
     <div className={styles.page}>
-      <ItemGallery imageUrls={item.images.map((i) => i.url)} tint={categoryTint[item.category]}>
-        <button type="button" className={styles.back} aria-label="戻る" onClick={back}>
-          <Icon name="back" />
-        </button>
-      </ItemGallery>
-      <div className={styles.body}>
-        <div className={styles.heading}>
-          <div className={styles.badges}>
-            <Badge size="md">{labelOf(categoryOptions, item.category)}</Badge>
-            {isSoldOut(item) && (
-              <Badge tone="neutral" size="md">
-                売り切れ
-              </Badge>
-            )}
-          </div>
-          <h1 className={styles.title}>{item.title}</h1>
-          <p className={styles.price}>{formatPrice(item.price)}</p>
-        </div>
-        {item.myRequest && !isSoldOut(item) && (
-          <InfoBox tone="warning" icon="clock">
-            出品者の承認待ち · {formatShortDateTime(item.myRequest.approvalDeadline)}まで
-          </InfoBox>
-        )}
-        <DefinitionList items={detailRows(item)} boxed />
-        {item.description && <p className={styles.description}>{item.description}</p>}
-        <div className={styles.seller}>
-          <Avatar departmentName={item.seller.departmentName} />
-          <div className={styles.sellerText}>
-            <span className={styles.sellerName}>
-              {item.seller.departmentName ?? '学部不明'} · {item.seller.admissionYear}年度入学
-            </span>
-            <span className={styles.note}>学籍番号は取引成立後に表示されます</span>
-          </div>
-        </div>
+      {/* PC 幅では写真（左、360px）と商品の情報（右）の2カラム（DS-1） */}
+      <div className={styles.main}>
+        <TwoColumn
+          variant="narrowStart"
+          start={
+            <ItemGallery
+              imageUrls={item.images.map((i) => i.url)}
+              tint={categoryTint[item.category]}
+              className={styles.gallery}
+            >
+              <button type="button" className={styles.back} aria-label="戻る" onClick={back}>
+                <Icon name="back" />
+              </button>
+            </ItemGallery>
+          }
+          end={
+            <div className={styles.body}>
+              <div className={styles.heading}>
+                <div className={styles.badges}>
+                  <Badge size="md">{labelOf(categoryOptions, item.category)}</Badge>
+                  {isSoldOut(item) && (
+                    <Badge tone="neutral" size="md">
+                      売り切れ
+                    </Badge>
+                  )}
+                </div>
+                <h1 className={styles.title}>{item.title}</h1>
+                <p className={styles.price}>{formatPrice(item.price)}</p>
+              </div>
+              {item.myRequest && !isSoldOut(item) && (
+                <InfoBox tone="warning" icon="clock">
+                  出品者の承認待ち · {formatShortDateTime(item.myRequest.approvalDeadline)}まで
+                </InfoBox>
+              )}
+              <DefinitionList items={detailRows(item)} boxed />
+              {item.description && <p className={styles.description}>{item.description}</p>}
+              <div className={styles.seller}>
+                <Avatar departmentName={item.seller.departmentName} />
+                <div className={styles.sellerText}>
+                  <span className={styles.sellerName}>
+                    {item.seller.departmentName ?? '学部不明'} · {item.seller.admissionYear}年度入学
+                  </span>
+                  <span className={styles.note}>学籍番号は取引成立後に表示されます</span>
+                </div>
+              </div>
+            </div>
+          }
+        />
       </div>
       <div className={styles.actions}>
         <Button variant="ghost" icon="copy" onClick={() => setShareOpen(true)}>
