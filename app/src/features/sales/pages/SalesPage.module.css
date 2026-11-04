@@ -11,6 +11,12 @@
   padding: var(--space-page);
 }
 
+/* 概要と明細を包む枠。スマホでは枠を持たず、本文の縦並びにそのまま入る */
+.columns,
+.summary {
+  display: contents;
+}
+
 .sectionTitle {
   margin: 4px 0 0;
   font-size: var(--text-button-md);
@@ -47,4 +53,30 @@
   margin-top: 8px;
   color: var(--color-text-muted);
   font-size: var(--text-label);
+}
+
+/* PC 幅では売上の概要（TwoColumn の左、360px）と明細（右）の2カラム（DS-1） */
+@media (min-width: 1024px) {
+  /* TwoColumn はカラムの中の間隔を親の gap から引き継ぐので、本文の gap を渡す */
+  .columns {
+    display: block;
+    gap: inherit;
+  }
+
+  /* 概要が追従できるよう、左カラムを右カラム（明細）と同じ高さに伸ばす。TwoColumn は上ぞろえ */
+  .columns > div {
+    align-items: stretch;
+  }
+
+  /* 明細をスクロールしても、概要と出金のボタンを上に残す */
+  .summary {
+    position: sticky;
+    top: 24px;
+    display: block;
+  }
+
+  /* 右カラムの見出しは、左の概要の枠の上端にそろえる */
+  .sectionTitle {
+    margin-top: 0;
+  }
 }
