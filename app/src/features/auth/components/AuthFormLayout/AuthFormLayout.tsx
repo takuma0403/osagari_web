@@ -22,19 +22,23 @@ type Props = {
 /**
  * 新規登録・パスワード再設定・再確認の画面の枠（SignUp.dc.html, Code.dc.html, Password.dc.html, Recheck.dc.html）。
  * 白地に戻るボタンだけのヘッダー、STEP・見出し・説明、その下に入力とボタンを並べる。
+ * PC 幅（1024px 以上）では、灰色の地の中央に最大 440px の白いカードとして置く（DS-1）。
  */
 export function AuthFormLayout({ backTo, backState, step, icon, title, lead, children }: Props) {
   return (
     <div className={styles.page}>
-      <AppHeader backTo={backTo} backState={backState} bordered={false} />
-      <div className={styles.body}>
-        <div className={styles.intro}>
-          {step && <StepIndicator current={step.current} total={step.total} />}
-          {icon}
-          <h1 className={styles.title}>{title}</h1>
-          <p className={styles.lead}>{lead}</p>
+      {/* PC 幅では白いカードにして画面の中央に置く。スマホでは枠を持たない（DS-1） */}
+      <div className={styles.card}>
+        <AppHeader backTo={backTo} backState={backState} bordered={false} />
+        <div className={styles.body}>
+          <div className={styles.intro}>
+            {step && <StepIndicator current={step.current} total={step.total} />}
+            {icon}
+            <h1 className={styles.title}>{title}</h1>
+            <p className={styles.lead}>{lead}</p>
+          </div>
+          {children}
         </div>
-        {children}
       </div>
     </div>
   )

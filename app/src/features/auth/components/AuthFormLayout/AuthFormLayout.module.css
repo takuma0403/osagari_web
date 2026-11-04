@@ -5,6 +5,11 @@
   background: var(--color-surface);
 }
 
+/* カード。スマホでは枠を持たず、ページの縦並びにそのまま入る */
+.card {
+  display: contents;
+}
+
 .body {
   display: flex;
   flex-direction: column;
@@ -27,4 +32,29 @@
 .lead {
   color: var(--color-text-muted);
   font-size: var(--text-body);
+}
+
+/* PC 幅では灰色の地の中央に白いカードを置く（DS-1） */
+@media (min-width: 1024px) {
+  .page {
+    align-items: center;
+    justify-content: center;
+    padding: 48px var(--space-page);
+    background: var(--color-bg);
+  }
+
+  .card {
+    display: flex;
+    flex-direction: column;
+    width: 100%;
+    max-width: 440px;
+    border: 1px solid var(--color-border);
+    border-radius: var(--radius-dialog);
+    background: var(--color-surface);
+  }
+
+  /* カードの高さは中身に合わせる（スマホでは下部のボタンを画面の下に寄せるため伸ばしている） */
+  .body {
+    flex-grow: 0;
+  }
 }
