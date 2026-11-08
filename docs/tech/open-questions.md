@@ -4,7 +4,7 @@
 
 ## TECH-OPEN 未決事項
 
-- [x] Cloud Storage のリージョン（東京にするか、無料枠のある米国にするか）→ 米国 us-central1（商品写真・学生証とも）（[ADR 0041](../decisions/0041-production-regions-and-domain.md)）
+- [x] Cloud Storage のリージョン（東京にするか、無料枠のある米国にするか）→ 米国 us-central1（商品写真・学生証とも）（[ADR 0041](../decisions/0041-production-regions-and-domain.md)）。のちに商品写真は Cloudflare R2（APAC）に移した（[ADR 0051](../decisions/0051-item-images-on-cloudflare-r2.md)）
 - [ ] 大学のメールでGmailからの送信が迷惑メール扱いされないかの確認
 - [x] GORM と golang-migrate が Turso（libSQL）で問題なく動くかの検証 → go-libsql + gormlite で動作。複数文のマイグレーションは文ごとに分けて実行する（[ADR 0002](../decisions/0002-dev-environment.md)）
 - [x] Turso のリージョン選択 → 東京 aws-ap-northeast-1（[ADR 0041](../decisions/0041-production-regions-and-domain.md)）
