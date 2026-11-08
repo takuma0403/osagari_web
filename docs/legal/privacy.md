@@ -62,7 +62,8 @@
 
 | サービス | 使い道 |
 | --- | --- |
-| Google Cloud（Cloud Run、Cloud Storage、Cloud Logging、Cloud Scheduler、Secret Manager） | プログラムの実行、学生証の画像・商品写真の保存、アクセスの記録 |
+| Google Cloud（Cloud Run、Cloud Storage、Cloud Logging、Cloud Scheduler、Secret Manager） | プログラムの実行、学生証の画像の保存、アクセスの記録 |
+| Cloudflare R2 | 商品写真の保存 |
 | Firebase Hosting（Google） | 画面の配信 |
 | Turso | データベース（アカウント・商品・取引の記録） |
 | Gmail（Google） | 認証コードのメールの送信 |
@@ -72,9 +73,10 @@
 | 国 | 保存する情報 | その国の個人情報保護の制度 |
 | --- | --- | --- |
 | 日本（東京） | データベースの記録（アカウント・商品・取引など） | 個人情報保護法 |
-| アメリカ合衆国 | 学生証の画像、商品写真 | [個人情報保護委員会が公表している情報](https://www.ppc.go.jp/personalinfo/legal/kaiseihogohou/)（「外国における個人情報の保護に関する制度等の調査」のアメリカ合衆国） |
+| アメリカ合衆国 | 学生証の画像 | [個人情報保護委員会が公表している情報](https://www.ppc.go.jp/personalinfo/legal/kaiseihogohou/)（「外国における個人情報の保護に関する制度等の調査」のアメリカ合衆国） |
+| アジア太平洋地域のいずれかの国 | 商品写真 | 保存する国は Cloudflare が設備の状況に応じて決め、運営者は指定できないため、特定できません |
 
-3. 前項の外部サービスを提供する Google と Turso は、アメリカ合衆国の事業者です。メールの送信やアクセスの記録などは、アメリカ合衆国を含む国の設備で扱われることがあります。
+3. 前項の外部サービスを提供する Google・Turso・Cloudflare は、アメリカ合衆国の事業者です。メールの送信やアクセスの記録などは、アメリカ合衆国を含む国の設備で扱われることがあります。
 
 ### 第７条（保存する期間）
 
