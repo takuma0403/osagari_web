@@ -72,7 +72,7 @@ for bucket in "${BUCKETS[@]}"; do
     gc storage buckets create "gs://${bucket}" --location "$STORAGE_LOCATION" \
       --default-storage-class STANDARD --uniform-bucket-level-access
   fi
-  # 商品写真も学生証も署名付きURLでしか見せないので、どちらも公開アクセス防止を付ける。
+  # 学生証は署名付きURLでしか見せないので、公開アクセス防止を付ける。
   # ソフト削除は無効にする（期限が来た学生証を確実に消し、削除後に無料枠の容量を使わないため）
   gc storage buckets update "gs://${bucket}" --uniform-bucket-level-access --public-access-prevention \
     --clear-soft-delete --cors-file "$cors" >/dev/null

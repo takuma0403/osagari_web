@@ -35,7 +35,6 @@ url=$(service_url)
 env_file=$(mktemp)
 trap 'rm -f "$env_file"' EXIT
 cat >"$env_file" <<YAML
-STORAGE_BUCKET_ITEM_IMAGES: "${BUCKET_ITEM_IMAGES}"
 STORAGE_BUCKET_STUDENT_CARDS: "${BUCKET_STUDENT_CARDS}"
 # 商品写真の Cloudflare R2（S3 互換 API。#141, ADR 0051）
 S3_ENDPOINT: "${R2_ENDPOINT}"
