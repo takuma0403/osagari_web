@@ -10,7 +10,7 @@ import (
 
 // ItemService は出品の業務ロジック（service.ItemService）。
 type ItemService interface {
-	CreateImageUpload(ctx context.Context, u *domain.User, contentType string) (service.ImageUpload, error)
+	CreateImageUpload(ctx context.Context, u *domain.User, contentType string, size int64) (service.ImageUpload, error)
 	Create(ctx context.Context, u *domain.User, in domain.ItemContent, imageKeys []string, publish bool) (*service.ItemView, error)
 	Get(ctx context.Context, u *domain.User, id string) (*service.ItemView, error)
 	Update(ctx context.Context, u *domain.User, id string, in domain.ItemContent, imageKeys []string) (*service.ItemView, error)
@@ -30,7 +30,7 @@ func (h *Handler) CreateItemImageUpload(ctx context.Context, req api.CreateItemI
 	if err != nil {
 		return nil, err
 	}
-	up, err := h.d.Item.CreateImageUpload(ctx, u, string(req.Body.ContentType))
+	up, err := h.d.Item.CreateImageUpload(ctx, u, string(req.Body.ContentType), req.Body.Size)
 	if err != nil {
 		return nil, err
 	}

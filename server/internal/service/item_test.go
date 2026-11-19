@@ -107,7 +107,7 @@ func (f *itemFixture) createUser(t *testing.T, email, number string, seller doma
 // upload は署名付きURLを発行し、ブラウザがその URL に PUT したことにする。
 func (f *itemFixture) upload(t *testing.T, u *domain.User, contentType string, size int64) string {
 	t.Helper()
-	up, err := f.svc.CreateImageUpload(context.Background(), u, contentType)
+	up, err := f.svc.CreateImageUpload(context.Background(), u, contentType, size)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -154,28 +154,45 @@ func TestItemCreateImageUpload(t *testing.T) {
 	ctx := context.Background()
 	f := newItemFixture(t)
 
-	up, err := f.svc.CreateImageUpload(ctx, f.seller, "image/webp")
+	up, err := f.svc.CreateImageUpload(ctx, f.seller, "image/webp", 1234)
 	if err != nil {
 		t.Fatal(err)
 	}
 	if !strings.HasPrefix(up.ObjectKey, f.seller.ID+"/") || up.Method != "PUT" ||
-		up.Headers["Content-Type"] != "image/webp" || up.Headers["x-goog-content-length-range"] != "0,5242880" ||
-		up.Headers["x-goog-if-generation-match"] != "0" || !up.ExpiresAt.Equal(t0.Add(15*time.Minute)) ||
+		up.Headers["Content-Type"] != "image/webp" || !up.ExpiresAt.Equal(t0.Add(15*time.Minute)) ||
 		!strings.Contains(up.URL, "/"+itemBucket+"/"+up.ObjectKey) {
 		t.Errorf("upload = %+v", up)
 	}
+	// 大きさは Content-Length として署名に含める（ADR 0051）
+	if got := f.storage.LastPut(); got != (storage.PutOptions{ContentType: "image/webp", MaxBytes: 5 << 20, Size: 1234}) {
+		t.Errorf("PutOptions = %+v", got)
+	}
 
-	_, err = f.svc.CreateImageUpload(ctx, f.seller, "image/png")
+	_, err = f.svc.CreateImageUpload(ctx, f.seller, "image/png", 1234)
 	wantCode(t, err, apperr.CodeBadRequest)
+
+	// 大きさの境界：1〜5MB だけ受け付ける
+	for _, c := range []struct {
+		size int64
+		ok   bool
+	}{{0, false}, {-1, false}, {1, true}, {5 << 20, true}, {5<<20 + 1, false}} {
+		_, err := f.svc.CreateImageUpload(ctx, f.seller, "image/jpeg", c.size)
+		if c.ok && err != nil {
+			t.Errorf("size=%d: err = %v", c.size, err)
+		}
+		if !c.ok {
+			wantCode(t, err, apperr.CodeBadRequest)
+		}
+	}
 
 	for _, st := range []domain.SellerStatus{domain.SellerStatusNone, domain.SellerStatusPending, domain.SellerStatusRejected} {
 		u := &domain.User{ID: "u-" + string(st), SellerStatus: st}
-		_, err := f.svc.CreateImageUpload(ctx, u, "image/jpeg")
+		_, err := f.svc.CreateImageUpload(ctx, u, "image/jpeg", 1234)
 		wantCode(t, err, service.CodeSellerNotApproved)
 	}
 
 	f.storage.Err = errors.New("storage down")
-	_, err = f.svc.CreateImageUpload(ctx, f.seller, "image/jpeg")
+	_, err = f.svc.CreateImageUpload(ctx, f.seller, "image/jpeg", 1234)
 	wantCode(t, err, apperr.CodeInternal)
 }
 
@@ -213,7 +230,9 @@ func TestItemCreate(t *testing.T) {
 
 	other := f.createUser(t, "26238002@edu.cc.saga-u.ac.jp", "26238002", domain.SellerStatusApproved)
 	otherKey := f.upload(t, other, "image/jpeg", 1024)
-	tooLarge := f.upload(t, f.seller, "image/jpeg", 5<<20+1)
+	// 発行のときの大きさは範囲内でも、登録のときは保存されたオブジェクトの大きさを確かめ直す
+	tooLarge := f.upload(t, f.seller, "image/jpeg", 1024)
+	f.storage.Put(itemBucket, tooLarge, storage.ObjectInfo{Size: 5<<20 + 1, ContentType: "image/jpeg"})
 	pngKey := f.seller.ID + "/" + uuid.NewString()
 	f.storage.Put(itemBucket, pngKey, storage.ObjectInfo{Size: 10, ContentType: "image/png"})
 	notUploaded := f.seller.ID + "/" + uuid.NewString()

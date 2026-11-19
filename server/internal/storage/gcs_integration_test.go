@@ -47,7 +47,7 @@ func TestGCSEmulator(t *testing.T) {
 		t.Fatalf("アップロード前の Stat: err = %v, want ErrNotFound", err)
 	}
 
-	u, err := g.SignedPutURL(ctx, bucket, object, "image/jpeg", 5<<20, time.Now().Add(15*time.Minute))
+	u, err := g.SignedPutURL(ctx, bucket, object, storage.PutOptions{ContentType: "image/jpeg", MaxBytes: 5 << 20}, time.Now().Add(15*time.Minute))
 	if err != nil {
 		t.Fatal(err)
 	}

@@ -69,14 +69,18 @@ type ItemView struct {
 }
 
 // CreateImageUpload は商品写真を直接 PUT するための署名付きURLを発行する。オブジェクト名は `{ユーザーID}/{UUID}`。
-func (s *ItemService) CreateImageUpload(ctx context.Context, u *domain.User, contentType string) (ImageUpload, error) {
+// size（縮小後の画像の大きさ）は Content-Length として署名に含める（STORAGE, ADR 0051）。
+func (s *ItemService) CreateImageUpload(ctx context.Context, u *domain.User, contentType string, size int64) (ImageUpload, error) {
 	if !validImageContentType(contentType) {
 		return ImageUpload{}, errImageContentType
+	}
+	if !validImageSize(size) {
+		return ImageUpload{}, errImageSize
 	}
 	if err := requireSeller(u); err != nil {
 		return ImageUpload{}, err
 	}
-	up, err := signImageUpload(ctx, s.d.Storage, s.d.Bucket, u.ID, contentType, s.d.Clock.Now())
+	up, err := signImageUpload(ctx, s.d.Storage, s.d.Bucket, u.ID, contentType, size, s.d.Clock.Now())
 	if err != nil {
 		return ImageUpload{}, apperr.Internal(err)
 	}
