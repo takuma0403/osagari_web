@@ -4,6 +4,7 @@
 set -euo pipefail
 cd "$(dirname "$0")"
 source ./config.sh
+require_r2_account_id
 
 gc() { gcloud --project "$PROJECT_ID" --quiet "$@"; }
 
@@ -36,6 +37,10 @@ trap 'rm -f "$env_file"' EXIT
 cat >"$env_file" <<YAML
 STORAGE_BUCKET_ITEM_IMAGES: "${BUCKET_ITEM_IMAGES}"
 STORAGE_BUCKET_STUDENT_CARDS: "${BUCKET_STUDENT_CARDS}"
+# 商品写真の Cloudflare R2（S3 互換 API。#141, ADR 0051）
+S3_ENDPOINT: "${R2_ENDPOINT}"
+S3_REGION: "auto"
+S3_BUCKET_ITEM_IMAGES: "${R2_BUCKET_ITEM_IMAGES}"
 SMTP_HOST: "smtp.gmail.com"
 SMTP_PORT: "587"
 SMTP_USERNAME: "${SMTP_USERNAME}"
@@ -52,7 +57,7 @@ gc run deploy "$SERVICE" --region "$REGION" --image "$image" \
   --min-instances 0 --max-instances 2 \
   --cpu 1 --memory 512Mi --cpu-throttling \
   --env-vars-file "$env_file" \
-  --set-secrets "DATABASE_URL=${SECRET_DATABASE_URL}:latest,ADMIN_STUDENT_NUMBERS=${SECRET_ADMIN_STUDENT_NUMBERS}:latest,SMTP_PASSWORD=${SECRET_SMTP_PASSWORD}:latest"
+  --set-secrets "DATABASE_URL=${SECRET_DATABASE_URL}:latest,ADMIN_STUDENT_NUMBERS=${SECRET_ADMIN_STUDENT_NUMBERS}:latest,SMTP_PASSWORD=${SECRET_SMTP_PASSWORD}:latest,S3_ACCESS_KEY_ID=${SECRET_R2_ACCESS_KEY_ID}:latest,S3_SECRET_ACCESS_KEY=${SECRET_R2_SECRET_ACCESS_KEY}:latest"
 
 echo "==> 稼働確認"
 curl -fsS "${url}/api/health"
