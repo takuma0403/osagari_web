@@ -30,10 +30,13 @@ type config struct {
 	Port        string
 	DatabaseURL string
 	SMTP        mail.SMTPConfig
-	Storage     storage.GCSConfig
-	// StudentCardBucket は学生証の非公開バケット（STORAGE）
+	// Storage は学生証の Cloud Storage（STORAGE）
+	Storage storage.GCSConfig
+	// S3 は商品写真の S3 互換ストレージ。本番は Cloudflare R2、ローカルは RustFS（STORAGE, ADR 0051）
+	S3 storage.S3Config
+	// StudentCardBucket は学生証の非公開バケット（Cloud Storage。STORAGE）
 	StudentCardBucket string
-	// ItemImageBucket は商品写真のバケット（STORAGE）
+	// ItemImageBucket は商品写真のバケット（R2。STORAGE）
 	ItemImageBucket string
 	// Admins は管理者の学籍番号の許可リスト（ADMIN, ADR 0015）
 	Admins domain.AdminList
@@ -71,12 +74,17 @@ func run(logger *slog.Logger) error {
 	if err != nil {
 		return err
 	}
-	store, err := storage.NewGCS(context.Background(), cfg.Storage)
+	// 学生証は Cloud Storage、商品写真は R2 に置く（STORAGE, ADR 0051）
+	cardStore, err := storage.NewGCS(context.Background(), cfg.Storage)
 	if err != nil {
 		return err
 	}
-	defer store.Close()
-	h, sessions := wire(cfg, gdb, clk, mailer, store, logger)
+	defer cardStore.Close()
+	itemStore, err := storage.NewS3(cfg.S3)
+	if err != nil {
+		return err
+	}
+	h, sessions := wire(cfg, gdb, clk, mailer, stores{card: cardStore, item: itemStore}, logger)
 	e := server.New(server.Deps{
 		Logger:   logger,
 		Clock:    clk,
@@ -88,9 +96,17 @@ func run(logger *slog.Logger) error {
 	return e.Start(":" + cfg.Port)
 }
 
+// stores は保存先ごとのストレージ（STORAGE, ADR 0051）。
+type stores struct {
+	// card は学生証（Cloud Storage）。学生証の登録・管理者の閲覧・期限切れの削除に使う
+	card storage.Storage
+	// item は商品写真（R2）。出品・取引・売上・管理者の取引の写真に使う
+	item storage.Storage
+}
+
 // wire は repository → service → handler の順に依存を組み立てる。機能を足すときはここに追加する。
 // セッションの検証（server のミドルウェアが使う）も返す。
-func wire(cfg config, gdb *gorm.DB, clk clock.Clock, mailer mail.Mailer, store storage.Storage, logger *slog.Logger) (api.StrictServerInterface, server.Authenticator) {
+func wire(cfg config, gdb *gorm.DB, clk clock.Clock, mailer mail.Mailer, st stores, logger *slog.Logger) (api.StrictServerInterface, server.Authenticator) {
 	tx := repository.NewTransactor(gdb)
 	users := repository.NewUserRepository(gdb)
 	codes := repository.NewVerificationCodeRepository(gdb)
@@ -145,7 +161,7 @@ func wire(cfg config, gdb *gorm.DB, clk clock.Clock, mailer mail.Mailer, store s
 		Tx:      tx,
 		Users:   users,
 		Cards:   cards,
-		Storage: store,
+		Storage: st.card,
 		Bucket:  cfg.StudentCardBucket,
 		Clock:   clk,
 	})
@@ -154,7 +170,7 @@ func wire(cfg config, gdb *gorm.DB, clk clock.Clock, mailer mail.Mailer, store s
 		Users:   users,
 		Cards:   cards,
 		Views:   repository.NewStudentCardViewRepository(gdb),
-		Storage: store,
+		Storage: st.card,
 		Bucket:  cfg.StudentCardBucket,
 		Admins:  cfg.Admins,
 		Clock:   clk,
@@ -172,7 +188,7 @@ func wire(cfg config, gdb *gorm.DB, clk clock.Clock, mailer mail.Mailer, store s
 		Users:        users,
 		Transactions: transactions,
 		Payments:     payments,
-		Storage:      store,
+		Storage:      st.item,
 		Bucket:       cfg.ItemImageBucket,
 		Clock:        clk,
 	})
@@ -184,7 +200,7 @@ func wire(cfg config, gdb *gorm.DB, clk clock.Clock, mailer mail.Mailer, store s
 		HandoverTokens: handoverTokens,
 		Settings:       settings,
 		Payments:       payments,
-		Storage:        store,
+		Storage:        st.item,
 		Bucket:         cfg.ItemImageBucket,
 		Clock:          clk,
 	})
@@ -194,7 +210,7 @@ func wire(cfg config, gdb *gorm.DB, clk clock.Clock, mailer mail.Mailer, store s
 		Transactions: transactions,
 		Payouts:      paymentRecords,
 		Payments:     payments,
-		Storage:      store,
+		Storage:      st.item,
 		Bucket:       cfg.ItemImageBucket,
 		Clock:        clk,
 	})
@@ -213,7 +229,7 @@ func wire(cfg config, gdb *gorm.DB, clk clock.Clock, mailer mail.Mailer, store s
 		Transactions: transactions,
 		Sessions:     sessions,
 		Payments:     payments,
-		Storage:      store,
+		Storage:      st.card,
 		Bucket:       cfg.StudentCardBucket,
 		Clock:        clk,
 	})
@@ -234,7 +250,7 @@ func wire(cfg config, gdb *gorm.DB, clk clock.Clock, mailer mail.Mailer, store s
 		Items:        items,
 		Transactions: transactions,
 		Payments:     payments,
-		Storage:      store,
+		Storage:      st.item,
 		Bucket:       cfg.ItemImageBucket,
 		Admins:       cfg.Admins,
 		Clock:        clk,
@@ -295,10 +311,23 @@ func loadConfig() (config, error) {
 	if cfg.StudentCardBucket == "" {
 		return config{}, fmt.Errorf("環境変数 STORAGE_BUCKET_STUDENT_CARDS が設定されていません")
 	}
-	cfg.ItemImageBucket = os.Getenv("STORAGE_BUCKET_ITEM_IMAGES")
-	if cfg.ItemImageBucket == "" {
-		return config{}, fmt.Errorf("環境変数 STORAGE_BUCKET_ITEM_IMAGES が設定されていません")
+	// 商品写真の S3 互換ストレージ（本番は R2。STORAGE, ADR 0051）。S3_PUBLIC_ENDPOINT だけは任意（未設定なら S3_ENDPOINT）
+	for _, v := range []struct {
+		key string
+		dst *string
+	}{
+		{"S3_BUCKET_ITEM_IMAGES", &cfg.ItemImageBucket},
+		{"S3_ENDPOINT", &cfg.S3.Endpoint},
+		{"S3_REGION", &cfg.S3.Region},
+		{"S3_ACCESS_KEY_ID", &cfg.S3.AccessKeyID},
+		{"S3_SECRET_ACCESS_KEY", &cfg.S3.SecretAccessKey},
+	} {
+		*v.dst = os.Getenv(v.key)
+		if *v.dst == "" {
+			return config{}, fmt.Errorf("環境変数 %s が設定されていません", v.key)
+		}
 	}
+	cfg.S3.PublicEndpoint = os.Getenv("S3_PUBLIC_ENDPOINT")
 	// エミュレータ（fake-gcs-server）を使うときは、署名付きURLにブラウザから届くホストを入れる（STORAGE）
 	if host := os.Getenv("STORAGE_EMULATOR_HOST"); host != "" {
 		cfg.Storage.EmulatorPublicHost = envOr("STORAGE_PUBLIC_HOST", host)

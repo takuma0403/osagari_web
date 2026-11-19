@@ -1,6 +1,6 @@
 /** アップロード前に縮小するときの長辺の上限（STORAGE） */
 export const IMAGE_MAX_LONG_SIDE = 1600
-/** 署名付きURLが受け付ける大きさの上限（STORAGE。サーバーの x-goog-content-length-range と同じ） */
+/** 署名付きURLが受け付ける大きさの上限（STORAGE。サーバーの上限 5MB と同じ） */
 export const IMAGE_MAX_BYTES = 5 * 1024 * 1024
 
 /** 署名付きURLで送れる画像の形式（STORAGE） */

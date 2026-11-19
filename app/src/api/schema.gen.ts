@@ -427,9 +427,10 @@ export interface paths {
         put?: never;
         /**
          * 商品写真のアップロード用の署名付きURLを発行する
-         * @description ITEM, STORAGE: 商品写真のバケットに直接 PUT するための署名付きURL（15分有効、5MB まで）を発行する。ブラウザは返った `headers` を付けて `uploadUrl` に画像を PUT し、
+         * @description ITEM, STORAGE: 商品写真のバケット（Cloudflare R2）に直接 PUT するための署名付きURL（15分有効、5MB まで）を発行する。ブラウザは返った `headers` を付けて `uploadUrl` に画像を PUT し、
          *     そのあと `objectKey` を createItem・updateItem の `imageObjectKeys` に入れる。オブジェクト名は `{ユーザーID}/{UUID}`。
-         *     学生証が承認されていなければ 403 seller_not_approved。
+         *     署名には `contentType` と `size`（Content-Length）を含めるので、送る画像は発行を頼んだときと同じ形式・同じ大きさにする（ADR 0051）。
+         *     形式が違う・`size` が 1 未満か 5MB を超えるなら 400 bad_request。学生証が承認されていなければ 403 seller_not_approved。
          */
         post: operations["createItemImageUpload"];
         delete?: never;
@@ -1608,6 +1609,12 @@ export interface components {
         ImageContentType: "image/jpeg" | "image/webp";
         ImageUploadInput: {
             contentType: components["schemas"]["ImageContentType"];
+            /**
+             * Format: int64
+             * @description ブラウザで縮小・圧縮した後の画像の大きさ（バイト）。5MB まで。
+             *     R2 には大きさの範囲の条件がないため、API はこの値を Content-Length として署名に含め、違う大きさの PUT を受け付けない（STORAGE, ADR 0051）
+             */
+            size: number;
         };
         /** @description STORAGE 画像のアップロード先 */
         ImageUpload: {

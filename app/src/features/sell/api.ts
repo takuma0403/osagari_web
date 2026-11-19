@@ -10,9 +10,12 @@ export type Campus = components['schemas']['Campus']
 export type ImageUpload = components['schemas']['ImageUpload']
 export type FeeRate = components['schemas']['FeeRate']
 
-/** 商品写真のアップロード用の署名付きURLを発行する（ITEM, STORAGE）。URL は15分有効で、一度しか使えない */
-export function createItemImageUpload(contentType: UploadContentType) {
-  return postJson<ImageUpload>('/items/image-uploads', { contentType })
+/**
+ * 商品写真のアップロード用の署名付きURLを発行する（ITEM, STORAGE）。URL は15分有効で、一度しか使えない。
+ * size は縮小後の画像の大きさ（バイト）。署名に Content-Length として含まれるので、同じ Blob を送る（ADR 0051）
+ */
+export function createItemImageUpload(contentType: UploadContentType, size: number) {
+  return postJson<ImageUpload>('/items/image-uploads', { contentType, size })
 }
 
 /** 商品を下書き（publish: false）か公開中（publish: true）として作る（ITEM） */

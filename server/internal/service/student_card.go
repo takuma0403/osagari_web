@@ -64,7 +64,7 @@ func (s *StudentCardService) CreateUpload(ctx context.Context, u *domain.User, c
 	if u.SellerStatus == domain.SellerStatusApproved {
 		return StudentCardUpload{}, errStudentCardApproved
 	}
-	up, err := signImageUpload(ctx, s.d.Storage, s.d.Bucket, u.ID, contentType, s.d.Clock.Now())
+	up, err := signImageUpload(ctx, s.d.Storage, s.d.Bucket, u.ID, contentType, 0, s.d.Clock.Now())
 	if err != nil {
 		return StudentCardUpload{}, apperr.Internal(err)
 	}

@@ -35,6 +35,14 @@ STORAGE_LOCATION=us-central1
 BUCKET_ITEM_IMAGES="${PROJECT_ID}-item-images"
 BUCKET_STUDENT_CARDS="${PROJECT_ID}-student-cards"
 BUCKETS=("$BUCKET_ITEM_IMAGES" "$BUCKET_STUDENT_CARDS")
+# 商品写真の Cloudflare R2（#141, STORAGE, ADR 0051）。佐賀から近いアジア太平洋の location hint を付ける。
+# アカウントID は署名付きURLのホストに入り利用者のブラウザにも見えるので、ここに書く（アクセスキーは Secret Manager）
+R2_ACCOUNT_ID=0d206bb093137deabf051d90b6d344f1
+R2_LOCATION=apac
+R2_BUCKET_ITEM_IMAGES=osagari-item-images
+R2_ENDPOINT="https://${R2_ACCOUNT_ID}.r2.cloudflarestorage.com"
+# setup.sh が使う wrangler の版（Node.js 22 以上が要る。リポジトリの .nvmrc の版で動かす）
+WRANGLER_VERSION=4.156.2
 # Firebase Hosting のサイト（既定のサイト名はプロジェクトIDと同じ。#39）。独自ドメインは使わない（ADR 0041）
 HOSTING_SITE=$PROJECT_ID
 # ブラウザからの直接アップロードを CORS で許可するオリジン（Firebase Hosting の標準ドメイン。ADR 0041）
@@ -47,7 +55,11 @@ SECRET_DATABASE_URL=database-url
 SECRET_ADMIN_STUDENT_NUMBERS=admin-student-numbers
 # Gmail のアプリパスワード（#41, AUTHN-7）
 SECRET_SMTP_PASSWORD=smtp-password
-SECRETS=("$SECRET_DATABASE_URL" "$SECRET_ADMIN_STUDENT_NUMBERS" "$SECRET_SMTP_PASSWORD")
+# 商品写真の R2 バケットだけを読み書きできる R2 API トークンのアクセスキー（#141, STORAGE）
+SECRET_R2_ACCESS_KEY_ID=r2-access-key-id
+SECRET_R2_SECRET_ACCESS_KEY=r2-secret-access-key
+SECRETS=("$SECRET_DATABASE_URL" "$SECRET_ADMIN_STUDENT_NUMBERS" "$SECRET_SMTP_PASSWORD"
+  "$SECRET_R2_ACCESS_KEY_ID" "$SECRET_R2_SECRET_ACCESS_KEY")
 
 # 認証コードのメールを送るアプリ専用の Gmail アカウント（#41, AUTHN-7）。差出人として受信者に見えるので秘密ではない
 SMTP_USERNAME=sagadai.osagari@gmail.com
@@ -64,6 +76,14 @@ BUDGET_THRESHOLDS=(0.5 0.9 1.0)
 
 # Turso の本番DB（グループは aws-ap-northeast-1。ADR 0041）
 TURSO_DB=osagari
+
+# R2 を使うスクリプトの最初に呼ぶ。アカウントID が未記入なら止める
+require_r2_account_id() {
+  if [ -z "$R2_ACCOUNT_ID" ]; then
+    echo "infra/config.sh の R2_ACCOUNT_ID に Cloudflare のアカウントID を書いてください（infra/README.md）" >&2
+    exit 1
+  fi
+}
 
 # Cloud Run サービスの URL（https://<サービス名>-<プロジェクト番号>.<リージョン>.run.app）。
 # 内部用エンドポイントの audience にも使う（deploy-server.sh の JOBS_OIDC_AUDIENCE と Cloud Scheduler のジョブで同じ値にする。JOBS-1）
