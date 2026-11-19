@@ -30,11 +30,11 @@ WIF_PROVIDER=github
 AR_REPO=osagari
 IMAGE="${REGION}-docker.pkg.dev/${PROJECT_ID}/${AR_REPO}/api"
 
-# Cloud Storage のバケット（#69, STORAGE）。常時無料枠のある us-central1 に置く（ADR 0041）
+# Cloud Storage のバケット（#69, STORAGE）。学生証だけを置き、常時無料枠のある us-central1 に置く（ADR 0041）。
+# 商品写真は R2 に移した（#144, ADR 0051）
 STORAGE_LOCATION=us-central1
-BUCKET_ITEM_IMAGES="${PROJECT_ID}-item-images"
 BUCKET_STUDENT_CARDS="${PROJECT_ID}-student-cards"
-BUCKETS=("$BUCKET_ITEM_IMAGES" "$BUCKET_STUDENT_CARDS")
+BUCKETS=("$BUCKET_STUDENT_CARDS")
 # 商品写真の Cloudflare R2（#141, STORAGE, ADR 0051）。佐賀から近いアジア太平洋の location hint を付ける。
 # アカウントID は署名付きURLのホストに入り利用者のブラウザにも見えるので、ここに書く（アクセスキーは Secret Manager）
 R2_ACCOUNT_ID=0d206bb093137deabf051d90b6d344f1
