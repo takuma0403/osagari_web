@@ -96,11 +96,27 @@ jobs:
         env:
           STORAGE_URL: http://localhost:4443
           BUCKETS: student-cards
+      # 商品写真の S3 互換ストレージ（ローカルと同じ RustFS。STORAGE, ADR 0051・0052）。署名と条件を R2 と同じく検証する
+      - name: RustFS の起動
+        run: >-
+          docker run -d --name s3 -p 9000:9000
+          -e RUSTFS_ACCESS_KEY=local-access-key -e RUSTFS_SECRET_KEY=local-secret-key
+          rustfs/rustfs:1.0.5
+      - name: 商品写真のバケットの作成
+        run: sh dev/s3-init.sh
+        env:
+          S3_URL: http://localhost:9000
+          AWS_ACCESS_KEY_ID: local-access-key
+          AWS_SECRET_ACCESS_KEY: local-secret-key
+          AWS_REGION: us-east-1
+          BUCKETS: item-images
+          CORS_ORIGIN: http://localhost:5173
       - name: go test（libSQL・ストレージの統合テストを含む）
         run: go test ./...
         env:
           TEST_DATABASE_URL: http://localhost:8080
           TEST_STORAGE_EMULATOR_HOST: localhost:4443
+          TEST_S3_ENDPOINT: http://localhost:9000
       - name: 生成物の差分検査（api.gen.go, API-1）
         run: |
           go generate ./internal/api
