@@ -1,8 +1,9 @@
 # syntax=docker/dockerfile:1
 # go-libsql は cgo を使うため CGO_ENABLED=1 でビルドする（glibc が必要）。
+# Go 1.27.4 以降は go-libsql の静的ライブラリの LTO セクションを拒否してビルドできないので、1.27.3 に固定する（#149。対応は #150）。
 
 # ---- dev：compose から使う。ソースは bind mount し、air でホットリロードする ----
-FROM golang:1.27-trixie AS dev
+FROM golang:1.27.3-trixie AS dev
 # bind mount したリポジトリは所有者が違うため、VCS 情報の埋め込みを止める
 ENV CGO_ENABLED=1 GOFLAGS=-buildvcs=false
 RUN go install github.com/air-verse/air@v1.67.4
@@ -10,7 +11,7 @@ WORKDIR /workspace/server
 CMD ["air", "-c", ".air.toml"]
 
 # ---- build：本番用バイナリ ----
-FROM golang:1.27-trixie AS build
+FROM golang:1.27.3-trixie AS build
 ENV CGO_ENABLED=1
 WORKDIR /src
 COPY go.mod go.sum ./
