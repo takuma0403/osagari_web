@@ -25,7 +25,7 @@ API は応答のたびに有効期限 15分 の閲覧用署名付きURLを新し
 - バケットは公開しない（r2.dev のURL・独自ドメインを付けない）。今までどおり API が署名付きURLを発行し、ログインした利用者だけに見せる（STORAGE）。
 - アップロード用の署名には `Content-Type`・`If-None-Match: *`（まだないオブジェクトだけ作れる）・`Content-Length` を含める。R2 には Cloud Storage の `x-goog-content-length-range` に当たる条件がなく、POST のポリシーにも対応していないため、ブラウザが縮小後の画像の大きさ（バイト）をアップロードURLの発行時に API に送り、API が 5MB 以下かを確かめてから、その値を `Content-Length` として署名する。登録時の確認（本人のものか・存在するか・形式・大きさ）は今までどおり行う。
 - API は R2 の S3 互換 API を使う。署名には R2 のアクセスキーを使い、Secret Manager に保存する。アクセスキーの権限は商品写真のバケットの読み書きだけにする。
-- ローカルでは、商品写真に S3 互換の MinIO を使う。学生証は今までどおり fake-gcs-server。
+- ローカルでは、商品写真に S3 互換の MinIO を使う。学生証は今までどおり fake-gcs-server。（MinIO は [ADR 0052](0052-local-s3-rustfs.md) で RustFS に置き換えた）
 
 ## 理由と検討した選択肢
 
@@ -46,7 +46,7 @@ API は応答のたびに有効期限 15分 の閲覧用署名付きURLを新し
 
 - 更新したドキュメント：[tech/storage.md](../tech/storage.md)（STORAGE）、[tech/00-overview.md](../tech/00-overview.md)（ARCH・COST）、[legal/privacy.md](../legal/privacy.md)（第６条）、[ADR 0041](0041-production-regions-and-domain.md)・[ADR 0043](0043-production-cloud-storage-settings.md)（置き換えた箇所の注記）
 - 実装への影響：
-  - infra：R2 のバケット・CORS・アクセスキー（Secret Manager）、Cloud Run の環境変数、compose に MinIO、`infra/README.md`
+  - infra：R2 のバケット・CORS・アクセスキー（Secret Manager）、Cloud Run の環境変数、compose に MinIO（[ADR 0052](0052-local-s3-rustfs.md) で RustFS に変更）、`infra/README.md`
   - API 契約：商品写真のアップロードURLの発行に画像の大きさ（バイト）を加える
   - server：`storage.Storage` の S3 互換の実装を足し、商品写真を扱う service に R2 の store を渡す。`server/CLAUDE.md` のストレージの行も直す
   - app：商品写真のアップロードURLの発行で、縮小後の画像の大きさを送る
