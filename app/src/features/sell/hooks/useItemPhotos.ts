@@ -65,7 +65,7 @@ export function useItemPhotos(item?: OwnItem) {
           const url = URL.createObjectURL(blob)
           objectUrls.current.push(url)
           setPhotos((list) => [...list, { id, url }])
-          const upload = await createItemImageUpload(contentType)
+          const upload = await createItemImageUpload(contentType, blob.size)
           await uploadToSignedUrl(upload, blob)
           setPhotos((list) =>
             list.map((p) => (p.id === id ? { ...p, objectKey: upload.objectKey } : p)),
