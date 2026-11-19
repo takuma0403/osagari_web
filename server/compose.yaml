@@ -51,6 +51,43 @@ services:
     volumes:
       - ./dev/storage-init.sh:/init/storage-init.sh:ro
 
+  # 商品写真の S3 互換ストレージ（本番は Cloudflare R2。STORAGE, ADR 0051）。
+  # R2 と同じく署名付きURLの署名と条件（Content-Type・Content-Length・If-None-Match）を検証する。
+  # 管理画面: http://localhost:9001（ユーザー名・パスワードは下の値）
+  s3:
+    image: rustfs/rustfs:1.0.5
+    environment:
+      RUSTFS_ACCESS_KEY: local-access-key
+      RUSTFS_SECRET_KEY: local-secret-key
+    ports:
+      - "9000:9000"
+      - "9001:9001"
+    volumes:
+      - s3-data:/data
+    healthcheck:
+      test: ["CMD", "curl", "-fsS", "-o", "/dev/null", "http://127.0.0.1:9000/health"]
+      interval: 2s
+      timeout: 2s
+      retries: 15
+
+  # 商品写真のバケットを作り、CORS を設定する（一度だけ実行して終了）
+  s3-init:
+    image: amazon/aws-cli:2.37.10
+    depends_on:
+      s3:
+        condition: service_healthy
+    entrypoint: ["sh", "/init/s3-init.sh"]
+    environment:
+      S3_URL: http://s3:9000
+      AWS_ACCESS_KEY_ID: local-access-key
+      AWS_SECRET_ACCESS_KEY: local-secret-key
+      AWS_REGION: us-east-1
+      BUCKETS: item-images
+      # app の開発サーバー（Vite）。本番の R2 は Firebase Hosting の標準ドメインだけを許可する
+      CORS_ORIGIN: http://localhost:5173
+    volumes:
+      - ./dev/s3-init.sh:/init/s3-init.sh:ro
+
   # 認証コードなどのメールを受け取るモック SMTP（Web UI: http://localhost:8025）
   mail:
     image: axllent/mailpit:v1.27
@@ -88,6 +125,13 @@ services:
       STORAGE_PUBLIC_HOST: localhost:4443
       STORAGE_BUCKET_ITEM_IMAGES: item-images
       STORAGE_BUCKET_STUDENT_CARDS: student-cards
+      # 商品写真の S3 互換ストレージ（#142 で使う。ADR 0051）。API からは s3:9000、署名付きURLにはブラウザから届くホストを入れる
+      S3_ENDPOINT: http://s3:9000
+      S3_PUBLIC_ENDPOINT: http://localhost:9000
+      S3_REGION: us-east-1
+      S3_BUCKET_ITEM_IMAGES: item-images
+      S3_ACCESS_KEY_ID: local-access-key
+      S3_SECRET_ACCESS_KEY: local-secret-key
       SMTP_HOST: mail
       SMTP_PORT: "1025"
       SMTP_FROM: お下がりフリマ <noreply@osagari.local>
@@ -105,11 +149,14 @@ services:
         condition: service_completed_successfully
       storage-init:
         condition: service_completed_successfully
+      s3-init:
+        condition: service_completed_successfully
       mail:
         condition: service_started
 
 volumes:
   db-data:
   storage-data:
+  s3-data:
   go-mod:
   go-build:

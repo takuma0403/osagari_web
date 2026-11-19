@@ -27,7 +27,7 @@ GORM と golang-migrate の libSQL での動作は検証済み（`internal/db/li
 
 ```
 server/
-  compose.yaml              … ローカル環境（db / storage / storage-init / mail / migrate / api）
+  compose.yaml              … ローカル環境（db / storage / storage-init / s3 / s3-init / mail / migrate / api）
   Dockerfile                … dev（air）/ build / prod（distroless/cc。本番へのデプロイは ../infra/README.md）
   .air.toml                 … ホットリロードの設定
   .env.example              … 環境変数の一覧
