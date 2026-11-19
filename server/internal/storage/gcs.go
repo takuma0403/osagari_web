@@ -37,15 +37,15 @@ func NewGCS(ctx context.Context, cfg GCSConfig) (*GCS, error) {
 // Close はクライアントを閉じる。
 func (g *GCS) Close() error { return g.client.Close() }
 
-// SignedPutURL は V4 署名の PUT 用URLを発行する。Content-Type と条件のヘッダー（putHeaders）は署名に含めるので、
+// SignedPutURL は V4 署名の PUT 用URLを発行する。Content-Type と条件のヘッダー（gcsPutHeaders）は署名に含めるので、
 // ほかの形式・上書き・上限を超える大きさでは PUT できない。
-func (g *GCS) SignedPutURL(_ context.Context, bucket, object, contentType string, maxBytes int64, expiresAt time.Time) (SignedURL, error) {
-	headers := putHeaders(contentType, maxBytes)
+func (g *GCS) SignedPutURL(_ context.Context, bucket, object string, p PutOptions, expiresAt time.Time) (SignedURL, error) {
+	headers := gcsPutHeaders(p.ContentType, p.MaxBytes)
 	opts := &gcs.SignedURLOptions{
 		Scheme:      gcs.SigningSchemeV4,
 		Method:      "PUT",
 		Expires:     expiresAt,
-		ContentType: contentType,
+		ContentType: p.ContentType,
 	}
 	for k, v := range headers {
 		if k != "Content-Type" {
@@ -57,6 +57,17 @@ func (g *GCS) SignedPutURL(_ context.Context, bucket, object, contentType string
 		return SignedURL{}, err
 	}
 	return putURL(url, headers, expiresAt), nil
+}
+
+// gcsPutHeaders は署名に含める PUT のヘッダー。Content-Type 以外は Cloud Storage の XML API の条件：
+// x-goog-if-generation-match: 0 でオブジェクトがまだないときだけ作れるようにし（登録した後に同じURLで画像を差し替えさせない）、
+// x-goog-content-length-range で大きさの上限を付ける。
+func gcsPutHeaders(contentType string, maxBytes int64) map[string]string {
+	return map[string]string{
+		"Content-Type":                contentType,
+		"x-goog-if-generation-match":  "0",
+		"x-goog-content-length-range": fmt.Sprintf("0,%d", maxBytes),
+	}
 }
 
 // SignedGetURL は V4 署名の GET 用URLを発行する。

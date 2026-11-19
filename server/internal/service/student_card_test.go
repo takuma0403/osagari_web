@@ -105,10 +105,13 @@ func TestStudentCardCreateUpload(t *testing.T) {
 		t.Fatal(err)
 	}
 	if !strings.HasPrefix(up.ObjectKey, f.user.ID+"/") || up.Method != "PUT" ||
-		up.Headers["Content-Type"] != "image/webp" || up.Headers["x-goog-content-length-range"] != "0,5242880" ||
-		up.Headers["x-goog-if-generation-match"] != "0" || !up.ExpiresAt.Equal(t0.Add(15*time.Minute)) ||
+		up.Headers["Content-Type"] != "image/webp" || !up.ExpiresAt.Equal(t0.Add(15*time.Minute)) ||
 		!strings.Contains(up.URL, "/"+cardBucket+"/"+up.ObjectKey) {
 		t.Errorf("upload = %+v", up)
+	}
+	// 学生証（GCS）は上限の範囲で守るので、大きさは渡さない
+	if got := f.storage.LastPut(); got != (storage.PutOptions{ContentType: "image/webp", MaxBytes: 5 << 20}) {
+		t.Errorf("PutOptions = %+v", got)
 	}
 	other, err := f.svc.CreateUpload(ctx, f.user, "image/jpeg")
 	if err != nil {

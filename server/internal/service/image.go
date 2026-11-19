@@ -28,6 +28,8 @@ var imageContentTypes = []string{"image/jpeg", "image/webp"}
 var (
 	// errImageContentType はアップロードしようとした画像の形式が違う。
 	errImageContentType = apperr.BadRequest("JPEG か WebP の画像を選んでください")
+	// errImageSize は発行を頼んだ画像の大きさが 1〜imageMaxBytes の範囲外。
+	errImageSize = apperr.BadRequest("画像は5MB以下にしてください")
 	// errUploadedImageInvalid はオブジェクトが本人のものでない・アップロードされていない・形式が違う。
 	errUploadedImageInvalid = errors.New("service: アップロードした画像を確認できません")
 	// errUploadedImageTooLarge は画像が imageMaxBytes を超えている。
@@ -45,11 +47,19 @@ func validImageContentType(contentType string) bool {
 	return slices.Contains(imageContentTypes, contentType)
 }
 
+// validImageSize はブラウザが送る画像の大きさが受け付ける範囲かを返す。
+func validImageSize(size int64) bool {
+	return size >= 1 && size <= imageMaxBytes
+}
+
 // signImageUpload は bucket に画像を直接 PUT するための署名付きURLを発行する。オブジェクト名は `{ユーザーID}/{UUID}` にして、
 // ほかの人の名前で登録できないようにする。contentType は呼び出し側で validImageContentType を確かめておく。
-func signImageUpload(ctx context.Context, st storage.Storage, bucket, userID, contentType string, now time.Time) (ImageUpload, error) {
+// size はブラウザが送る画像の大きさ。商品写真（S3・R2）は Content-Length として署名に含めるので必須で、呼び出し側で validImageSize を確かめておく。
+// 学生証（GCS）は上限の範囲で守るので 0 でよい（ADR 0051）。
+func signImageUpload(ctx context.Context, st storage.Storage, bucket, userID, contentType string, size int64, now time.Time) (ImageUpload, error) {
 	objectKey := userID + "/" + uuid.NewString()
-	signed, err := st.SignedPutURL(ctx, bucket, objectKey, contentType, imageMaxBytes, now.Add(imageUploadTTL))
+	opts := storage.PutOptions{ContentType: contentType, MaxBytes: imageMaxBytes, Size: size}
+	signed, err := st.SignedPutURL(ctx, bucket, objectKey, opts, now.Add(imageUploadTTL))
 	if err != nil {
 		return ImageUpload{}, err
 	}

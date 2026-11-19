@@ -14,7 +14,7 @@
 | マイグレーション | golang-migrate（`migrations/` の SQL）。`internal/migration` が文ごとに分けて実行する。**AutoMigrate 禁止** | DB |
 | パスワード | argon2id | AUTHN-5 |
 | メール | Gmail SMTP（587 / STARTTLS）。ローカルは Mailpit（`mail:1025`、受信箱 http://localhost:8025） | AUTHN-7 |
-| ストレージ | Cloud Storage の署名付きURL。ローカルは fake-gcs-server（`STORAGE_EMULATOR_HOST`） | STORAGE |
+| ストレージ | 署名付きURL。学生証は Cloud Storage（ローカルは fake-gcs-server、`STORAGE_EMULATOR_HOST`）、商品写真は Cloudflare R2（S3 互換、aws-sdk-go-v2。ローカルは RustFS、`S3_ENDPOINT`） | STORAGE, ADR 0051・0052 |
 | ローカルDB | compose の libsql-server（Turso 互換。ホストからは `http://localhost:8081`） | ADR 0002 |
 
 GORM と golang-migrate の libSQL での動作は検証済み（`internal/db/libsql_integration_test.go`）。注意点：
@@ -87,7 +87,7 @@ server/
 | 停止 / データも消す | `docker compose down` / `docker compose down -v` |
 | テスト | `docker compose run --rm api go test ./...` |
 | libSQL の統合テスト | `docker compose run --rm -e TEST_DATABASE_URL=http://db:8080 api go test ./internal/db/...`（未設定ならスキップ） |
-| ストレージの統合テスト | `docker compose run --rm -e TEST_STORAGE_EMULATOR_HOST=storage:4443 api go test ./internal/storage/...`（未設定ならスキップ） |
+| ストレージの統合テスト | `docker compose run --rm -e TEST_STORAGE_EMULATOR_HOST=storage:4443 -e TEST_S3_ENDPOINT=http://s3:9000 api go test ./internal/storage/...`（未設定のものはスキップ） |
 | Lint | `docker compose run --rm api go vet ./...` |
 | フォーマット | `gofmt -w .`（Hook で自動実行） |
 | APIコード生成 | `docker compose run --rm api go generate ./internal/api` |

@@ -17,9 +17,9 @@ const json = (body: unknown, status = 200) =>
 const approved = { id: 'u1', sellerStatus: 'approved' } as CurrentUser
 const upload = {
   objectKey: 'u1/k1',
-  uploadUrl: 'http://localhost:4443/upload/u1/k1?sig=x',
+  uploadUrl: 'http://localhost:9000/item-images/u1/k1?X-Amz-Signature=x',
   method: 'PUT',
-  headers: { 'Content-Type': 'image/webp' },
+  headers: { 'Content-Type': 'image/webp', 'If-None-Match': '*' },
   expiresAt: '2026-10-20T05:17:00Z',
 }
 const item: OwnItem = {
@@ -160,8 +160,10 @@ describe('SellPage', () => {
     await user.click(screen.getByRole('button', { name: '公開する' }))
 
     await waitFor(() => expect(router.state.location.pathname).toBe('/items/abc123'))
+    // 縮小後の大きさを送る（R2 の署名に Content-Length として含まれる。ADR 0051）
     expect(bodyOf(fetchMock, 'POST /api/items/image-uploads')).toEqual({
       contentType: 'image/webp',
+      size: 4,
     })
     expect(bodyOf(fetchMock, 'POST /api/items')).toEqual({
       title: '線形代数入門',

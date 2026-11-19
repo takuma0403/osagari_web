@@ -13,6 +13,7 @@ import (
 type Memory struct {
 	mu      sync.Mutex
 	objects map[string]memoryObject
+	lastPut PutOptions
 	// Err を設定するとすべての操作がそのエラーを返す（ストレージの障害の確認用）
 	Err error
 }
@@ -28,14 +29,17 @@ func NewMemory() *Memory {
 	return &Memory{objects: map[string]memoryObject{}}
 }
 
-func (m *Memory) SignedPutURL(_ context.Context, bucket, object, contentType string, maxBytes int64, expiresAt time.Time) (SignedURL, error) {
+// SignedPutURL は Content-Type だけをヘッダーに入れる。条件のヘッダーの形は GCS・S3 の結合テストで確かめる。
+// 最後に渡された条件は LastPut で読める。
+func (m *Memory) SignedPutURL(_ context.Context, bucket, object string, opts PutOptions, expiresAt time.Time) (SignedURL, error) {
 	m.mu.Lock()
 	defer m.mu.Unlock()
 	if m.Err != nil {
 		return SignedURL{}, m.Err
 	}
+	m.lastPut = opts
 	u := url.URL{Scheme: "https", Host: "storage.test", Path: "/" + bucket + "/" + object}
-	return putURL(u.String(), putHeaders(contentType, maxBytes), expiresAt), nil
+	return putURL(u.String(), map[string]string{"Content-Type": opts.ContentType}, expiresAt), nil
 }
 
 func (m *Memory) SignedGetURL(_ context.Context, bucket, object string, expiresAt time.Time) (SignedURL, error) {
@@ -110,4 +114,11 @@ func (m *Memory) Has(bucket, object string) bool {
 	defer m.mu.Unlock()
 	_, ok := m.objects[bucket+"/"+object]
 	return ok
+}
+
+// LastPut は最後に SignedPutURL に渡された条件を返す。
+func (m *Memory) LastPut() PutOptions {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+	return m.lastPut
 }
