@@ -4,6 +4,8 @@
 - 状態: 採用
 - 関連する章ID: STORAGE, ARCH, COST
 
+> 商品写真のバケットは [ADR 0051](0051-item-images-on-cloudflare-r2.md) で Cloudflare R2 に移した。この ADR の設定は学生証のバケットにだけ当てはまる。
+
 ## 背景
 
 #69 で、本番の Cloud Storage に商品写真と学生証のバケットを作る。リージョンは [ADR 0041](0041-production-regions-and-domain.md) で us-central1 に決まっている。決めることは、公開範囲の守り方、削除したオブジェクトの扱い（Cloud Storage は既定で7日間ソフト削除として残す）、ブラウザからの直接アップロードを許す範囲（CORS）、署名と読み書きの権限。

@@ -18,7 +18,7 @@ M7 のデプロイ（#38・#39・#69）に着手するにあたり、[TECH-OPEN]
 
 - GCP プロジェクトは新しく `osagari-web-dev` を作り、既存の請求先アカウントに紐づける。Firebase も同じプロジェクトに追加する。
 - Cloud Run は東京（asia-northeast1）、Turso は東京（aws-ap-northeast-1）に置く。
-- Cloud Storage は商品写真・学生証のバケットとも米国（us-central1）に置く。
+- Cloud Storage は商品写真・学生証のバケットとも米国（us-central1）に置く。（商品写真は [ADR 0051](0051-item-images-on-cloudflare-r2.md) で Cloudflare R2 に移した）
 - 独自ドメインは使わず、Firebase Hosting の標準ドメイン（`<サイト名>.web.app`）で公開する。
 - プライバシーポリシー第６条に、保存する国（日本・アメリカ合衆国）と、米国の制度については個人情報保護委員会の公表資料へのリンクを書く。
 
