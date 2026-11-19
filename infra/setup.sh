@@ -2,11 +2,15 @@
 # 本番環境の土台を作る（#38, ADR 0042）。何度実行しても同じ結果になる。
 # 前提：GCP プロジェクトが作成済みで、請求先アカウントに紐づいていること（手順は infra/README.md）。
 # 初回は通知先のメールアドレスを ALERT_EMAIL で渡す（通知チャンネルを作ったあとは不要）。
+# 商品写真の R2 も作るので、config.sh の R2_ACCOUNT_ID の記入と `npx wrangler login` も済ませておく（#141）。
 set -euo pipefail
 cd "$(dirname "$0")"
 source ./config.sh
+require_r2_account_id
 
 gc() { gcloud --project "$PROJECT_ID" --quiet "$@"; }
+# wrangler は R2_ACCOUNT_ID のアカウントを操作する（ログインしたユーザーが複数のアカウントを持っていても迷わないように）
+wr() { CLOUDFLARE_ACCOUNT_ID="$R2_ACCOUNT_ID" WRANGLER_SEND_METRICS=false npx --yes "wrangler@${WRANGLER_VERSION}" "$@"; }
 
 echo "==> API を有効にする"
 # iamcredentials は署名付きURLの署名（IAM signBlob）と GitHub Actions からの SA の借用に使う（STORAGE, #39）。
@@ -24,8 +28,9 @@ fi
 # 無料枠（0.5GB）に収めるため、最新3件より古いイメージを消す（COST）
 policy=$(mktemp)
 cors=$(mktemp)
+r2_cors=$(mktemp)
 alert=$(mktemp)
-trap 'rm -f "$policy" "$cors" "$alert"' EXIT
+trap 'rm -f "$policy" "$cors" "$r2_cors" "$alert"' EXIT
 cat >"$policy" <<'JSON'
 [
   {"name": "keep-latest-3", "action": {"type": "Keep"}, "mostRecentVersions": {"keepCount": 3}},
@@ -75,6 +80,30 @@ for bucket in "${BUCKETS[@]}"; do
   gc storage buckets add-iam-policy-binding "gs://${bucket}" \
     --member "serviceAccount:${RUNTIME_SA}" --role roles/storage.objectAdmin >/dev/null
 done
+
+echo "==> Cloudflare R2 のバケット（#141, STORAGE, ADR 0051）"
+# location hint はバケットを最初に作るときだけ効く
+if ! wr r2 bucket info "$R2_BUCKET_ITEM_IMAGES" >/dev/null 2>&1; then
+  wr r2 bucket create "$R2_BUCKET_ITEM_IMAGES" --location "$R2_LOCATION"
+fi
+# 署名付きURLでしか見せないので、公開用の r2.dev のURLは付けない（独自ドメインも付けない）
+wr r2 bucket dev-url disable "$R2_BUCKET_ITEM_IMAGES" --force >/dev/null
+# ブラウザが署名付きURLに直接 PUT するときのヘッダー。Content-Length はブラウザが付けるので許可は要らない
+cat >"$r2_cors" <<JSON
+{
+  "rules": [
+    {
+      "allowed": {
+        "origins": [${origins%,}],
+        "methods": ["PUT"],
+        "headers": ["Content-Type", "If-None-Match"]
+      },
+      "maxAgeSeconds": 3600
+    }
+  ]
+}
+JSON
+wr r2 bucket cors set "$R2_BUCKET_ITEM_IMAGES" --file "$r2_cors" --force >/dev/null
 
 echo "==> 署名付きURLの署名の権限"
 # 鍵ファイルを持たず、自分自身の IAM signBlob で署名するため（STORAGE, #15）
@@ -200,4 +229,4 @@ else
   gc billing budgets update "$budget" "${budget_args[@]}" "${thresholds[@]}" >/dev/null
 fi
 
-echo "完了。次はシークレットの値を入れる（infra/README.md）"
+echo "完了。次は R2 API トークンの発行とシークレットの値を入れる（infra/README.md）"
